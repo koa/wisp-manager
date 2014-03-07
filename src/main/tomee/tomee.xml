@@ -1,0 +1,7 @@
+<Resource id="wisp-db2" type="DataSource">
+        JdbcDriver org.hsqldb.jdbcDriver
+        JdbcUrl    jdbc:hsqldb:file:/tmp/target/wisp-db
+        UserName   sa
+        Password
+        JtaManaged true
+</Resource>

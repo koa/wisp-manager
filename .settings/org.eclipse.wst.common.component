@@ -4,7 +4,9 @@
         <wb-resource deploy-path="/" source-path="/src/main/webapp" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/java"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/.apt_generated"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/resources"/>
         <property name="java-output-path" value="/wisp-manager/target/classes"/>
         <property name="context-root" value="wisp-manager"/>
+        <property name="component.exclusion.patterns" value="**/VAADIN/gwt-unitCache/**,**/VAADIN/widgetsets/WEB-INF/**,**/WEB-INF/lib/servlet-api-*.jar,**/WEB-INF/lib/vaadin-client-*.jar,**/WEB-INF/lib/jetty-*.jar,**/WEB-INF/lib/ant-*.jar,**/WEB-INF/classes/gwt-unitCache/**,**/WEB-INF/classes/themes/**,**/WEB-INF/classes/widgetsets/**"/>
     </wb-module>
 </project-modules>

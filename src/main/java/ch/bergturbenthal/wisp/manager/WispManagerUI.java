@@ -2,11 +2,15 @@ package ch.bergturbenthal.wisp.manager;
 
 import javax.inject.Inject;
 
+import ch.bergturbenthal.wisp.manager.view.MapView;
+
+import com.vaadin.annotations.Widgetset;
 import com.vaadin.cdi.CDIUI;
 import com.vaadin.cdi.CDIViewProvider;
 import com.vaadin.navigator.Navigator;
+import com.vaadin.server.Page;
 import com.vaadin.server.VaadinRequest;
-import com.vaadin.ui.CssLayout;
+import com.vaadin.ui.Layout;
 import com.vaadin.ui.MenuBar;
 import com.vaadin.ui.MenuBar.Command;
 import com.vaadin.ui.MenuBar.MenuItem;
@@ -14,6 +18,7 @@ import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
 @CDIUI
+@Widgetset("ch.bergturbenthal.wisp.manager.WispManagerWidgetSet")
 public class WispManagerUI extends UI {
 	@Inject
 	private CDIViewProvider viewProvider;
@@ -38,11 +43,12 @@ public class WispManagerUI extends UI {
 
 			@Override
 			public void menuSelected(final MenuItem selectedItem) {
-				System.out.println("Clicked");
+				Page.getCurrent().setUriFragment("!" + MapView.VIEW_ID);
 			}
 		});
 
-		final CssLayout contentLayout = new CssLayout();
+		final Layout contentLayout = new VerticalLayout();
+		contentLayout.setSizeFull();
 		navigatorLayout.addComponent(menuBar);
 		navigatorLayout.addComponent(contentLayout);
 

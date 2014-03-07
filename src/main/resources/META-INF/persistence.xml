@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.0"
+  xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_0.xsd">
+  <persistence-unit name="wisp-manager"
+    transaction-type="JTA">
+    <jta-data-source>wisp-db</jta-data-source>
+    <class>ch.bergturbenthal.wisp.manager.model.Station</class>
+    <class>ch.bergturbenthal.wisp.manager.model.Position</class>
+    <class>ch.bergturbenthal.wisp.manager.model.Connection</class>
+    <properties>
+      <property name="javax.persistence.schema-generation.database.action"
+        value="create" />
+      <property name="javax.persistence.schema-generation.scripts.action"
+        value="create" />
+      <property
+        name="javax.persistence.schema-generation.create-database-schemas"
+        value="true" />
+      <property name="eclipselink.ddl-generation" value="drop-and-create-tables" />
+      <property name="eclipselink.ddl-generation.output-mode"
+        value="both" />
+      <property name="openjpa.jdbc.SynchronizeMappings" value="buildSchema(ForeignKeys=true)" />
+    </properties>
+  </persistence-unit>
+</persistence>
