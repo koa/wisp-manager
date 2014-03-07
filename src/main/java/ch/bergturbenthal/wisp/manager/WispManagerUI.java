@@ -2,6 +2,7 @@ package ch.bergturbenthal.wisp.manager;
 
 import javax.inject.Inject;
 
+import ch.bergturbenthal.wisp.manager.view.ConnectionView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
 
 import com.vaadin.annotations.Widgetset;
@@ -39,11 +40,18 @@ public class WispManagerUI extends UI {
 				System.out.println("Clear clicked");
 			}
 		});
-		menuBar.addItem("Hello Mein", new Command() {
+		menuBar.addItem("Map", new Command() {
 
 			@Override
 			public void menuSelected(final MenuItem selectedItem) {
 				Page.getCurrent().setUriFragment("!" + MapView.VIEW_ID);
+			}
+		});
+		menuBar.addItem("Connections", new Command() {
+
+			@Override
+			public void menuSelected(final MenuItem selectedItem) {
+				Page.getCurrent().setUriFragment("!" + ConnectionView.VIEW_ID);
 			}
 		});
 

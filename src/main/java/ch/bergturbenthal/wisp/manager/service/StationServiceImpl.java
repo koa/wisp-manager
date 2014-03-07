@@ -1,10 +1,15 @@
 package ch.bergturbenthal.wisp.manager.service;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaQuery;
 
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 
@@ -24,10 +29,27 @@ public class StationServiceImpl implements StationService {
 	}
 
 	@Override
-	public Iterable<Station> listAllStations() {
-		final CriteriaQuery<Station> criteriaQuery = entityManager.getCriteriaBuilder().createQuery(Station.class);
-		criteriaQuery.from(Station.class);
-		return entityManager.createQuery(criteriaQuery).getResultList();
+	public Iterable<Connection> findConnectionsOfStation(final long station) {
+		final Station stationEntity = findStation(station);
+		final List<Connection> ret = new ArrayList<>();
+		ret.addAll(stationEntity.getBeginningConnections());
+		ret.addAll(stationEntity.getEndingConnections());
+		return ret;
+	}
+
+	@Override
+	public Station findStation(final long id) {
+		return entityManager.find(Station.class, Long.valueOf(id));
+	}
+
+	@Override
+	public Collection<Connection> listAllConnections() {
+		return queryAll(Connection.class);
+	}
+
+	@Override
+	public Collection<Station> listAllStations() {
+		return queryAll(Station.class);
 	}
 
 	@Override
@@ -39,6 +61,26 @@ public class StationServiceImpl implements StationService {
 		storedStation.setPosition(newPosition);
 		entityManager.persist(storedStation);
 		return storedStation;
+	}
+
+	private <T> Collection<T> queryAll(final Class<T> type) {
+		final CriteriaQuery<T> criteriaQuery = entityManager.getCriteriaBuilder().createQuery(type);
+		criteriaQuery.from(type);
+		return entityManager.createQuery(criteriaQuery).getResultList();
+	}
+
+	@Override
+	public void removeStation(final Station bean) {
+		entityManager.remove(entityManager.find(Station.class, bean.getId()));
+	}
+
+	@Override
+	public void updateStation(final Station station) {
+		if (station.getId() == null) {
+			entityManager.persist(station);
+		} else {
+			entityManager.merge(station);
+		}
 	}
 
 }
