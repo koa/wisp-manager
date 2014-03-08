@@ -30,6 +30,7 @@ import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Notification;
+import com.vaadin.ui.VerticalLayout;
 
 @CDIView(value = MapView.VIEW_ID)
 public class MapView extends CustomComponent implements View {
@@ -93,6 +94,7 @@ public class MapView extends CustomComponent implements View {
 			@Override
 			public void markerDragged(final GoogleMapMarker draggedMarker, final LatLon oldPosition) {
 				stationService.moveStation(draggedMarker.getId(), new Position(draggedMarker.getPosition()));
+				redrawLines(googleMap);
 			}
 		});
 		googleMap.addMarkerClickListener(new MarkerClickListener() {
@@ -108,24 +110,6 @@ public class MapView extends CustomComponent implements View {
 				});
 			}
 		});
-		final LatLon ne = new LatLon(Double.MIN_VALUE, Double.MIN_VALUE);
-		final LatLon sw = new LatLon(Double.MAX_VALUE, Double.MAX_VALUE);
-		for (final Station station : stationService.listAllStations()) {
-			final double lat = station.getPosition().getLat();
-			final double lon = station.getPosition().getLon();
-			if (lat > ne.getLat()) {
-				ne.setLat(lat);
-			}
-			if (lat < sw.getLat()) {
-				sw.setLat(lat);
-			}
-			if (lon > ne.getLon()) {
-				ne.setLon(lon);
-			}
-			if (lon < sw.getLon()) {
-				sw.setLon(lon);
-			}
-		}
 		updateMarkers(googleMap);
 		googleMap.setSizeFull();
 		editStationForm.addComponent(fieldGroup.buildAndBind("Name", "name"));
@@ -161,23 +145,23 @@ public class MapView extends CustomComponent implements View {
 		}));
 		editStationForm.setEnabled(false);
 
-		// final VerticalLayout editPanel = new VerticalLayout();
-		final HorizontalSplitPanel splitPanel = new HorizontalSplitPanel(editStationForm, googleMap);
+		final VerticalLayout editPanel = new VerticalLayout(editStationForm);
+		editPanel.addComponent(new Button("zoom all", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				zoomAll(googleMap);
+			}
+		}));
+		final HorizontalSplitPanel splitPanel = new HorizontalSplitPanel(editPanel, googleMap);
 		splitPanel.setSplitPosition(20, Unit.PERCENTAGE);
 		splitPanel.setSizeFull();
 		setCompositionRoot(splitPanel);
 		setSizeFull();
-		if (ne.getLat() != Double.MIN_VALUE) {
-			googleMap.fitToBounds(ne, sw);
-		}
+		zoomAll(googleMap);
 	}
 
-	private void updateMarkers(final GoogleMap googleMap) {
-		editStationForm.setEnabled(false);
-		googleMap.clearMarkers();
-		for (final Station station : stationService.listAllStations()) {
-			drawStation(googleMap, station);
-		}
+	private void redrawLines(final GoogleMap googleMap) {
 		googleMap.clearPolyLines();
 		for (final Connection connection : stationService.listAllConnections()) {
 			final Station startStation = connection.getStartStation();
@@ -192,7 +176,39 @@ public class MapView extends CustomComponent implements View {
 			polyline.setId(connection.getId().longValue());
 			googleMap.addPolyline(polyline);
 		}
+	}
 
+	private void updateMarkers(final GoogleMap googleMap) {
+		editStationForm.setEnabled(false);
+		googleMap.clearMarkers();
+		for (final Station station : stationService.listAllStations()) {
+			drawStation(googleMap, station);
+		}
+		redrawLines(googleMap);
+	}
+
+	private void zoomAll(final GoogleMap googleMap) {
+		final LatLon ne = new LatLon(Double.MIN_VALUE, Double.MIN_VALUE);
+		final LatLon sw = new LatLon(Double.MAX_VALUE, Double.MAX_VALUE);
+		for (final Station station : stationService.listAllStations()) {
+			final double lat = station.getPosition().getLat();
+			final double lon = station.getPosition().getLon();
+			if (lat > ne.getLat()) {
+				ne.setLat(lat);
+			}
+			if (lat < sw.getLat()) {
+				sw.setLat(lat);
+			}
+			if (lon > ne.getLon()) {
+				ne.setLon(lon);
+			}
+			if (lon < sw.getLon()) {
+				sw.setLon(lon);
+			}
+		}
+		if (ne.getLat() != Double.MIN_VALUE) {
+			googleMap.fitToBounds(ne, sw);
+		}
 	}
 
 }
