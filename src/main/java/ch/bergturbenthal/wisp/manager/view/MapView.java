@@ -9,6 +9,7 @@ import org.vaadin.dialogs.ConfirmDialog;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
 
@@ -36,6 +37,8 @@ import com.vaadin.ui.VerticalLayout;
 public class MapView extends CustomComponent implements View {
 
 	public static final String VIEW_ID = "Map";
+	@EJB
+	private ConnectionService connectionService;
 	private FormLayout editStationForm;
 	@EJB
 	private StationService stationService;
@@ -163,7 +166,7 @@ public class MapView extends CustomComponent implements View {
 
 	private void redrawLines(final GoogleMap googleMap) {
 		googleMap.clearPolyLines();
-		for (final Connection connection : stationService.listAllConnections()) {
+		for (final Connection connection : connectionService.listAllConnections()) {
 			final Station startStation = connection.getStartStation();
 			if (startStation == null) {
 				continue;

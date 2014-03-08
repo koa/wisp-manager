@@ -6,28 +6,24 @@ import javax.ejb.TransactionManagement;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
-import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 
 import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 
 @Stateless
 @TransactionManagement
-public class StationProviderBean extends MutableLocalEntityProvider<Station> {
+public class NetworkDeviceProviderBean extends MutableLocalEntityProvider<NetworkDevice> {
 	@PersistenceContext
-	private EntityManager entityManager;
+	private EntityManager em;
 
-	public StationProviderBean() {
-		super(Station.class);
+	public NetworkDeviceProviderBean() {
+		super(NetworkDevice.class);
 		setTransactionsHandledByProvider(false);
 	}
 
 	@PostConstruct
 	public void init() {
-		setEntityManager(entityManager);
-		/*
-		 * The entity manager is transaction-scoped, which means that the entities will be automatically detached when the transaction is closed.
-		 * Therefore, we do not need to explicitly detach them.
-		 */
+		setEntityManager(em);
 		setEntitiesDetached(false);
 	}
 

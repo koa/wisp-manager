@@ -30,4 +30,5 @@ public class ConnectionProviderBean extends MutableLocalEntityProvider<Connectio
 		 */
 		setEntitiesDetached(false);
 	}
+
 }

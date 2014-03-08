@@ -9,10 +9,12 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
 @Entity
 // @Table(uniqueConstraints = @UniqueConstraint(columnNames = { "endStation", "startStation" }))
+@EqualsAndHashCode(of = "id")
 public class Connection {
 	@OneToMany(mappedBy = "connection", orphanRemoval = true)
 	private List<Bridge> bridges;

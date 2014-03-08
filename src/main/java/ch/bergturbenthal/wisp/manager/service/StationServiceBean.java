@@ -14,7 +14,7 @@ import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 
 @Stateless
-public class StationServiceImpl implements StationService {
+public class StationServiceBean implements StationService {
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -40,11 +40,6 @@ public class StationServiceImpl implements StationService {
 	@Override
 	public Station findStation(final long id) {
 		return entityManager.find(Station.class, Long.valueOf(id));
-	}
-
-	@Override
-	public Collection<Connection> listAllConnections() {
-		return queryAll(Connection.class);
 	}
 
 	@Override

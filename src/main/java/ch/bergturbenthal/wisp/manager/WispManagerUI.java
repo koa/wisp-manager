@@ -4,6 +4,7 @@ import javax.inject.Inject;
 
 import ch.bergturbenthal.wisp.manager.view.ConnectionView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
+import ch.bergturbenthal.wisp.manager.view.NetworkDeviceView;
 
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.cdi.CDIUI;
@@ -44,17 +45,24 @@ public class WispManagerUI extends UI {
 
 			@Override
 			public void menuSelected(final MenuItem selectedItem) {
-				Page.getCurrent().setUriFragment("!" + MapView.VIEW_ID);
+				navigateTo(MapView.VIEW_ID);
 			}
 		});
 		menuBar.addItem("Connections", new Command() {
 
 			@Override
 			public void menuSelected(final MenuItem selectedItem) {
-				Page.getCurrent().setUriFragment("!" + ConnectionView.VIEW_ID);
+				navigateTo(ConnectionView.VIEW_ID);
 			}
 		});
+		menuBar.addItem("Network Devices", new Command() {
 
+			@Override
+			public void menuSelected(final MenuItem selectedItem) {
+				navigateTo(NetworkDeviceView.VIEW_ID);
+			}
+		});
+		navigateTo(MapView.VIEW_ID);
 		final Layout contentLayout = new VerticalLayout();
 		contentLayout.setSizeFull();
 		navigatorLayout.addComponent(menuBar);
@@ -66,6 +74,10 @@ public class WispManagerUI extends UI {
 		navigator.addProvider(viewProvider);
 
 		setContent(navigatorLayout);
+	}
+
+	private void navigateTo(final String viewId) {
+		Page.getCurrent().setUriFragment("!" + viewId);
 	}
 
 }

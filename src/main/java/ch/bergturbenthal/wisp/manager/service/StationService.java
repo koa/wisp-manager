@@ -18,8 +18,6 @@ public interface StationService {
 
 	Collection<Station> listAllStations();
 
-	Collection<Connection> listAllConnections();
-
 	void removeStation(final Station bean);
 
 	Iterable<Connection> findConnectionsOfStation(final long station);

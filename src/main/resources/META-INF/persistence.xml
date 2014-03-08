@@ -9,6 +9,9 @@
     <class>ch.bergturbenthal.wisp.manager.model.Position</class>
     <class>ch.bergturbenthal.wisp.manager.model.Connection</class>
     <class>ch.bergturbenthal.wisp.manager.model.Bridge</class>
+    <class>ch.bergturbenthal.wisp.manager.model.NetworkDevice</class>
+    <class>ch.bergturbenthal.wisp.manager.model.NetworkInterface</class>
+    <class>ch.bergturbenthal.wisp.manager.model.MacAddress</class>
     <properties>
       <property name="javax.persistence.schema-generation.database.action"
         value="create" />

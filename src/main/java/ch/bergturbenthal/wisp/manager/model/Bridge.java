@@ -6,9 +6,11 @@ import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-@Entity
 @Data
+@Entity
+@EqualsAndHashCode(of = "id")
 public class Bridge {
 	@ManyToOne
 	private Connection connection;
