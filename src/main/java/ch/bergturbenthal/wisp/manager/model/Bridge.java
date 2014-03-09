@@ -12,6 +12,8 @@ import lombok.EqualsAndHashCode;
 @Entity
 @EqualsAndHashCode(of = "id")
 public class Bridge {
+	private RangePair apHost;
+	private RangePair clientHost;
 	@ManyToOne
 	private Connection connection;
 	@Id

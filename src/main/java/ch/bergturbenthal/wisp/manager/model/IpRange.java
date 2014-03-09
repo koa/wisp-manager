@@ -3,13 +3,16 @@ package ch.bergturbenthal.wisp.manager.model;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
@@ -24,22 +27,23 @@ import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 @EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @ToString(exclude = { "parentRange", "reservations" })
-public class IpReservationRange {
+@Table(indexes = { @Index(columnList = "range.address, rangeMask", unique = true) })
+public class IpRange {
 	private String comment;
 	@Id
 	@GeneratedValue
 	private Long id;
 	@ManyToOne
-	private IpReservationRange parentRange;
+	private IpRange parentRange;
 	private IpNetwork range;
 	private int rangeMask;
-	@OneToMany(mappedBy = "parentRange")
-	private Collection<IpReservationRange> reservations = new ArrayList<>(0);
+	@OneToMany(mappedBy = "parentRange", cascade = CascadeType.ALL)
+	private Collection<IpRange> reservations = new ArrayList<>(0);
 	@NotNull
 	@Enumerated(EnumType.STRING)
 	private AddressRangeType type;
 
-	public IpReservationRange(final IpNetwork range, final int rangeMask, final AddressRangeType rangeType) {
+	public IpRange(final IpNetwork range, final int rangeMask, final AddressRangeType rangeType) {
 		this.range = range;
 		this.rangeMask = rangeMask;
 		type = rangeType;

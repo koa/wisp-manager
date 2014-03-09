@@ -16,10 +16,10 @@ import javax.persistence.OneToOne;
 import javax.persistence.OrderColumn;
 import javax.validation.constraints.NotNull;
 
-import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
-import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 
 @Data
 @Entity
@@ -53,6 +53,8 @@ public class NetworkDevice {
 
 	@OneToOne(mappedBy = "device")
 	private Station station;
+	private IpAddress v4Address;
+	private IpAddress v6Address;
 
 	public String getTitle() {
 		if (interfaces != null && !interfaces.isEmpty()) {
@@ -60,4 +62,5 @@ public class NetworkDevice {
 		}
 		return id + " - " + deviceModel;
 	}
+
 }

@@ -2,9 +2,9 @@ package ch.bergturbenthal.wisp.manager.view;
 
 import javax.ejb.EJB;
 
-import ch.bergturbenthal.wisp.manager.model.IpReservationRange;
+import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementBean;
-import ch.bergturbenthal.wisp.manager.service.IpAddressReservationRangeProviderBean;
+import ch.bergturbenthal.wisp.manager.service.IpRangeProviderBean;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
 import com.vaadin.cdi.CDIView;
@@ -19,11 +19,11 @@ public class RootRangesView extends CustomComponent implements View {
 	@EJB
 	private AddressManagementBean addressManagementBean;
 	@EJB
-	private IpAddressReservationRangeProviderBean ipV4AddressReservationRangeProviderBean;
+	private IpRangeProviderBean ipV4AddressReservationRangeProviderBean;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
-		final JPAContainer<IpReservationRange> connectionContainer = new JPAContainer<>(IpReservationRange.class);
+		final JPAContainer<IpRange> connectionContainer = new JPAContainer<>(IpRange.class);
 		connectionContainer.setEntityProvider(ipV4AddressReservationRangeProviderBean);
 		addressManagementBean.initAddressRanges();
 		setCompositionRoot(new Label("Empty"));

@@ -25,6 +25,7 @@ public class Station {
 	@Id
 	@GeneratedValue
 	private Long id;
+	private RangePair loopback;
 	private String name;
 	private Position position;
 

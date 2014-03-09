@@ -1,42 +1,60 @@
 package ch.bergturbenthal.wisp.manager.model;
 
 import java.math.BigInteger;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 
 @Data
 @Embeddable
 @NoArgsConstructor
 @AllArgsConstructor
 public class IpAddress {
+	@Enumerated(EnumType.STRING)
+	private IpAddressType addressType;
 	@Column(columnDefinition = "numeric")
 	private BigInteger rawValue;
+
+	public IpAddress(final BigInteger ipAddress) {
+		rawValue = ipAddress;
+		if (getInetAddress() instanceof Inet4Address) {
+			addressType = IpAddressType.V4;
+		} else {
+			addressType = IpAddressType.V6;
+		}
+	}
 
 	public IpAddress(final InetAddress ipAddress) {
 		final byte[] address = ipAddress.getAddress();
 		rawValue = new BigInteger(address);
-		// rawValue = ((address[0]) & 0xff) << 24 | ((address[1]) & 0xff) << 16 | ((address[2]) & 0xff) << 8 | ((address[3]) & 0xff);
+		if (ipAddress instanceof Inet4Address) {
+			addressType = IpAddressType.V4;
+		} else {
+			addressType = IpAddressType.V6;
+		}
 	}
 
-	public IpAddress(final long ipAddress) {
-		rawValue = BigInteger.valueOf(ipAddress);
-		// rawValue = (int) ipAddress;
+	public InetAddress getAddressOfNetwork(final long addressIndex) {
+		try {
+			return InetAddress.getByAddress(rawValue.add(BigInteger.valueOf(addressIndex)).toByteArray());
+		} catch (final UnknownHostException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public InetAddress getInetAddress() {
 		try {
 			return InetAddress.getByAddress(rawValue.toByteArray());
-			// return (Inet4Address) Inet4Address.getByAddress(new byte[] { (byte) ((rawValue >> 24) & 0xff),
-			// (byte) ((rawValue >> 16) & 0xff),
-			// (byte) ((rawValue >> 8) & 0xff),
-			// (byte) (rawValue & 0xff) });
 		} catch (final UnknownHostException e) {
 			throw new RuntimeException(e);
 		}

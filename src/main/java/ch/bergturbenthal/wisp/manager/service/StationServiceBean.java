@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -15,6 +16,8 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 
 @Stateless
 public class StationServiceBean implements StationService {
+	@EJB
+	private AddressManagementBean addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -24,6 +27,7 @@ public class StationServiceBean implements StationService {
 		station.setPosition(position);
 		entityManager.persist(station);
 		station.setName("Station-" + station.getId());
+		addressManagementBean.fillStation(station);
 		entityManager.persist(station);
 		return station;
 	}
