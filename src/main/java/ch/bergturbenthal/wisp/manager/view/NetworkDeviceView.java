@@ -7,8 +7,8 @@ import javax.ejb.EJB;
 
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
-import ch.bergturbenthal.wisp.manager.model.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
 
 import com.vaadin.addon.jpacontainer.EntityItem;

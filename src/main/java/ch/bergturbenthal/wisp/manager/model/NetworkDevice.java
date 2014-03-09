@@ -12,9 +12,12 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.OrderColumn;
 import javax.validation.constraints.NotNull;
 
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -44,10 +47,12 @@ public class NetworkDevice {
 	@Id
 	@GeneratedValue
 	private Long id;
-
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
+
+	@OneToOne(mappedBy = "device")
+	private Station station;
 
 	public String getTitle() {
 		if (interfaces != null && !interfaces.isEmpty()) {

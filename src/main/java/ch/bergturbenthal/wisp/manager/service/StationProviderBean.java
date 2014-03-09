@@ -14,7 +14,7 @@ import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 @TransactionManagement
 public class StationProviderBean extends MutableLocalEntityProvider<Station> {
 	@PersistenceContext
-	private EntityManager entityManager;
+	private EntityManager em;
 
 	public StationProviderBean() {
 		super(Station.class);
@@ -23,7 +23,7 @@ public class StationProviderBean extends MutableLocalEntityProvider<Station> {
 
 	@PostConstruct
 	public void init() {
-		setEntityManager(entityManager);
+		setEntityManager(em);
 		/*
 		 * The entity manager is transaction-scoped, which means that the entities will be automatically detached when the transaction is closed.
 		 * Therefore, we do not need to explicitly detach them.

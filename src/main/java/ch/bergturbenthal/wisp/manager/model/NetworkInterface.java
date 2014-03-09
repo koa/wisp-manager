@@ -7,6 +7,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;

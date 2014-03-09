@@ -1,21 +1,34 @@
 package ch.bergturbenthal.wisp.manager.view;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 import javax.ejb.EJB;
 
 import org.vaadin.dialogs.ConfirmDialog;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
+import ch.bergturbenthal.wisp.manager.service.StationProviderBean;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
 
+import com.vaadin.addon.jpacontainer.EntityItem;
+import com.vaadin.addon.jpacontainer.JPAContainer;
+import com.vaadin.addon.jpacontainer.filter.Filters;
 import com.vaadin.cdi.CDIView;
-import com.vaadin.data.fieldgroup.BeanFieldGroup;
+import com.vaadin.data.Container.Filter;
+import com.vaadin.data.Property;
+import com.vaadin.data.fieldgroup.DefaultFieldGroupFieldFactory;
+import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
+import com.vaadin.data.util.BeanItem;
+import com.vaadin.data.util.converter.Converter;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
 import com.vaadin.tapio.googlemaps.client.LatLon;
@@ -27,7 +40,9 @@ import com.vaadin.tapio.googlemaps.client.overlays.GoogleMapPolyline;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
+import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.CustomComponent;
+import com.vaadin.ui.Field;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Notification;
@@ -39,16 +54,28 @@ public class MapView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Map";
 	@EJB
 	private ConnectionService connectionService;
+	private JPAContainer<NetworkDevice> devicesContainer;
 	private FormLayout editStationForm;
+	@EJB
+	private NetworkDeviceProviderBean networkDeviceProviderBean;
+	@EJB
+	private StationProviderBean stationProviderBean;
 	@EJB
 	private StationService stationService;
 
-	private void activateStation(final BeanFieldGroup<Station> fieldGroup, final Station station) {
-		fieldGroup.setItemDataSource(station);
+	private void activateStation(final FieldGroup fieldGroup, final EntityItem<Station> stationItem) {
+		fieldGroup.setItemDataSource(stationItem);
+		devicesContainer.removeAllContainerFilters();
+		devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.eq("station", stationItem.getEntity())));
+		final Filter[] modelFilters = new Filter[NetworkDeviceModel.stationModels.length];
+		for (int i = 0; i < modelFilters.length; i++) {
+			modelFilters[i] = Filters.eq("deviceModel", NetworkDeviceModel.stationModels[i]);
+		}
+		devicesContainer.addContainerFilter(Filters.or(modelFilters));
 		editStationForm.setEnabled(true);
 	}
 
-	private void doIfDiscardOk(final BeanFieldGroup<Station> fieldGroup, final Runnable runnable) {
+	private void doIfDiscardOk(final FieldGroup fieldGroup, final Runnable runnable) {
 		if (fieldGroup.isModified()) {
 			ConfirmDialog.show(getUI(), "Sure to discard changes?", new ConfirmDialog.Listener() {
 
@@ -72,9 +99,17 @@ public class MapView extends CustomComponent implements View {
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
+
+		final JPAContainer<Station> stationContainer = new JPAContainer<>(Station.class);
+		stationContainer.setEntityProvider(stationProviderBean);
+		devicesContainer = new JPAContainer<>(NetworkDevice.class);
+		devicesContainer.setEntityProvider(networkDeviceProviderBean);
+
 		editStationForm = new FormLayout();
 
-		final BeanFieldGroup<Station> fieldGroup = new BeanFieldGroup<>(Station.class);
+		final Station emptyStation = new Station();
+		emptyStation.setDevice(new NetworkDevice());
+		final FieldGroup fieldGroup = new FieldGroup(new BeanItem<Station>(emptyStation));
 		final LatLon pos = new LatLon();
 		final GoogleMap googleMap = new GoogleMap(pos, null);
 		googleMap.addMapClickListener(new MapClickListener() {
@@ -87,7 +122,7 @@ public class MapView extends CustomComponent implements View {
 					public void run() {
 						final Station newStation = stationService.addStation(new Position(position));
 						drawStation(googleMap, newStation);
-						activateStation(fieldGroup, newStation);
+						activateStation(fieldGroup, stationContainer.getItem(newStation.getId()));
 					}
 				});
 			}
@@ -107,15 +142,57 @@ public class MapView extends CustomComponent implements View {
 				doIfDiscardOk(fieldGroup, new Runnable() {
 					@Override
 					public void run() {
-						final Station station = stationService.findStation(clickedMarker.getId());
-						activateStation(fieldGroup, station);
+						final EntityItem<Station> stationItem = stationContainer.getItem(Long.valueOf(clickedMarker.getId()));
+						activateStation(fieldGroup, stationItem);
 					}
 				});
 			}
 		});
 		updateMarkers(googleMap);
 		googleMap.setSizeFull();
+		fieldGroup.setFieldFactory(new DefaultFieldGroupFieldFactory() {
+
+			@Override
+			public <T extends Field> T createField(final Class<?> dataType, final Class<T> fieldType) {
+				if (dataType.isAssignableFrom(NetworkDevice.class)) {
+					final ComboBox comboBox = new ComboBox("Device", devicesContainer);
+					comboBox.setItemCaptionPropertyId("title");
+					comboBox.setConverter(new Converter<Object, NetworkDevice>() {
+
+						@Override
+						public NetworkDevice convertToModel(final Object value, final Class<? extends NetworkDevice> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+							if (value == null) {
+								return new NetworkDevice();
+							}
+							return devicesContainer.getItem(value).getEntity();
+						}
+
+						@Override
+						public Object convertToPresentation(final NetworkDevice value, final Class<? extends Object> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+							if (value == null) {
+								return null;
+							}
+							return value.getId();
+						}
+
+						@Override
+						public Class<NetworkDevice> getModelType() {
+							return NetworkDevice.class;
+						}
+
+						@Override
+						public Class<Object> getPresentationType() {
+							// TODO Auto-generated method stub
+							return Object.class;
+						}
+					});
+					return (T) comboBox;
+				}
+				return super.createField(dataType, fieldType);
+			}
+		});
 		editStationForm.addComponent(fieldGroup.buildAndBind("Name", "name"));
+		editStationForm.addComponent(fieldGroup.buildAndBind("Device", "device"));
 
 		editStationForm.addComponent(new Button("Save", new ClickListener() {
 
@@ -123,8 +200,8 @@ public class MapView extends CustomComponent implements View {
 			public void buttonClick(final ClickEvent event) {
 				try {
 					fieldGroup.commit();
-					final Station bean = fieldGroup.getItemDataSource().getBean();
-					stationService.updateStation(bean);
+					// final Station bean = fieldGroup.getItemDataSource().getBean();
+					// stationService.updateStation(bean);
 				} catch (final CommitException e) {
 					Notification.show(e.getLocalizedMessage());
 				}
@@ -141,8 +218,9 @@ public class MapView extends CustomComponent implements View {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
-				final Station bean = fieldGroup.getItemDataSource().getBean();
-				stationService.removeStation(bean);
+				@SuppressWarnings("unchecked")
+				final Property<Long> idProperty = fieldGroup.getItemDataSource().getItemProperty("id");
+				stationContainer.removeItem(idProperty.getValue());
 				updateMarkers(googleMap);
 			}
 		}));
