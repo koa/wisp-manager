@@ -1,10 +1,15 @@
 package ch.bergturbenthal.wisp.manager;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
 import javax.inject.Inject;
 
 import ch.bergturbenthal.wisp.manager.view.ConnectionView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
 import ch.bergturbenthal.wisp.manager.view.NetworkDeviceView;
+import ch.bergturbenthal.wisp.manager.view.RootRangesView;
 
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.cdi.CDIUI;
@@ -41,27 +46,25 @@ public class WispManagerUI extends UI {
 				System.out.println("Clear clicked");
 			}
 		});
-		menuBar.addItem("Map", new Command() {
 
-			@Override
-			public void menuSelected(final MenuItem selectedItem) {
-				navigateTo(MapView.VIEW_ID);
-			}
-		});
-		menuBar.addItem("Connections", new Command() {
+		final Map<String, String> menuEntries = new LinkedHashMap<>();
+		menuEntries.put("Map", MapView.VIEW_ID);
+		menuEntries.put("Connections", ConnectionView.VIEW_ID);
+		menuEntries.put("Network Devices", NetworkDeviceView.VIEW_ID);
+		menuEntries.put("Network Ranges", RootRangesView.VIEW_ID);
 
-			@Override
-			public void menuSelected(final MenuItem selectedItem) {
-				navigateTo(ConnectionView.VIEW_ID);
-			}
-		});
-		menuBar.addItem("Network Devices", new Command() {
+		for (final Entry<String, String> entry : menuEntries.entrySet()) {
+			final String viewId = entry.getValue();
+			menuBar.addItem(entry.getKey(), new Command() {
 
-			@Override
-			public void menuSelected(final MenuItem selectedItem) {
-				navigateTo(NetworkDeviceView.VIEW_ID);
-			}
-		});
+				@Override
+				public void menuSelected(final MenuItem selectedItem) {
+					navigateTo(viewId);
+				}
+			});
+
+		}
+
 		navigateTo(MapView.VIEW_ID);
 		final Layout contentLayout = new VerticalLayout();
 		contentLayout.setSizeFull();

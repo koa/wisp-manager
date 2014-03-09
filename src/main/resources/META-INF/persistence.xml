@@ -12,6 +12,10 @@
     <class>ch.bergturbenthal.wisp.manager.model.NetworkDevice</class>
     <class>ch.bergturbenthal.wisp.manager.model.NetworkInterface</class>
     <class>ch.bergturbenthal.wisp.manager.model.MacAddress</class>
+    <class>ch.bergturbenthal.wisp.manager.model.IpAddress</class>
+    <class>ch.bergturbenthal.wisp.manager.model.IpNetwork</class>
+    <class>ch.bergturbenthal.wisp.manager.model.IpReservationRange
+    </class>
     <properties>
       <property name="javax.persistence.schema-generation.database.action"
         value="create" />
