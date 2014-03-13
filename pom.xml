@@ -45,9 +45,9 @@
   <name>wisp-manager</name>
 
   <scm>
-    <url>https://github.com/vaadin/cdi</url>
-    <connection>git:https://github.com/vaadin/cdi.git</connection>
-    <developerConnection>git:https://github.com/vaadin/cdi.git</developerConnection>
+    <url>https://github.com/koa/wisp-manager</url>
+    <connection>scm:git:git@github.com:koa/wisp-manager.git</connection>
+    <developerConnection>scm:git:git@github.com:koa/wisp-manager.git</developerConnection>
   </scm>
 
 
