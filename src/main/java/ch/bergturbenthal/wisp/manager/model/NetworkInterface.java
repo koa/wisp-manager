@@ -21,6 +21,7 @@ public class NetworkInterface {
 	@Id
 	@GeneratedValue
 	private Long id;
+	// @Column(unique = true, nullable = true)
 	private MacAddress macAddress;
 	@ManyToOne(optional = false)
 	private NetworkDevice networkDevice;

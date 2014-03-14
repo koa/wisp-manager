@@ -50,6 +50,8 @@ public class NetworkDevice {
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
+	@Column(unique = true)
+	private String serialNumber;
 
 	@OneToOne(mappedBy = "device")
 	private Station station;

@@ -17,7 +17,7 @@ public enum NetworkDeviceModel {
 	NANO_BRIDGE_M5(	new MacAddressIncrementorFactory(2, 0x10000),
 									NetworkOperatingSystem.UBIQUITY_AIR_OS,
 									NetworkDeviceType.WLAN,
-									null,
+									createAddress("192.168.1.1"),
 									Arrays.asList(NetworkInterfaceType.WLAN, NetworkInterfaceType.LAN)),
 	RB750GL(new MacAddressIncrementorFactory(5, 1),
 					NetworkOperatingSystem.MIKROTIK_ROUTER_OS,

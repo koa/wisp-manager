@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view;
 
+import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementBean;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
 
 import com.vaadin.addon.jpacontainer.EntityItem;
@@ -38,6 +40,8 @@ import com.vaadin.ui.VerticalLayout;
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@EJB
+	private NetworkDeviceManagementBean networkDeviceManagementBean;
+	@EJB
 	private NetworkDeviceProviderBean networkDeviceProviderBean;
 
 	@Override
@@ -64,6 +68,19 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				}
 			}));
 		}
+		selectDeviceLayout.addComponent(new Button("identify 192.168.88.1", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				try {
+					final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("192.168.88.1"));
+					devicesContainer.addEntity(detectNetworkDevice);
+
+				} catch (final Throwable e) {
+					e.printStackTrace();
+				}
+			}
+		}));
 		selectDeviceLayout.addComponent(new Button("remove Device", new ClickListener() {
 
 			@Override
