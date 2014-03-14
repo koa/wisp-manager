@@ -1,0 +1,20 @@
+<arquillian xmlns="http://jboss.org/schema/arquillian"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+        http://jboss.org/schema/arquillian
+        http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
+  <container qualifier="tomee" default="true">
+    <configuration>
+      <property name="httpPort">-1</property>
+      <property name="stopPort">-1</property>
+      <property name="properties">
+            wisp-manager = new://Resource?type=DataSource
+            wisp-manager.JdbcUrl jdbc:hsqldb:mem:petcat
+            wisp-manager.JdbcDriver org.hsqldb.jdbc.JDBCDriver
+            wisp-manager.UserName sa
+            wisp-manager.Password
+            wisp-manager.JtaManaged true
+      </property>
+    </configuration>
+  </container>
+</arquillian>

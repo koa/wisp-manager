@@ -93,9 +93,9 @@
     </dependency>
     <!-- Java EE 6 API -->
     <dependency>
-      <groupId>javax</groupId>
+      <groupId>org.apache.openejb</groupId>
       <artifactId>javaee-api</artifactId>
-      <version>7.0</version>
+      <version>6.0-5</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -109,12 +109,12 @@
       <artifactId>googlemaps</artifactId>
       <version>0.8.0</version>
     </dependency>
-    <dependency>
+<!--     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
-      <version>2.3.2</version>
+      <version>2.3.0</version>
       <scope>provided</scope>
-    </dependency>
+    </dependency> -->
     <dependency>
       <groupId>org.vaadin.addon</groupId>
       <artifactId>confirmdialog</artifactId>
@@ -135,6 +135,17 @@
       <groupId>org.apache.openjpa</groupId>
       <artifactId>openjpa</artifactId>
       <version>2.3.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.arquillian.junit</groupId>
+      <artifactId>arquillian-junit-container</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.openejb</groupId>
+      <artifactId>arquillian-tomee-embedded</artifactId>
+      <version>1.6.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

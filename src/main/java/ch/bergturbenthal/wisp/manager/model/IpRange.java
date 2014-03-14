@@ -9,10 +9,8 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import javax.persistence.Index;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
-import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
@@ -27,7 +25,7 @@ import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 @EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @ToString(exclude = { "parentRange", "reservations" })
-@Table(indexes = { @Index(columnList = "range.address, rangeMask", unique = true) })
+// @Table(indexes = { @Index(columnList = "range.address, rangeMask", unique = true) })
 public class IpRange {
 	private String comment;
 	@Id
@@ -50,8 +48,11 @@ public class IpRange {
 	}
 
 	@Min(1)
-	public int getAvailableReservations() {
-		final int availableBitCount = range.getNetmask() - rangeMask;
+	public long getAvailableReservations() {
+		final int availableBitCount = rangeMask - range.getNetmask();
+		if (availableBitCount > 60) {
+			return Long.MAX_VALUE;
+		}
 		return 1 << availableBitCount;
 	}
 

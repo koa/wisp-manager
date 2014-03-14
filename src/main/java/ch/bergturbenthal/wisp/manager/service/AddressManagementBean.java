@@ -3,6 +3,7 @@ package ch.bergturbenthal.wisp.manager.service;
 import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.List;
@@ -28,6 +29,23 @@ public class AddressManagementBean {
 	@PersistenceContext
 	private EntityManager entityManager;
 
+	public IpRange addRootRange(final InetAddress rangeAddress, final int rangeMask, final int reservationMask, final String comment) {
+		if (reservationMask < rangeMask) {
+			throw new IllegalArgumentException("Error to create range for " + rangeAddress
+																					+ "/"
+																					+ rangeMask
+																					+ ": reservationMask ("
+																					+ reservationMask
+																					+ ") mask must be greater or equal than range mask ("
+																					+ rangeMask
+																					+ ")");
+		}
+		final IpRange reservationRange = new IpRange(new IpNetwork(new IpAddress(rangeAddress), rangeMask), reservationMask, AddressRangeType.ROOT);
+		reservationRange.setComment(comment);
+		entityManager.persist(reservationRange);
+		return reservationRange;
+	}
+
 	public void fillStation(final Station station) {
 		final Station mergedStation = entityManager.merge(station);
 		if (mergedStation.getLoopback() == null) {
@@ -35,18 +53,14 @@ public class AddressManagementBean {
 		}
 		final RangePair loopback = mergedStation.getLoopback();
 		if (loopback.getV4Address() == null) {
-			final IpRange v4Parent = findMatchingRange(AddressRangeType.LOOPBACK, IpAddressType.V4, 32);
-			final IpRange v4Loopbackip = reserveRangeInternal(v4Parent, AddressRangeType.LOOPBACK, 32);
-			loopback.setV4Address(v4Loopbackip);
+			loopback.setV4Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V4, 32, AddressRangeType.ASSIGNED, "Station " + station));
 		}
 		if (loopback.getV6Address() == null) {
-			final IpRange v6Parent = findMatchingRange(AddressRangeType.LOOPBACK, IpAddressType.V6, 128);
-			final IpRange v6LoopbackIp = reserveRangeInternal(v6Parent, AddressRangeType.LOOPBACK, 128);
-			loopback.setV6Address(v6LoopbackIp);
+			loopback.setV6Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V6, 128, AddressRangeType.ASSIGNED, "Station " + station));
 		}
 	}
 
-	private List<IpRange> findAllRootRanges() {
+	public List<IpRange> findAllRootRanges() {
 		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
 		final CriteriaQuery<IpRange> query = criteriaBuilder.createQuery(IpRange.class);
 		final Root<IpRange> from = query.from(IpRange.class);
@@ -55,6 +69,18 @@ public class AddressManagementBean {
 
 		final List<IpRange> resultList = entityManager.createQuery(query).getResultList();
 		return resultList;
+	}
+
+	public IpRange findAndReserveAddressRange(final AddressRangeType rangeType,
+																						final IpAddressType addressType,
+																						final int maxNetSize,
+																						final AddressRangeType typeOfReservation,
+																						final String comment) {
+		final IpRange parentRange = findMatchingRange(rangeType, addressType, maxNetSize);
+		if (parentRange == null) {
+			return null;
+		}
+		return reserveRange(parentRange, typeOfReservation == null ? AddressRangeType.ASSIGNED : typeOfReservation, maxNetSize, comment);
 	}
 
 	private IpRange findMatchingRange(final AddressRangeType rangeType, final IpAddressType addressType, final int maxNetSize) {
@@ -88,20 +114,16 @@ public class AddressManagementBean {
 			final List<IpRange> resultList = findAllRootRanges();
 			// System.out.println("Ranges: " + resultList);
 			if (resultList.isEmpty()) {
-				final IpRange ipV4ReservationRange = new IpRange(new IpNetwork(new IpAddress(Inet4Address.getByName("172.16.0.0")), 12), 16, AddressRangeType.ROOT);
-				entityManager.persist(ipV4ReservationRange);
-				final IpRange smallV4Ranges = reserveRangeInternal(ipV4ReservationRange, AddressRangeType.ADMINISTRATIVE, 24);
-				smallV4Ranges.setComment("Some small Ranges");
-				reserveRangeInternal(smallV4Ranges, AddressRangeType.LOOPBACK, 32);
-				reserveRangeInternal(smallV4Ranges, AddressRangeType.CONNECTION, 29);
-				// System.out.println("Added network: " + ipV4Network);
-				final IpRange ipV6ReservationRange = new IpRange(new IpNetwork(new IpAddress(Inet6Address.getByName("fd7e:907d:34ab::")), 48), 56, AddressRangeType.ROOT);
-				ipV6ReservationRange.setComment("Site Local Range");
-				final IpRange singleRanges = reserveRangeInternal(ipV6ReservationRange, AddressRangeType.ADMINISTRATIVE, 64);
-				singleRanges.setComment("Ranges for single addresses");
-				reserveRangeInternal(singleRanges, AddressRangeType.LOOPBACK, 128);
-				reserveRangeInternal(ipV6ReservationRange, AddressRangeType.CONNECTION, 64);
-				entityManager.persist(ipV6ReservationRange);
+
+				final IpRange ipV4ReservationRange = addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
+				final IpRange smallV4Ranges = reserveRange(ipV4ReservationRange, AddressRangeType.ADMINISTRATIVE, 24, "Some small Ranges");
+				reserveRange(smallV4Ranges, AddressRangeType.LOOPBACK, 32, null);
+				reserveRange(smallV4Ranges, AddressRangeType.CONNECTION, 29, null);
+				final IpRange ipV6ReservationRange = addRootRange(Inet6Address.getByName("fd7e:907d:34ab::"), 48, 56, "Internal v6 Range");
+				final IpRange singleRanges = reserveRange(ipV6ReservationRange, AddressRangeType.ADMINISTRATIVE, 64, "Ranges for single addresses");
+				reserveRange(singleRanges, AddressRangeType.LOOPBACK, 128, null);
+				reserveRange(ipV6ReservationRange, AddressRangeType.CONNECTION, 64, null);
+				System.out.println("v4-Network: " + ipV4ReservationRange);
 				System.out.println("v6-Network: " + ipV6ReservationRange);
 			}
 			for (final IpRange ipV4ReservationRange : resultList) {
@@ -112,11 +134,7 @@ public class AddressManagementBean {
 		}
 	}
 
-	public IpRange reserveRange(final IpRange parentRange, final AddressRangeType type, final int mask) {
-		return reserveRangeInternal(entityManager.merge(parentRange), type, mask);
-	}
-
-	private IpRange reserveRangeInternal(final IpRange parentRange, final AddressRangeType type, final int mask) {
+	public IpRange reserveRange(final IpRange parentRange, final AddressRangeType type, final int mask, final String comment) {
 		if (mask < parentRange.getRangeMask()) {
 			throw new IllegalArgumentException("To big range: " + mask + " parent allowes " + parentRange.getRangeMask());
 		}
@@ -125,7 +143,7 @@ public class AddressManagementBean {
 		final BigInteger rangeSize = BigInteger.valueOf(1).shiftLeft((isV4 ? 32 : 128) - parentRange.getRangeMask());
 		// for single v4-address -> skip first and last address
 		final boolean isV4SingleAddress = mask == 32 && isV4;
-		final int availableReservations = isV4SingleAddress ? parentRange.getAvailableReservations() - 1 : parentRange.getAvailableReservations();
+		final long availableReservations = isV4SingleAddress ? parentRange.getAvailableReservations() - 1 : parentRange.getAvailableReservations();
 		nextReservation:
 		for (int i = isV4SingleAddress ? 1 : 0; i < availableReservations; i++) {
 			final BigInteger candidateAddress = parentRangeStartAddress.add(rangeSize.multiply(BigInteger.valueOf(i)));
@@ -139,6 +157,7 @@ public class AddressManagementBean {
 			final IpRange newRange = new IpRange(new IpNetwork(new IpAddress(candidateAddress), parentRange.getRangeMask()), mask, type);
 			newRange.setParentRange(parentRange);
 			parentRange.getReservations().add(newRange);
+			newRange.setComment(comment);
 			entityManager.persist(newRange);
 			System.out.println("Reserved: " + newRange);
 			return newRange;
