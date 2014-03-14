@@ -1,6 +1,8 @@
 package ch.bergturbenthal.wisp.manager.model;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
@@ -27,6 +29,8 @@ public class Station {
 	private Long id;
 	private RangePair loopback;
 	private String name;
+	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
+	private Set<VLan> ownNetworks = new HashSet();
 	private Position position;
 
 }

@@ -6,7 +6,9 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
@@ -22,6 +24,7 @@ import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 
@@ -79,6 +82,23 @@ public class AddressManagementBean {
 		}
 		fillRangePair(loopback, AddressRangeType.LOOPBACK, 32, 128, "Station " + station.getName());
 		mergedStation.setLoopback(loopback);
+
+		Set<VLan> ownNetworks;
+		if (mergedStation.getOwnNetworks() == null) {
+			ownNetworks = new HashSet<>();
+		} else {
+			ownNetworks = mergedStation.getOwnNetworks();
+		}
+		if (ownNetworks.isEmpty()) {
+			final VLan vLan = new VLan();
+			vLan.setVlanId(0);
+			final RangePair address = new RangePair();
+			fillRangePair(address, AddressRangeType.USER, 24, 64, null);
+			vLan.setAddress(address);
+			vLan.setStation(mergedStation);
+			ownNetworks.add(vLan);
+		}
+		mergedStation.setOwnNetworks(ownNetworks);
 		return mergedStation;
 	}
 
@@ -141,10 +161,12 @@ public class AddressManagementBean {
 				final IpRange smallV4Ranges = reserveRange(ipV4ReservationRange, AddressRangeType.ADMINISTRATIVE, 24, "Some small Ranges");
 				reserveRange(smallV4Ranges, AddressRangeType.LOOPBACK, 32, null);
 				reserveRange(smallV4Ranges, AddressRangeType.CONNECTION, 29, null);
+				reserveRange(ipV4ReservationRange, AddressRangeType.USER, 24, null);
 				final IpRange ipV6ReservationRange = addRootRange(Inet6Address.getByName("fd7e:907d:34ab::"), 48, 56, "Internal v6 Range");
 				final IpRange singleRanges = reserveRange(ipV6ReservationRange, AddressRangeType.ADMINISTRATIVE, 64, "Ranges for single addresses");
 				reserveRange(singleRanges, AddressRangeType.LOOPBACK, 128, null);
 				reserveRange(ipV6ReservationRange, AddressRangeType.CONNECTION, 64, null);
+				reserveRange(ipV6ReservationRange, AddressRangeType.USER, 64, null);
 				System.out.println("v4-Network: " + ipV4ReservationRange);
 				System.out.println("v6-Network: " + ipV6ReservationRange);
 			}
