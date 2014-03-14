@@ -46,18 +46,20 @@ public class AddressManagementBean {
 		return reservationRange;
 	}
 
-	public void fillStation(final Station station) {
+	public Station fillStation(final Station station) {
 		final Station mergedStation = entityManager.merge(station);
 		if (mergedStation.getLoopback() == null) {
 			mergedStation.setLoopback(new RangePair());
 		}
 		final RangePair loopback = mergedStation.getLoopback();
 		if (loopback.getV4Address() == null) {
-			loopback.setV4Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V4, 32, AddressRangeType.ASSIGNED, "Station " + station));
+			loopback.setV4Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V4, 32, AddressRangeType.ASSIGNED, "Station " + station.getName()));
 		}
 		if (loopback.getV6Address() == null) {
-			loopback.setV6Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V6, 128, AddressRangeType.ASSIGNED, "Station " + station));
+			loopback.setV6Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V6, 128, AddressRangeType.ASSIGNED, "Station " + station.getName()));
 		}
+		mergedStation.setLoopback(loopback);
+		return mergedStation;
 	}
 
 	public List<IpRange> findAllRootRanges() {
