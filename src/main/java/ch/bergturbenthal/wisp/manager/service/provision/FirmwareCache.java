@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.inject.Singleton;
 
-import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.apache.commons.io.IOUtils;
 
 @Singleton
 public class FirmwareCache {
