@@ -16,6 +16,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Root;
 
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
@@ -46,18 +47,37 @@ public class AddressManagementBean {
 		return reservationRange;
 	}
 
+	public Connection fillConnection(final Connection originalConnection) {
+		final Connection connection = entityManager.merge(originalConnection);
+		final RangePair addresses;
+		if (connection.getAddresses() == null) {
+			addresses = new RangePair();
+		} else {
+			addresses = connection.getAddresses();
+		}
+		fillRangePair(addresses, AddressRangeType.CONNECTION, 29, 64, "Connection " + originalConnection.getId());
+		connection.setAddresses(addresses);
+		return connection;
+	}
+
+	private void fillRangePair(final RangePair pair, final AddressRangeType rangeType, final int v4Netmask, final int v6Netmask, final String comment) {
+		if (pair.getV4Address() == null) {
+			pair.setV4Address(findAndReserveAddressRange(rangeType, IpAddressType.V4, v4Netmask, AddressRangeType.ASSIGNED, comment));
+		}
+		if (pair.getV6Address() == null) {
+			pair.setV6Address(findAndReserveAddressRange(rangeType, IpAddressType.V6, v6Netmask, AddressRangeType.ASSIGNED, comment));
+		}
+	}
+
 	public Station fillStation(final Station station) {
 		final Station mergedStation = entityManager.merge(station);
+		final RangePair loopback;
 		if (mergedStation.getLoopback() == null) {
-			mergedStation.setLoopback(new RangePair());
+			loopback = new RangePair();
+		} else {
+			loopback = mergedStation.getLoopback();
 		}
-		final RangePair loopback = mergedStation.getLoopback();
-		if (loopback.getV4Address() == null) {
-			loopback.setV4Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V4, 32, AddressRangeType.ASSIGNED, "Station " + station.getName()));
-		}
-		if (loopback.getV6Address() == null) {
-			loopback.setV6Address(findAndReserveAddressRange(AddressRangeType.LOOPBACK, IpAddressType.V6, 128, AddressRangeType.ASSIGNED, "Station " + station.getName()));
-		}
+		fillRangePair(loopback, AddressRangeType.LOOPBACK, 32, 128, "Station " + station.getName());
 		mergedStation.setLoopback(loopback);
 		return mergedStation;
 	}
