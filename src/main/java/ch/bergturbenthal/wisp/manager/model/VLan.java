@@ -17,6 +17,8 @@ public class VLan {
 	@GeneratedValue
 	private Long id;
 	@ManyToOne
+	private NetworkInterface networkInterface;
+	@ManyToOne
 	private Station station;
 	private int vlanId;
 }

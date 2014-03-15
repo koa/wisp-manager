@@ -26,4 +26,11 @@ public class Connection {
 	private Long id;
 	@ManyToOne
 	private Station startStation;
+
+	public String getTitle() {
+		if (startStation != null && endStation != null) {
+			return startStation.getName() + " - " + endStation.getName();
+		}
+		return toString();
+	}
 }

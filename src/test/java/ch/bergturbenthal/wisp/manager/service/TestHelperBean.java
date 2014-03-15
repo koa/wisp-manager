@@ -13,6 +13,7 @@ import javax.persistence.criteria.CriteriaQuery;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 
@@ -27,6 +28,7 @@ public class TestHelperBean {
 		clearTable(Station.class);
 		clearTable(Connection.class);
 		clearTable(IpRange.class);
+		clearTable(NetworkDevice.class);
 	}
 
 	public <T> void clearTable(final Class<T> type) {

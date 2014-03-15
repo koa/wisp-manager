@@ -3,32 +3,48 @@ package ch.bergturbenthal.wisp.manager.service.provision.routeros;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.Format;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.Setter;
+import lombok.experimental.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.Velocity;
+import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.RangePair;
+import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
@@ -37,15 +53,32 @@ import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Logger;
 import com.jcraft.jsch.Session;
 
 @Slf4j
+@Singleton
 public class ProvisionRouterOs {
+	@Data
+	@Builder
+	public static class ProvisionNetworkInterface {
+		private final String ifName;
+		private final String macAddress;
+		private String v4Address;
+		private int v4Mask;
+		private String v6Address;
+		private int v6Mask;
+	}
+
 	private static String CURRENT_OS_VERSION = "6.10";
 	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp"));
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
+
 	private static final String ROUTEROS_PACKAGE_PREFIX = "routeros-";
+	static {
+		Velocity.setProperty("resource.loader", "class");
+		Velocity.setProperty("class.resource.loader.class", ClasspathResourceLoader.class.getName());
+		Velocity.init();
+	}
 
 	private static int checkAck(final InputStream in) throws IOException {
 		final int b = in.read();
@@ -80,6 +113,7 @@ public class ProvisionRouterOs {
 	@Inject
 	@Setter
 	private FirmwareCache fwCache;
+	private final JSch jSch = new JSch();
 
 	private void copyToDevice(final Session session, final File fromFile, final String toFile) throws JSchException, IOException {
 		final ChannelExec channelExec = createChannelWithCmd(session, "scp -t " + toFile);
@@ -139,21 +173,35 @@ public class ProvisionRouterOs {
 
 	}
 
+	public String generateConfig(final NetworkDevice device) {
+		final Station station = device.getStation();
+		final ArrayList<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
+		final Collection<String> existingNames = new HashSet<String>();
+		for (final NetworkInterface netIf : device.getInterfaces()) {
+			final String interfaceName = netIf.getInterfaceName();
+			final String ifName;
+			if (interfaceName == null) {
+				ifName = "unassigned" + (networkInterfaces.size() + 1);
+			} else {
+				ifName = stripInterfaceName(interfaceName);
+			}
+			final String uniqName = uniqifyName(existingNames, ifName);
+			existingNames.add(uniqName);
+			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
+			networkInterfaces.add(ProvisionNetworkInterface.builder().macAddress(macAddress).ifName(uniqName).build());
+		}
+		final VelocityContext context = new VelocityContext();
+		context.put("station", station);
+		context.put("networkInterfaces", networkInterfaces);
+		final Template template = Velocity.getTemplate("templates/routerboard.vm");
+		final StringWriter stringWriter = new StringWriter();
+		template.merge(context, stringWriter);
+		return stringWriter.toString();
+	}
+
 	public DetectedDevice identify(final InetAddress host) {
 		try {
-			final JSch jSch = new JSch();
-			JSch.setLogger(new Logger() {
 
-				@Override
-				public boolean isEnabled(final int level) {
-					return false;
-				}
-
-				@Override
-				public void log(final int level, final String message) {
-					System.out.println("Level: " + level + ": " + message);
-				}
-			});
 			while (true) {
 				final Session session = jSch.getSession("admin", host.getHostAddress());
 				session.setConfig("StrictHostKeyChecking", "no");
@@ -252,6 +300,38 @@ public class ProvisionRouterOs {
 
 	}
 
+	public void loadConfig(final NetworkDevice device, final InetAddress host) {
+		final DetectedDevice detectedDevice = identify(host);
+		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
+			throw new IllegalArgumentException("Wrong device. Expected: " + device.getSerialNumber() + ", detected: " + detectedDevice.getSerialNumber());
+		}
+		try {
+			final File tempFile = File.createTempFile(device.getTitle(), ".rb");
+			final String configContent = generateConfig(device);
+			final FileWriter fileWriter = new FileWriter(tempFile);
+			try {
+				fileWriter.write(configContent);
+			} finally {
+				fileWriter.close();
+			}
+			final Session session = jSch.getSession("admin", host.getHostAddress());
+			session.setConfig("StrictHostKeyChecking", "no");
+			session.connect();
+			try {
+				copyToDevice(session, tempFile, "manager.auto.rsc");
+				sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
+			} finally {
+				session.disconnect();
+			}
+			waitForReboot(host);
+			final RangePair loopback = device.getStation().getLoopback();
+			device.setV4Address(loopback.getV4Address().getRange().getAddress());
+			device.setV6Address(loopback.getV6Address().getRange().getAddress());
+		} catch (final IOException | JSchException e) {
+			throw new RuntimeException("Cannot load config to " + host, e);
+		}
+	}
+
 	private void rebootAndWait(final InetAddress host, final Session session) throws JSchException, IOException {
 		sendCmdWithoutAnswer(session, "system reboot");
 		waitForReboot(host);
@@ -267,6 +347,29 @@ public class ProvisionRouterOs {
 	private void sendCmdWithoutAnswer(final Session session, final String cmd) throws JSchException {
 		final ChannelExec channel = sendCmd(session, cmd);
 		channel.disconnect();
+	}
+
+	private String stripInterfaceName(final String interfaceName) {
+		final Matcher matcher = Pattern.compile("[A-Za-z0-9]+").matcher(interfaceName);
+		final StringBuilder sb = new StringBuilder();
+		while (matcher.find()) {
+			if (sb.length() > 0) {
+				sb.append("-");
+			}
+			sb.append(matcher.group());
+		}
+		return sb.toString();
+	}
+
+	private String uniqifyName(final Collection<String> existingNames, final String ifName) {
+		int index = 0;
+		while (true) {
+			final String candidate = index == 0 ? ifName : ifName + index;
+			if (!existingNames.contains(candidate)) {
+				return candidate;
+			}
+			index += 1;
+		}
 	}
 
 	private void waitForReboot(final InetAddress host) throws IOException {

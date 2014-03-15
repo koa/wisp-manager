@@ -20,7 +20,15 @@ public class RangePair {
 		return v4Address.getRange().getAddress().getInetAddress();
 	}
 
+	public int getInet4Mask() {
+		return v4Address.getRange().getNetmask();
+	}
+
 	public InetAddress getInet6Address() {
 		return v6Address.getRange().getAddress().getInetAddress();
+	}
+
+	public int getInet6Mask() {
+		return v6Address.getRange().getNetmask();
 	}
 }

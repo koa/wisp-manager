@@ -3,6 +3,7 @@ package ch.bergturbenthal.wisp.manager.service;
 import java.net.InetAddress;
 import java.util.List;
 
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
@@ -20,6 +21,8 @@ import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouter
 
 @Stateless
 public class NetworkDeviceManagementBean {
+	@EJB
+	private AddressManagementBean addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
 	@Inject
@@ -43,6 +46,19 @@ public class NetworkDeviceManagementBean {
 			entityManager.persist(newDevice);
 			return newDevice;
 		}
+	}
+
+	public String generateConfig(final NetworkDevice device) {
+		final NetworkDevice mergedDevice = entityManager.merge(device);
+		if (mergedDevice.getStation() != null) {
+			addressManagementBean.fillStation(mergedDevice.getStation());
+		}
+		return provision.generateConfig(mergedDevice);
+	}
+
+	public void loadConfig(final NetworkDevice originalDevice, final InetAddress host) {
+		final NetworkDevice device = entityManager.merge(originalDevice);
+		provision.loadConfig(device, host);
 	}
 
 	private void updateDevice(final NetworkDevice deviceEntity, final DetectedDevice identifiedDevice) {

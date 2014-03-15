@@ -1,0 +1,26 @@
+#set($v4Loopback=$station.loopback.inet4Address.hostAddress)
+#set($v6Loopback=$station.loopback.inet6Address.hostAddress)
+
+/system identity set name="Station $station.name"
+
+# all interfaces in routing mode
+/interface ethernet
+#foreach($interface in $networkInterfaces)
+	set [ find mac-address=$interface.macAddress ] master-port=none name=$interface.ifName speed=1Gbps
+#end
+# Fallback IP
+/ip address
+	add address=192.168.88.1/24 interface=$networkInterfaces[0].ifName network=192.168.88.0
+
+
+
+# ipv4 ospf Routing
+/interface bridge add name=loopback
+/ip address add address=$v4Loopback/32 interface=loopback network=$v4Loopback
+/routing ospf instance set [ find default=yes ] router-id=$v4Loopback
+
+#foreach($vlan in $station.ownNetworks)
+	#set($v4LanIp=$vlan.address.inet4Address.hostAddress)
+	#set($v4LanMask=$vlan.address.inet4Mask)
+	/routing ospf network add area=backbone network=$v4LanIp/$v4LanMask
+#end

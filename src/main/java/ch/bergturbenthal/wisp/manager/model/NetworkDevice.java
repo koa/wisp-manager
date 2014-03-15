@@ -1,6 +1,8 @@
 package ch.bergturbenthal.wisp.manager.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -26,14 +28,23 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 @EqualsAndHashCode(of = "id")
 public class NetworkDevice {
 	public static NetworkDevice createDevice(final NetworkDeviceModel model) {
+		return createDevice(model, null);
+	}
+
+	public static NetworkDevice createDevice(final NetworkDeviceModel model, final String baseMacAddress) {
 		final NetworkDevice networkDevice = new NetworkDevice();
 		networkDevice.setDeviceModel(model);
 
 		final List<NetworkInterface> ifList = new ArrayList<>();
+		final Iterator<MacAddress> macIterator = (baseMacAddress == null ? Collections.<MacAddress> emptyList() : model.getAddressIncrementorFactory()
+																																																										.getAllMacAddresses(new MacAddress(baseMacAddress))).iterator();
 		for (final NetworkInterfaceType iface : model.getInterfaces()) {
 			final NetworkInterface newIf = new NetworkInterface();
 			newIf.setNetworkDevice(networkDevice);
 			newIf.setType(iface);
+			if (macIterator.hasNext()) {
+				newIf.setMacAddress(macIterator.next());
+			}
 			ifList.add(newIf);
 		}
 		networkDevice.setInterfaces(ifList);
@@ -50,7 +61,7 @@ public class NetworkDevice {
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
-	@Column(unique = true)
+	// @Column(unique = true)
 	private String serialNumber;
 
 	@OneToOne(mappedBy = "device")
@@ -60,7 +71,10 @@ public class NetworkDevice {
 
 	public String getTitle() {
 		if (interfaces != null && !interfaces.isEmpty()) {
-			return deviceModel + " - " + interfaces.get(0).getMacAddress().getAddress();
+			final MacAddress macAddress = interfaces.get(0).getMacAddress();
+			if (macAddress != null) {
+				return deviceModel + " - " + macAddress.getAddress();
+			}
 		}
 		return id + " - " + deviceModel;
 	}

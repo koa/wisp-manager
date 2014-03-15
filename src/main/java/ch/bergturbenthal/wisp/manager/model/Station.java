@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.model;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,11 +20,11 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(of = "id")
 public class Station {
 	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
-	private List<Connection> beginningConnections;
+	private List<Connection> beginningConnections = new ArrayList<>();
 	@OneToOne(cascade = CascadeType.ALL)
 	private NetworkDevice device;
 	@OneToMany(mappedBy = "endStation", orphanRemoval = true)
-	private List<Connection> endingConnections;
+	private List<Connection> endingConnections = new ArrayList<>();
 	@Id
 	@GeneratedValue
 	private Long id;
