@@ -28,6 +28,7 @@ import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -160,6 +161,7 @@ public class AddressManagementBean {
 			if (networks == null || networks.isEmpty()) {
 				// no connection -> free interface
 				freeInterfaces.add(networkInterface);
+				networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
 			} else {
 				// find connections and stations for this interface
 				final Set<Connection> foundConnections = new HashSet<>();
@@ -177,6 +179,7 @@ public class AddressManagementBean {
 				if (foundStations.isEmpty() && foundConnections.isEmpty()) {
 					// unassigned interface
 					freeInterfaces.add(networkInterface);
+					networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
 					continue;
 				}
 				if (foundStations.isEmpty() && foundConnections.size() == 1) {
@@ -184,6 +187,7 @@ public class AddressManagementBean {
 					final Connection connection = foundConnections.iterator().next();
 					updateInterfaceTitle(networkInterface, connection);
 					remainingConnections.remove(connection);
+					networkInterface.setRole(NetworkInterfaceRole.ROUTER_LINK);
 					continue;
 				}
 				if (foundStations.size() == 1 && foundConnections.isEmpty()) {
@@ -191,6 +195,7 @@ public class AddressManagementBean {
 					if (foundStation.equals(station)) {
 						// locally connected interface
 						networkInterface.setInterfaceName("home");
+						networkInterface.setRole(NetworkInterfaceRole.NETWORK);
 						userAssignedInterfaces.add(networkInterface);
 						continue;
 					}
@@ -199,6 +204,7 @@ public class AddressManagementBean {
 				log.warn("Inconsisten connection at interface " + networkInterface + " cleaning");
 				networkInterface.getNetworks().clear();
 				freeInterfaces.add(networkInterface);
+				networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
 			}
 		}
 		// assign remaining interfaces to connections
@@ -223,6 +229,7 @@ public class AddressManagementBean {
 					}
 				}
 				networkInterface.setInterfaceName("home");
+				networkInterface.setRole(NetworkInterfaceRole.NETWORK);
 				userAssignedInterfaces.add(networkInterface);
 				continue;
 			}
@@ -236,6 +243,7 @@ public class AddressManagementBean {
 			vLan.setNetworkInterface(networkInterface);
 			networks.add(vLan);
 			networkInterface.setNetworks(networks);
+			networkInterface.setRole(NetworkInterfaceRole.ROUTER_LINK);
 			updateInterfaceTitle(networkInterface, connection);
 		}
 	}

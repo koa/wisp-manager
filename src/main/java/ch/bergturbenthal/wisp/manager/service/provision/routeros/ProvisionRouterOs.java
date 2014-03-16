@@ -9,8 +9,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.StringWriter;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.Format;
@@ -47,6 +45,7 @@ import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -69,6 +68,7 @@ public class ProvisionRouterOs {
 	public static class ProvisionNetworkInterface {
 		private final String ifName;
 		private final String macAddress;
+		private NetworkInterfaceRole role;
 		private String v4Address;
 		private int v4Mask;
 		private String v4NetAddress;
@@ -213,6 +213,7 @@ public class ProvisionRouterOs {
 						builder.v6Mask(network.getAddress().getInet6ParentMask());
 						builder.v6NetAddress(network.getAddress().getV6Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
 					}
+					builder.role(netIf.getRole());
 				}
 			}
 			networkInterfaces.add(builder.build());
@@ -354,8 +355,8 @@ public class ProvisionRouterOs {
 			final RangePair loopback = device.getStation().getLoopback();
 			final IpAddress newAddress = loopback.getV4Address().getRange().getAddress();
 			waitForReboot(newAddress.getInetAddress());
-			device.setV4Address((Inet4Address) newAddress.getInetAddress());
-			device.setV6Address((Inet6Address) loopback.getV6Address().getRange().getAddress().getInetAddress());
+			device.setV4Address(newAddress.getInetAddress());
+			device.setV6Address(loopback.getV6Address().getRange().getAddress().getInetAddress());
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);
 		}

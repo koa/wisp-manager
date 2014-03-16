@@ -8,10 +8,11 @@
 #foreach($interface in $networkInterfaces)
 	set [ find mac-address=$interface.macAddress ] master-port=none speed=1Gbps name=$interface.ifName
 #end
+/interface bridge add name=loopback
 
-/ip address
-# fall back IP
-#	add address=192.168.88.1/24 interface=$networkInterfaces[0].ifName
+/ip address	
+# Loopback IP
+	add address=$v4Loopback/32 interface=loopback network=$v4Loopback
 	
 # configured IPs
 #foreach($interface in $networkInterfaces)
@@ -20,17 +21,46 @@
 #end	
 #end
 
-
-
 # ipv4 ospf Routing
-/interface bridge add name=loopback
-/ip address add address=$v4Loopback/32 interface=loopback network=$v4Loopback
 /routing ospf instance set [ find default=yes ] router-id=$v4Loopback
+
+/routing ospf interface
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address && $interface.role == "NETWORK")
+	add interface=$interface.ifName passive=yes
+#end	
+#end
+
 
 /routing ospf network
 	add area=backbone network=$v4Loopback/32
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address)
 	add area=backbone network=$interface.v4NetAddress/$interface.v4Mask
+#end	
+#end
+
+#### IPv6 ####
+
+/ipv6 address
+# Loopback IP
+	add address=$v6Loopback/128 interface=loopback advertise=no
+#foreach($interface in $networkInterfaces)
+#if($interface.v6Address)
+	add address=$interface.v6Address/$interface.v6Mask interface=$interface.ifName
+#end	
+#end
+ 
+# ospf-v3 Routing 
+ 
+/routing ospf-v3 instance set [ find default=yes ] router-id=$v4Loopback
+/routing ospf-v3 interface
+#foreach($interface in $networkInterfaces)
+#if($interface.v6Address)
+#if($interface.role == "NETWORK")
+	add area=backbone interface=$interface.ifName passive=yes
+#else
+	add area=backbone interface=$interface.ifName
+#end
 #end	
 #end
