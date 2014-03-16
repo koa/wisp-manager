@@ -14,8 +14,10 @@ import javax.persistence.criteria.CriteriaQuery;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 
 @Stateless
 public class TestHelperBean {
@@ -23,6 +25,8 @@ public class TestHelperBean {
 	private AddressManagementBean addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
+	@EJB
+	private StationService stationService;
 
 	public void clearData() {
 		clearTable(Station.class);
@@ -38,6 +42,17 @@ public class TestHelperBean {
 		for (final T entry : entityManager.createQuery(query).getResultList()) {
 			entityManager.remove(entry);
 		}
+	}
+
+	public NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name) {
+		final Station station = stationService.addStation(new Position(47.4212786, 8.8859975));
+		final NetworkDevice device = NetworkDevice.createDevice(NetworkDeviceModel.RB750GL, macAddress);
+		station.setDevice(device);
+		station.setName(name);
+		device.setSerialNumber(serial);
+		device.setStation(station);
+		stationService.updateStation(station);
+		return device;
 	}
 
 	public void initAddressRanges() {

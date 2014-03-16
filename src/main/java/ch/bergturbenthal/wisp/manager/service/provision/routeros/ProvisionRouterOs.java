@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,10 +46,12 @@ import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
+import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs.ProvisionNetworkInterface.ProvisionNetworkInterfaceBuilder;
 
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
@@ -77,6 +80,7 @@ public class ProvisionRouterOs {
 	static {
 		Velocity.setProperty("resource.loader", "class");
 		Velocity.setProperty("class.resource.loader.class", ClasspathResourceLoader.class.getName());
+		Velocity.setProperty("runtime.references.strict", "true");
 		Velocity.init();
 	}
 
@@ -188,7 +192,23 @@ public class ProvisionRouterOs {
 			final String uniqName = uniqifyName(existingNames, ifName);
 			existingNames.add(uniqName);
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
-			networkInterfaces.add(ProvisionNetworkInterface.builder().macAddress(macAddress).ifName(uniqName).build());
+			final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder().macAddress(macAddress).ifName(uniqName);
+			for (final VLan network : netIf.getNetworks()) {
+				if (network.getVlanId() == 0 && network.getAddress() != null) {
+					// default network
+					final InetAddress inet4Address = network.getAddress().getInet4Address();
+					if (inet4Address != null) {
+						builder.v4Address(inet4Address.getHostAddress());
+						builder.v4Mask(network.getAddress().getInet4ParentMask());
+					}
+					final InetAddress inet6Address = network.getAddress().getInet6Address();
+					if (inet6Address != null) {
+						builder.v6Address(inet6Address.getHostAddress());
+						builder.v6Mask(network.getAddress().getInet6ParentMask());
+					}
+				}
+			}
+			networkInterfaces.add(builder.build());
 		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
@@ -259,9 +279,10 @@ public class ProvisionRouterOs {
 						rebootAndWait(host, session);
 						continue;
 					}
-					final List<MacAddress> macs = new ArrayList<>();
+					final Map<String, MacAddress> macs = new TreeMap<String, MacAddress>();
 					for (final PrintLine line : executeListCmd(session, "interface ethernet print terse", 2, 4)) {
-						macs.add(new MacAddress(line.getValues().get("mac-address")));
+						final Map<String, String> values = line.getValues();
+						macs.put(values.get("default-name"), new MacAddress(values.get("mac-address")));
 					}
 					final DetectedDeviceBuilder resultBuilder = DetectedDevice.builder();
 					final ChannelExec routerBoardResult = sendCmd(session, "system routerboard print");
@@ -287,7 +308,7 @@ public class ProvisionRouterOs {
 					} finally {
 						routerBoardResult.disconnect();
 					}
-					resultBuilder.interfaces(macs);
+					resultBuilder.interfaces(new ArrayList<>(macs.values()));
 					return resultBuilder.build();
 				} finally {
 					session.disconnect();

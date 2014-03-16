@@ -58,7 +58,7 @@ public class StationManagementTest {
 		final VLan vlan = station.getOwnNetworks().iterator().next();
 		Assert.assertEquals(0, vlan.getVlanId());
 		final RangePair ownAddress = vlan.getAddress();
-		Assert.assertEquals(InetAddress.getByName("172.17.0.0"), ownAddress.getInet4Address());
+		Assert.assertEquals(InetAddress.getByName("172.17.1.0"), ownAddress.getInet4Address());
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), ownAddress.getInet6Address());
 	}
 

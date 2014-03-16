@@ -15,9 +15,6 @@ import org.junit.runner.RunWith;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
-import ch.bergturbenthal.wisp.manager.model.Position;
-import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementBean;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionServiceBean;
@@ -56,17 +53,6 @@ public class TestRouterOsVelocity {
 	@EJB
 	private TestHelperBean testHelperBean;
 
-	private NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name) {
-		final Station station = stationService.addStation(new Position(47.4212786, 8.8859975));
-		final NetworkDevice device = NetworkDevice.createDevice(NetworkDeviceModel.RB750GL, macAddress);
-		station.setDevice(device);
-		station.setName(name);
-		device.setSerialNumber(serial);
-		device.setStation(station);
-		stationService.updateStation(station);
-		return device;
-	}
-
 	@Before
 	public void initData() throws UnknownHostException {
 		testHelperBean.clearData();
@@ -75,8 +61,8 @@ public class TestRouterOsVelocity {
 
 	@Test
 	public void testGenerateRbConfig() throws UnknownHostException {
-		final NetworkDevice d1 = createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg");
-		final NetworkDevice d2 = createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg");
+		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg");
+		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg");
 		final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
 		System.out.println(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
 		System.out.println(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));

@@ -107,7 +107,7 @@ public class AddressManagementBean {
 		} else {
 			addresses = connection.getAddresses();
 		}
-		fillRangePair(addresses, AddressRangeType.CONNECTION, 29, 64, "Connection " + originalConnection.getId());
+		fillRangePair(addresses, AddressRangeType.CONNECTION, 29, 32, 64, 128, "Connection " + originalConnection.getId());
 		connection.setAddresses(addresses);
 		return connection;
 	}
@@ -123,7 +123,7 @@ public class AddressManagementBean {
 			final VLan vLan = new VLan();
 			vLan.setVlanId(0);
 			final RangePair address = new RangePair();
-			fillRangePair(address, AddressRangeType.USER, 24, 64, null);
+			fillRangePair(address, AddressRangeType.USER, 25, 32, 64, 128, null);
 			vLan.setAddress(address);
 			vLan.setStation(station);
 			ownNetworks.add(vLan);
@@ -138,7 +138,7 @@ public class AddressManagementBean {
 		} else {
 			loopback = station.getLoopback();
 		}
-		fillRangePair(loopback, AddressRangeType.LOOPBACK, 32, 128, "Station " + station.getName());
+		fillRangePair(loopback, AddressRangeType.LOOPBACK, 32, 32, 128, 128, "Station " + station.getName());
 		station.setLoopback(loopback);
 	}
 
@@ -240,12 +240,18 @@ public class AddressManagementBean {
 		}
 	}
 
-	private void fillRangePair(final RangePair pair, final AddressRangeType rangeType, final int v4Netmask, final int v6Netmask, final String comment) {
+	private void fillRangePair(	final RangePair pair,
+															final AddressRangeType rangeType,
+															final int v4Netmask,
+															final int v4NextMask,
+															final int v6Netmask,
+															final int v6NextMask,
+															final String comment) {
 		if (pair.getV4Address() == null) {
-			pair.setV4Address(findAndReserveAddressRange(rangeType, IpAddressType.V4, v4Netmask, AddressRangeType.ASSIGNED, comment));
+			pair.setV4Address(findAndReserveAddressRange(rangeType, IpAddressType.V4, v4Netmask, v4NextMask, AddressRangeType.ASSIGNED, comment));
 		}
 		if (pair.getV6Address() == null) {
-			pair.setV6Address(findAndReserveAddressRange(rangeType, IpAddressType.V6, v6Netmask, AddressRangeType.ASSIGNED, comment));
+			pair.setV6Address(findAndReserveAddressRange(rangeType, IpAddressType.V6, v6Netmask, v6NextMask, AddressRangeType.ASSIGNED, comment));
 		}
 	}
 
@@ -271,13 +277,14 @@ public class AddressManagementBean {
 	public IpRange findAndReserveAddressRange(final AddressRangeType rangeType,
 																						final IpAddressType addressType,
 																						final int maxNetSize,
+																						final int nextDistributionSize,
 																						final AddressRangeType typeOfReservation,
 																						final String comment) {
 		final IpRange parentRange = findMatchingRange(rangeType, addressType, maxNetSize);
 		if (parentRange == null) {
 			return null;
 		}
-		return reserveRange(parentRange, typeOfReservation == null ? AddressRangeType.ASSIGNED : typeOfReservation, maxNetSize, comment);
+		return reserveRange(parentRange, typeOfReservation == null ? AddressRangeType.ASSIGNED : typeOfReservation, nextDistributionSize, comment);
 	}
 
 	private Connection findConnectionForRange(final IpRange connectionRange) {
@@ -328,7 +335,7 @@ public class AddressManagementBean {
 		query.where(criteriaBuilder.equal(addressPath, criteriaBuilder.parameter(IpRange.class, "range")));
 
 		final TypedQuery<Station> typedQuery = entityManager.createQuery(query);
-		typedQuery.setParameter("connectionRange", range);
+		typedQuery.setParameter("range", range);
 		typedQuery.setMaxResults(1);
 		final List<Station> results = typedQuery.getResultList();
 		if (results.isEmpty()) {

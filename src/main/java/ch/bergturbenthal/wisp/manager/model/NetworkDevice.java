@@ -20,12 +20,14 @@ import javax.validation.constraints.NotNull;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 
 @Data
 @Entity
 @EqualsAndHashCode(of = "id")
+@ToString(exclude = "station")
 public class NetworkDevice {
 	public static NetworkDevice createDevice(final NetworkDeviceModel model) {
 		return createDevice(model, null);
@@ -61,7 +63,7 @@ public class NetworkDevice {
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
-	// @Column(unique = true)
+	@Column(unique = true, nullable = true)
 	private String serialNumber;
 
 	@OneToOne(mappedBy = "device")

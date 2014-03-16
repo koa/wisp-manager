@@ -15,6 +15,7 @@ import javax.persistence.criteria.Root;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
@@ -33,7 +34,7 @@ public class NetworkDeviceManagementBean {
 		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
 		final CriteriaQuery<NetworkDevice> query = criteriaBuilder.createQuery(NetworkDevice.class);
 		final Root<NetworkDevice> devicePath = query.from(NetworkDevice.class);
-		query.where(criteriaBuilder.equal(devicePath, identifiedDevice.getSerialNumber()));
+		query.where(criteriaBuilder.equal(devicePath.get("serialNumber"), identifiedDevice.getSerialNumber()));
 		final List<NetworkDevice> resultList = entityManager.createQuery(query).getResultList();
 		if (resultList.size() > 0) {
 			final NetworkDevice foundDevice = resultList.get(0);
@@ -51,14 +52,24 @@ public class NetworkDeviceManagementBean {
 	public String generateConfig(final NetworkDevice device) {
 		final NetworkDevice mergedDevice = entityManager.merge(device);
 		if (mergedDevice.getStation() != null) {
-			addressManagementBean.fillStation(mergedDevice.getStation());
+			final Station station = addressManagementBean.fillStation(mergedDevice.getStation());
+			return provision.generateConfig(station.getDevice());
 		}
 		return provision.generateConfig(mergedDevice);
 	}
 
-	public void loadConfig(final NetworkDevice originalDevice, final InetAddress host) {
-		final NetworkDevice device = entityManager.merge(originalDevice);
-		provision.loadConfig(device, host);
+	public void loadConfig(final InetAddress host) {
+		final NetworkDevice detectNetworkDevice = detectNetworkDevice(host);
+		if (detectNetworkDevice == null) {
+			return;
+		}
+		System.out.println("Detected: " + detectNetworkDevice);
+		if (detectNetworkDevice.getStation() != null) {
+			final Station station = addressManagementBean.fillStation(detectNetworkDevice.getStation());
+			provision.loadConfig(station.getDevice(), host);
+		} else {
+			provision.loadConfig(detectNetworkDevice, host);
+		}
 	}
 
 	private void updateDevice(final NetworkDevice deviceEntity, final DetectedDevice identifiedDevice) {

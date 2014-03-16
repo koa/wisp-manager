@@ -11,6 +11,7 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaQuery;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 
@@ -27,8 +28,7 @@ public class StationServiceBean implements StationService {
 		station.setPosition(position);
 		entityManager.persist(station);
 		station.setName("Station-" + station.getId());
-		addressManagementBean.fillStation(station);
-		entityManager.persist(station);
+		entityManager.persist(addressManagementBean.fillStation(station));
 		return station;
 	}
 
@@ -79,6 +79,14 @@ public class StationServiceBean implements StationService {
 			entityManager.persist(station);
 		} else {
 			entityManager.merge(station);
+		}
+		if (station.getDevice() != null) {
+			final NetworkDevice device = station.getDevice();
+			if (device.getId() == null) {
+				entityManager.persist(device);
+			} else {
+				entityManager.merge(device);
+			}
 		}
 	}
 

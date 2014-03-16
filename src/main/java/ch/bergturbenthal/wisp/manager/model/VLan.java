@@ -7,9 +7,13 @@ import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Data
 @Entity
+@ToString(exclude = { "networkInterface", "station" })
+@EqualsAndHashCode(of = "id")
 public class VLan {
 	@Embedded
 	private RangePair address;

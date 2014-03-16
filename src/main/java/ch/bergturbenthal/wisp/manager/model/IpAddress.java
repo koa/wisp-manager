@@ -45,6 +45,9 @@ public class IpAddress {
 	}
 
 	public InetAddress getAddressOfNetwork(final long addressIndex) {
+		if (rawValue == null) {
+			return null;
+		}
 		try {
 			return InetAddress.getByAddress(rawValue.add(BigInteger.valueOf(addressIndex)).toByteArray());
 		} catch (final UnknownHostException e) {
@@ -53,6 +56,9 @@ public class IpAddress {
 	}
 
 	public InetAddress getInetAddress() {
+		if (rawValue == null) {
+			return null;
+		}
 		try {
 			return InetAddress.getByAddress(rawValue.toByteArray());
 		} catch (final UnknownHostException e) {
@@ -62,6 +68,6 @@ public class IpAddress {
 
 	@Override
 	public String toString() {
-		return getInetAddress().toString();
+		return String.valueOf(getInetAddress());
 	}
 }

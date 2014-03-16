@@ -47,7 +47,10 @@ public class IpAddressTest {
 	}
 
 	private InetAddress nextRange(final AddressRangeType rangeType, final IpAddressType addressType, final int maskLength) {
-		return addressManagementBean.findAndReserveAddressRange(rangeType, addressType, maskLength, AddressRangeType.ASSIGNED, null).getRange().getAddress().getInetAddress();
+		return addressManagementBean.findAndReserveAddressRange(rangeType, addressType, maskLength, maskLength, AddressRangeType.ASSIGNED, null)
+																.getRange()
+																.getAddress()
+																.getInetAddress();
 	}
 
 	@Test

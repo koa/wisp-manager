@@ -68,19 +68,6 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				}
 			}));
 		}
-		selectDeviceLayout.addComponent(new Button("identify 192.168.88.1", new ClickListener() {
-
-			@Override
-			public void buttonClick(final ClickEvent event) {
-				try {
-					final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("192.168.88.1"));
-					devicesContainer.addEntity(detectNetworkDevice);
-
-				} catch (final Throwable e) {
-					e.printStackTrace();
-				}
-			}
-		}));
 		selectDeviceLayout.addComponent(new Button("remove Device", new ClickListener() {
 
 			@Override
@@ -88,6 +75,31 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				final Object selectedValue = deviceSelect.getValue();
 				if (selectedValue != null) {
 					devicesContainer.removeItem(selectedValue);
+				}
+			}
+		}));
+		selectDeviceLayout.addComponent(new Button("identify 192.168.88.1", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				try {
+					final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("192.168.88.1"));
+					devicesContainer.refresh();
+					deviceSelect.select(detectNetworkDevice.getId());
+
+				} catch (final Throwable e) {
+					e.printStackTrace();
+				}
+			}
+		}));
+		selectDeviceLayout.addComponent(new Button("provision 192.168.88.1", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				try {
+					networkDeviceManagementBean.loadConfig(InetAddress.getByName("192.168.88.1"));
+				} catch (final Throwable e) {
+					e.printStackTrace();
 				}
 			}
 		}));
@@ -99,7 +111,8 @@ public class NetworkDeviceView extends CustomComponent implements View {
 			@Override
 			public void valueChange(final ValueChangeEvent event) {
 
-				final EntityItem<NetworkDevice> deviceItem = devicesContainer.getItem(event.getProperty().getValue());
+				final Long deviceId = (Long) event.getProperty().getValue();
+				final EntityItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
 				editDeviceForm.removeAllComponents();
 				editDeviceForm.addComponent(new Label(deviceItem.getItemProperty("title")));
 				final EntityItemProperty itemProperty = deviceItem.getItemProperty("interfaces");
@@ -155,7 +168,9 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					public void buttonClick(final ClickEvent event) {
 						table.commit();
 
-						devicesContainer.commit();
+						deviceItem.commit();
+						System.out.println(networkDeviceManagementBean.generateConfig(deviceItem.getEntity()));
+
 						editDeviceForm.setEnabled(false);
 					}
 				}));
