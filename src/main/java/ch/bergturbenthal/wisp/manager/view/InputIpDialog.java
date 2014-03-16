@@ -1,8 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Locale;
 
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
@@ -10,7 +8,6 @@ import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
 import com.vaadin.data.fieldgroup.FieldGroupFieldFactory;
 import com.vaadin.data.util.ObjectProperty;
 import com.vaadin.data.util.PropertysetItem;
-import com.vaadin.data.util.converter.Converter;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
@@ -46,38 +43,7 @@ public class InputIpDialog extends Window {
 			public <T extends Field> T createField(final Class<?> dataType, final Class<T> fieldType) {
 				if (dataType.isAssignableFrom(InetAddress.class)) {
 					final TextField textField = new TextField();
-					textField.setConverter(new Converter<String, InetAddress>() {
-
-						@Override
-						public InetAddress convertToModel(final String value, final Class<? extends InetAddress> targetType, final Locale locale) throws ConversionException {
-							if (value == null) {
-								return null;
-							}
-							try {
-								return InetAddress.getByName(value);
-							} catch (final UnknownHostException e) {
-								throw new ConversionException(e);
-							}
-						}
-
-						@Override
-						public String convertToPresentation(final InetAddress value, final Class<? extends String> targetType, final Locale locale) throws ConversionException {
-							if (value == null) {
-								return null;
-							}
-							return value.getHostAddress();
-						}
-
-						@Override
-						public Class<InetAddress> getModelType() {
-							return InetAddress.class;
-						}
-
-						@Override
-						public Class<String> getPresentationType() {
-							return String.class;
-						}
-					});
+					textField.setConverter(new InetAddressConverter(InetAddress.class));
 					return (T) textField;
 				}
 				return null;

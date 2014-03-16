@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.List;
@@ -22,12 +23,15 @@ import com.vaadin.data.Property;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.util.BeanItemContainer;
+import com.vaadin.data.util.converter.Converter;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
 import com.vaadin.ui.AbstractSelect.ItemCaptionMode;
+import com.vaadin.ui.AbstractTextField;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
+import com.vaadin.ui.Component;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalLayout;
@@ -115,6 +119,13 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		editDeviceForm.setEnabled(false);
 		deviceSelect.addValueChangeListener(new ValueChangeListener() {
 
+			private TextField createInetAddressField(final EntityItem<NetworkDevice> deviceItem, final String fieldName) {
+				final TextField field = withConverter(new TextField(fieldName), InetAddressConverter.getInstance());
+				field.setPropertyDataSource(deviceItem.getItemProperty(fieldName));
+				field.setNullRepresentation("");
+				return field;
+			}
+
 			@Override
 			public void valueChange(final ValueChangeEvent event) {
 
@@ -159,7 +170,13 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						itemProperty.setValue(interfaces);
 					}
 				};
+				editDeviceForm.addComponent(new TextField("Serial Number", deviceItem.getItemProperty("serialNumber")));
 				editDeviceForm.addComponent(new TextField("Base-Address", macAddressDataSource));
+				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v4Address"));
+				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v6Address"));
+
+				// editDeviceForm.addComponent(withConverter(new Label(deviceItem.getItemProperty("v6Address")), new
+				// InetAddressConverter<>(Inet6Address.class)));
 
 				final BeanItemContainer<NetworkInterface> dataSource = new BeanItemContainer<>(NetworkInterface.class, deviceItem.getEntity().getInterfaces());
 				dataSource.addNestedContainerProperty("macAddress.address");
@@ -176,6 +193,21 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						table.commit();
 
 						deviceItem.commit();
+						editDeviceForm.setEnabled(false);
+					}
+				}));
+				editDeviceForm.addComponent(new Button("Provision", new ClickListener() {
+
+					@Override
+					public void buttonClick(final ClickEvent event) {
+						table.commit();
+						deviceItem.commit();
+						final NetworkDevice networkDevice = deviceItem.getEntity();
+						if (isReachable(networkDevice.getV4Address())) {
+							networkDeviceManagementBean.loadConfig(networkDevice.getV4Address());
+						} else if (isReachable(networkDevice.getV6Address())) {
+							networkDeviceManagementBean.loadConfig(networkDevice.getV6Address());
+						}
 						System.out.println(networkDeviceManagementBean.generateConfig(deviceItem.getEntity()));
 
 						editDeviceForm.setEnabled(false);
@@ -184,6 +216,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 				editDeviceForm.setEnabled(true);
 			}
+
 		});
 		deviceSelect.setImmediate(true);
 		deviceSelect.setNullSelectionAllowed(false);
@@ -195,4 +228,24 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 	}
 
+	private boolean isReachable(final InetAddress address) {
+		if (address == null) {
+			return false;
+		}
+		try {
+			return address.isReachable(150);
+		} catch (final IOException e) {
+			return false;
+		}
+	}
+
+	private <C extends Component> C withConverter(final C component, final Converter<String, ?> converter) {
+		if (component instanceof Label) {
+			((Label) component).setConverter(converter);
+		}
+		if (component instanceof AbstractTextField) {
+			((AbstractTextField) component).setConverter(converter);
+		}
+		return component;
+	}
 }

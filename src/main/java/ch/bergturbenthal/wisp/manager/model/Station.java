@@ -34,4 +34,20 @@ public class Station {
 	private Set<VLan> ownNetworks = new HashSet();
 	private Position position;
 
+	public String getLoopbackDescription() {
+		if (loopback == null) {
+			return null;
+		}
+		final StringBuilder stringBuilder = new StringBuilder();
+		if (loopback.getInet4Address() != null) {
+			stringBuilder.append(loopback.getInet4Address().getHostAddress());
+		}
+		stringBuilder.append(":");
+		if (loopback.getInet6Address() != null) {
+			stringBuilder.append(loopback.getInet6Address().getHostAddress());
+		}
+		return stringBuilder.toString();
+
+	}
+
 }

@@ -193,6 +193,9 @@ public class MapView extends CustomComponent implements View {
 		});
 		editStationForm.addComponent(fieldGroup.buildAndBind("Name", "name"));
 		editStationForm.addComponent(fieldGroup.buildAndBind("Device", "device"));
+		final Field<?> addressField = fieldGroup.buildAndBind("Address", "loopbackDescription");
+		addressField.setReadOnly(true);
+		editStationForm.addComponent(addressField);
 
 		editStationForm.addComponent(new Button("Save", new ClickListener() {
 

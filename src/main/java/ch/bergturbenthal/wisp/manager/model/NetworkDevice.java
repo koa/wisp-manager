@@ -1,8 +1,7 @@
 package ch.bergturbenthal.wisp.manager.model;
 
 import java.math.BigInteger;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -86,11 +85,19 @@ public class NetworkDevice {
 		return id + " - " + deviceModel;
 	}
 
-	public void setV4Address(final Inet4Address host) {
+	public InetAddress getV4Address() {
+		return IpAddress.bigInteger2InetAddress(v4AddressRaw);
+	}
+
+	public InetAddress getV6Address() {
+		return IpAddress.bigInteger2InetAddress(v6AddressRaw);
+	}
+
+	public void setV4Address(final InetAddress host) {
 		v4AddressRaw = IpAddress.inet2BigInteger(host);
 	}
 
-	public void setV6Address(final Inet6Address host) {
+	public void setV6Address(final InetAddress host) {
 		v6AddressRaw = IpAddress.inet2BigInteger(host);
 	}
 
