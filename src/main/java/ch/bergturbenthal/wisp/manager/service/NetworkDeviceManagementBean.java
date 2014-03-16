@@ -1,5 +1,7 @@
 package ch.bergturbenthal.wisp.manager.service;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.List;
 
@@ -39,11 +41,13 @@ public class NetworkDeviceManagementBean {
 		if (resultList.size() > 0) {
 			final NetworkDevice foundDevice = resultList.get(0);
 			updateDevice(foundDevice, identifiedDevice);
+			setKnownIp(foundDevice, host);
 			return foundDevice;
 		} else {
 			final NetworkDevice newDevice = NetworkDevice.createDevice(identifiedDevice.getModel());
 			updateDevice(newDevice, identifiedDevice);
 			newDevice.setSerialNumber(identifiedDevice.getSerialNumber());
+			setKnownIp(newDevice, host);
 			entityManager.persist(newDevice);
 			return newDevice;
 		}
@@ -70,6 +74,19 @@ public class NetworkDeviceManagementBean {
 		} else {
 			provision.loadConfig(detectNetworkDevice, host);
 		}
+	}
+
+	private void setKnownIp(final NetworkDevice device, final InetAddress host) {
+		if (host == null) {
+			return;
+		}
+		if (host instanceof Inet4Address) {
+			device.setV4Address((Inet4Address) host);
+		}
+		if (host instanceof Inet6Address) {
+			device.setV6Address((Inet6Address) host);
+		}
+
 	}
 
 	private void updateDevice(final NetworkDevice deviceEntity, final DetectedDevice identifiedDevice) {

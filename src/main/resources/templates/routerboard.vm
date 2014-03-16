@@ -11,7 +11,7 @@
 
 /ip address
 # fall back IP
-	add address=192.168.88.1/24 interface=$networkInterfaces[0].ifName
+#	add address=192.168.88.1/24 interface=$networkInterfaces[0].ifName
 	
 # configured IPs
 #foreach($interface in $networkInterfaces)
@@ -29,8 +29,8 @@
 
 /routing ospf network
 	add area=backbone network=$v4Loopback/32
-#foreach($vlan in $station.ownNetworks)
-	#set($v4LanIp=$vlan.address.inet4Address.hostAddress)
-	#set($v4LanMask=$vlan.address.inet4Mask)
-	add area=backbone network=$v4LanIp/$v4LanMask
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address)
+	add area=backbone network=$interface.v4NetAddress/$interface.v4Mask
+#end	
 #end

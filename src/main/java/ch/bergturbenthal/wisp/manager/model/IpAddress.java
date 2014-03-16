@@ -20,8 +20,28 @@ import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 @NoArgsConstructor
 @AllArgsConstructor
 public class IpAddress {
+	public static InetAddress bigInteger2InetAddress(final BigInteger rawValue) {
+		if (rawValue == null) {
+			return null;
+		}
+		try {
+			return InetAddress.getByAddress(rawValue.toByteArray());
+		} catch (final UnknownHostException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static BigInteger inet2BigInteger(final InetAddress ipAddress) {
+		if (ipAddress == null) {
+			return null;
+		}
+		final byte[] address = ipAddress.getAddress();
+		return new BigInteger(address);
+	}
+
 	@Enumerated(EnumType.STRING)
 	private IpAddressType addressType;
+
 	@Column(columnDefinition = "numeric")
 	private BigInteger rawValue;
 
@@ -35,8 +55,7 @@ public class IpAddress {
 	}
 
 	public IpAddress(final InetAddress ipAddress) {
-		final byte[] address = ipAddress.getAddress();
-		rawValue = new BigInteger(address);
+		rawValue = inet2BigInteger(ipAddress);
 		if (ipAddress instanceof Inet4Address) {
 			addressType = IpAddressType.V4;
 		} else {
@@ -56,14 +75,7 @@ public class IpAddress {
 	}
 
 	public InetAddress getInetAddress() {
-		if (rawValue == null) {
-			return null;
-		}
-		try {
-			return InetAddress.getByAddress(rawValue.toByteArray());
-		} catch (final UnknownHostException e) {
-			throw new RuntimeException(e);
-		}
+		return bigInteger2InetAddress(rawValue);
 	}
 
 	@Override

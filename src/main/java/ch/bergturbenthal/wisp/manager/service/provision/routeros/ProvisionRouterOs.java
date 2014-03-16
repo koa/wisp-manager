@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.Format;
@@ -41,6 +43,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
+import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -68,8 +71,10 @@ public class ProvisionRouterOs {
 		private final String macAddress;
 		private String v4Address;
 		private int v4Mask;
+		private String v4NetAddress;
 		private String v6Address;
 		private int v6Mask;
+		private String v6NetAddress;
 	}
 
 	private static String CURRENT_OS_VERSION = "6.10";
@@ -200,11 +205,13 @@ public class ProvisionRouterOs {
 					if (inet4Address != null) {
 						builder.v4Address(inet4Address.getHostAddress());
 						builder.v4Mask(network.getAddress().getInet4ParentMask());
+						builder.v4NetAddress(network.getAddress().getV4Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
 					}
 					final InetAddress inet6Address = network.getAddress().getInet6Address();
 					if (inet6Address != null) {
 						builder.v6Address(inet6Address.getHostAddress());
 						builder.v6Mask(network.getAddress().getInet6ParentMask());
+						builder.v6NetAddress(network.getAddress().getV6Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
 					}
 				}
 			}
@@ -344,10 +351,11 @@ public class ProvisionRouterOs {
 			} finally {
 				session.disconnect();
 			}
-			waitForReboot(host);
 			final RangePair loopback = device.getStation().getLoopback();
-			device.setV4Address(loopback.getV4Address().getRange().getAddress());
-			device.setV6Address(loopback.getV6Address().getRange().getAddress());
+			final IpAddress newAddress = loopback.getV4Address().getRange().getAddress();
+			waitForReboot(newAddress.getInetAddress());
+			device.setV4Address((Inet4Address) newAddress.getInetAddress());
+			device.setV6Address((Inet6Address) loopback.getV6Address().getRange().getAddress().getInetAddress());
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);
 		}

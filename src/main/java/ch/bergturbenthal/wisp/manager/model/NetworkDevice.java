@@ -1,5 +1,8 @@
 package ch.bergturbenthal.wisp.manager.model;
 
+import java.math.BigInteger;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -68,8 +71,10 @@ public class NetworkDevice {
 
 	@OneToOne(mappedBy = "device")
 	private Station station;
-	private IpAddress v4Address;
-	private IpAddress v6Address;
+	@Column(columnDefinition = "numeric")
+	private BigInteger v4AddressRaw;
+	@Column(columnDefinition = "numeric")
+	private BigInteger v6AddressRaw;
 
 	public String getTitle() {
 		if (interfaces != null && !interfaces.isEmpty()) {
@@ -79,6 +84,14 @@ public class NetworkDevice {
 			}
 		}
 		return id + " - " + deviceModel;
+	}
+
+	public void setV4Address(final Inet4Address host) {
+		v4AddressRaw = IpAddress.inet2BigInteger(host);
+	}
+
+	public void setV6Address(final Inet6Address host) {
+		v6AddressRaw = IpAddress.inet2BigInteger(host);
 	}
 
 }

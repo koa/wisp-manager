@@ -12,6 +12,7 @@ import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementBean;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
+import ch.bergturbenthal.wisp.manager.view.InputIpDialog.DialogResultHandler;
 
 import com.vaadin.addon.jpacontainer.EntityItem;
 import com.vaadin.addon.jpacontainer.EntityItemProperty;
@@ -83,9 +84,15 @@ public class NetworkDeviceView extends CustomComponent implements View {
 			@Override
 			public void buttonClick(final ClickEvent event) {
 				try {
-					final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("192.168.88.1"));
-					devicesContainer.refresh();
-					deviceSelect.select(detectNetworkDevice.getId());
+					InputIpDialog.show(getUI(), "Enter IP", InetAddress.getByName("192.168.88.1"), new DialogResultHandler() {
+
+						@Override
+						public void takeIp(final InetAddress address) {
+							final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(address);
+							devicesContainer.refresh();
+							deviceSelect.select(detectNetworkDevice.getId());
+						}
+					});
 
 				} catch (final Throwable e) {
 					e.printStackTrace();
