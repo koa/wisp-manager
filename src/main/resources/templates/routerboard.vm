@@ -6,8 +6,17 @@
 # all interfaces in routing mode
 /interface ethernet
 #foreach($interface in $networkInterfaces)
+#if($interface.macAddress)
 	set [ find mac-address=$interface.macAddress ] master-port=none speed=1Gbps name=$interface.ifName
 #end
+#end
+/interface vlan
+#foreach($interface in $networkInterfaces)
+#if($interface.parentIfName)
+	add interface=$interface.parentIfName l2mtu=1594 name=$interface.ifName vlan-id=$interface.vlanId
+#end
+#end
+
 /interface bridge add name=loopback
 
 /ip address	

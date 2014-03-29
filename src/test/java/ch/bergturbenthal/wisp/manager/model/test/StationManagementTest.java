@@ -15,7 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import ch.bergturbenthal.wisp.manager.model.Position;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -52,14 +53,23 @@ public class StationManagementTest {
 
 	@Test
 	public void testCreateStation() throws UnknownHostException {
-		final Station station = addressManagementBean.fillStation(stationService.addStation(new Position(47.4212786, 8.8859975)));
-		Assert.assertEquals(InetAddress.getByName("172.16.1.1"), station.getLoopback().getV4Address().getRange().getAddress().getInetAddress());
+		final NetworkDevice device = testHelperBean.createStationWithDevice("serial", "80:ee:73:67:df:16", "name");
+		final Station station = addressManagementBean.fillStation(device.getStation());
+
+		Assert.assertEquals(InetAddress.getByName("172.16.0.1"), station.getLoopback().getV4Address().getRange().getAddress().getInetAddress());
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab::"), station.getLoopback().getV6Address().getRange().getAddress().getInetAddress());
 		final VLan vlan = station.getOwnNetworks().iterator().next();
 		Assert.assertEquals(0, vlan.getVlanId());
-		final RangePair ownAddress = vlan.getAddress();
-		Assert.assertEquals(InetAddress.getByName("172.17.1.0"), ownAddress.getInet4Address());
-		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), ownAddress.getInet6Address());
+		final RangePair networkAddress = vlan.getAddress();
+		Assert.assertEquals(InetAddress.getByName("172.17.0.0"), networkAddress.getInet4Address());
+		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), networkAddress.getInet6Address());
+
+		final NetworkInterface homeInterface = station.getDevice().getInterfaces().get(0);
+		final VLan deviceAddressVlan = homeInterface.getNetworks().iterator().next();
+		Assert.assertEquals(0, deviceAddressVlan.getVlanId());
+		final RangePair interfaceAddress = deviceAddressVlan.getAddress();
+		Assert.assertEquals(InetAddress.getByName("172.17.0.1"), interfaceAddress.getInet4Address());
+		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), interfaceAddress.getInet6Address());
 	}
 
 }

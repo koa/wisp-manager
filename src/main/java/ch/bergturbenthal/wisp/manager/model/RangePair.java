@@ -6,10 +6,14 @@ import javax.persistence.CascadeType;
 import javax.persistence.Embeddable;
 import javax.persistence.OneToOne;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Embeddable
+@NoArgsConstructor
+@AllArgsConstructor
 public class RangePair {
 	@OneToOne(cascade = CascadeType.ALL)
 	private IpRange v4Address;

@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -68,20 +69,24 @@ public class ProvisionRouterOs {
 	public static class ProvisionNetworkInterface {
 		private final String ifName;
 		private final String macAddress;
-		private NetworkInterfaceRole role;
-		private String v4Address;
-		private int v4Mask;
-		private String v4NetAddress;
-		private String v6Address;
-		private int v6Mask;
-		private String v6NetAddress;
+		private final String parentIfName;
+		private final NetworkInterfaceRole role;
+		private final String v4Address;
+		private final int v4Mask;
+		private final String v4NetAddress;
+		private final String v6Address;
+		private final int v6Mask;
+		private final String v6NetAddress;
+		private final int vlanId;
 	}
 
 	private static String CURRENT_OS_VERSION = "6.10";
+
 	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp"));
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
-
 	private static final String ROUTEROS_PACKAGE_PREFIX = "routeros-";
+
+	private static final Pattern VALID_CHARS_PATTERNS = Pattern.compile("[A-Za-z0-9]+");
 	static {
 		Velocity.setProperty("resource.loader", "class");
 		Velocity.setProperty("class.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -190,17 +195,26 @@ public class ProvisionRouterOs {
 			final String interfaceName = netIf.getInterfaceName();
 			final String ifName;
 			if (interfaceName == null) {
-				ifName = "unassigned" + (networkInterfaces.size() + 1);
+				ifName = uniqifyName(existingNames, "unassigned" + (networkInterfaces.size() + 1));
 			} else {
-				ifName = stripInterfaceName(interfaceName);
+				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName));
 			}
-			final String uniqName = uniqifyName(existingNames, ifName);
-			existingNames.add(uniqName);
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
-			final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder().macAddress(macAddress).ifName(uniqName);
+			boolean hasAddressWithoutVlan = false;
 			for (final VLan network : netIf.getNetworks()) {
-				if (network.getVlanId() == 0 && network.getAddress() != null) {
-					// default network
+				if (network.getAddress() != null) {
+					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder();
+					if (network.getVlanId() == 0) {
+						// default network
+						hasAddressWithoutVlan = true;
+						builder.ifName(ifName);
+						builder.macAddress(macAddress);
+					} else {
+						// additional vlan
+						builder.ifName(uniqifyName(existingNames, ifName + "-" + network.getVlanId()));
+						builder.vlanId(network.getVlanId());
+						builder.parentIfName(ifName);
+					}
 					final InetAddress inet4Address = network.getAddress().getInet4Address();
 					if (inet4Address != null) {
 						builder.v4Address(inet4Address.getHostAddress());
@@ -214,9 +228,15 @@ public class ProvisionRouterOs {
 						builder.v6NetAddress(network.getAddress().getV6Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
 					}
 					builder.role(netIf.getRole());
+					networkInterfaces.add(builder.build());
 				}
 			}
-			networkInterfaces.add(builder.build());
+			if (!netIf.getNetworks().isEmpty() && !hasAddressWithoutVlan) {
+				final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder().macAddress(macAddress);
+				builder.ifName(ifName);
+				builder.macAddress(macAddress);
+				networkInterfaces.add(builder.build());
+			}
 		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
@@ -380,7 +400,15 @@ public class ProvisionRouterOs {
 	}
 
 	private String stripInterfaceName(final String interfaceName) {
-		final Matcher matcher = Pattern.compile("[A-Za-z0-9]+").matcher(interfaceName);
+		final Map<Pattern, String> replacements = new HashMap<>();
+		replacements.put(Pattern.compile("[öÖ]"), "oe");
+		replacements.put(Pattern.compile("[äÄ]"), "ae");
+		replacements.put(Pattern.compile("[üÜ]"), "ue");
+		String name = interfaceName;
+		for (final Entry<Pattern, String> replacementEntry : replacements.entrySet()) {
+			name = replacementEntry.getKey().matcher(name).replaceAll(replacementEntry.getValue());
+		}
+		final Matcher matcher = VALID_CHARS_PATTERNS.matcher(name);
 		final StringBuilder sb = new StringBuilder();
 		while (matcher.find()) {
 			if (sb.length() > 0) {
@@ -388,7 +416,7 @@ public class ProvisionRouterOs {
 			}
 			sb.append(matcher.group());
 		}
-		return sb.toString();
+		return sb.toString().toLowerCase();
 	}
 
 	private String uniqifyName(final Collection<String> existingNames, final String ifName) {
@@ -396,6 +424,7 @@ public class ProvisionRouterOs {
 		while (true) {
 			final String candidate = index == 0 ? ifName : ifName + index;
 			if (!existingNames.contains(candidate)) {
+				existingNames.add(candidate);
 				return candidate;
 			}
 			index += 1;

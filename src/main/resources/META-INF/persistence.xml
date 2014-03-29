@@ -18,6 +18,7 @@
     </class>
     <class>ch.bergturbenthal.wisp.manager.model.RangePair</class>
     <class>ch.bergturbenthal.wisp.manager.model.VLan</class>
+    <class>ch.bergturbenthal.wisp.manager.model.GlobalDnsServer</class>
     <properties>
       <property name="javax.persistence.schema-generation.database.action"
         value="create" />

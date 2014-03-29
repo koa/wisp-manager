@@ -7,6 +7,7 @@ import java.util.List;
 
 import javax.ejb.EJB;
 
+import lombok.extern.slf4j.Slf4j;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -42,6 +43,7 @@ import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
 
 @CDIView(value = NetworkDeviceView.VIEW_ID)
+@Slf4j
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@EJB
@@ -202,13 +204,13 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					public void buttonClick(final ClickEvent event) {
 						table.commit();
 						deviceItem.commit();
+						log.info("new Configuration: " + networkDeviceManagementBean.generateConfig(deviceItem.getEntity()));
 						final NetworkDevice networkDevice = deviceItem.getEntity();
 						if (isReachable(networkDevice.getV4Address())) {
 							networkDeviceManagementBean.loadConfig(networkDevice.getV4Address());
 						} else if (isReachable(networkDevice.getV6Address())) {
 							networkDeviceManagementBean.loadConfig(networkDevice.getV6Address());
 						}
-						System.out.println(networkDeviceManagementBean.generateConfig(deviceItem.getEntity()));
 
 						editDeviceForm.setEnabled(false);
 					}

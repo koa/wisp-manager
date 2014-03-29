@@ -28,7 +28,6 @@ public class StationServiceBean implements StationService {
 		station.setPosition(position);
 		entityManager.persist(station);
 		station.setName("Station-" + station.getId());
-		entityManager.persist(addressManagementBean.fillStation(station));
 		return station;
 	}
 

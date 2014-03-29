@@ -23,6 +23,7 @@ import javax.persistence.criteria.Root;
 
 import lombok.extern.slf4j.Slf4j;
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
@@ -42,6 +43,10 @@ public class AddressManagementBean {
 	@PersistenceContext
 	private EntityManager entityManager;
 
+	public void addGlobalDns(final IpAddress address) {
+		entityManager.persist(new GlobalDnsServer(address));
+	}
+
 	public IpRange addRootRange(final InetAddress rangeAddress, final int rangeMask, final int reservationMask, final String comment) {
 		if (reservationMask < rangeMask) {
 			throw new IllegalArgumentException("Error to create range for " + rangeAddress
@@ -53,7 +58,14 @@ public class AddressManagementBean {
 																					+ rangeMask
 																					+ ")");
 		}
-		final IpRange reservationRange = new IpRange(new IpNetwork(new IpAddress(rangeAddress), rangeMask), reservationMask, AddressRangeType.ROOT);
+		final IpNetwork reserveNetwork = new IpNetwork(new IpAddress(rangeAddress), rangeMask);
+		for (final IpRange range : findAllRootRanges()) {
+			final IpNetwork checkNetwork = range.getRange();
+			if (overlap(checkNetwork, reserveNetwork)) {
+				throw new IllegalArgumentException("new range " + reserveNetwork + " overlaps with existsing " + checkNetwork);
+			}
+		}
+		final IpRange reservationRange = new IpRange(reserveNetwork, reservationMask, AddressRangeType.ROOT);
 		reservationRange.setComment(comment);
 		entityManager.persist(reservationRange);
 		return reservationRange;
@@ -63,8 +75,12 @@ public class AddressManagementBean {
 		final RangePair address = new RangePair();
 		final VLan vLan = new VLan();
 		vLan.setVlanId(Integer.valueOf(vlanId));
-		address.setV4Address(reserveRange(parentAddresses.getV4Address(), AddressRangeType.ASSIGNED, 32, null));
-		address.setV6Address(reserveRange(parentAddresses.getV6Address(), AddressRangeType.ASSIGNED, 128, null));
+		if (parentAddresses.getV4Address() != null) {
+			address.setV4Address(reserveRange(parentAddresses.getV4Address(), AddressRangeType.ASSIGNED, 32, null));
+		}
+		if (parentAddresses.getV6Address() != null) {
+			address.setV6Address(reserveRange(parentAddresses.getV6Address(), AddressRangeType.ASSIGNED, 128, null));
+		}
 		vLan.setAddress(address);
 		return vLan;
 	}
@@ -123,11 +139,18 @@ public class AddressManagementBean {
 		if (ownNetworks.isEmpty()) {
 			final VLan vLan = new VLan();
 			vLan.setVlanId(0);
-			final RangePair address = new RangePair();
-			fillRangePair(address, AddressRangeType.USER, 25, 32, 64, 128, null);
-			vLan.setAddress(address);
 			vLan.setStation(station);
 			ownNetworks.add(vLan);
+		}
+		for (final VLan vLan : ownNetworks) {
+			final RangePair address;
+			if (vLan.getAddress() == null) {
+				address = new RangePair();
+			} else {
+				address = vLan.getAddress();
+			}
+			fillRangePair(address, AddressRangeType.USER, 25, 32, 64, 128, null);
+			vLan.setAddress(address);
 		}
 		station.setOwnNetworks(ownNetworks);
 	}
@@ -168,10 +191,17 @@ public class AddressManagementBean {
 				final Set<Station> foundStations = new HashSet<>();
 				for (final VLan vLan : networks) {
 					final RangePair connectionAddress = vLan.getAddress();
-					foundStations.add(findStationForRange(connectionAddress.getV4Address().getParentRange()));
-					foundStations.add(findStationForRange(connectionAddress.getV6Address().getParentRange()));
-					foundConnections.add(findConnectionForRange(connectionAddress.getV4Address().getParentRange()));
-					foundConnections.add(findConnectionForRange(connectionAddress.getV6Address().getParentRange()));
+					if (connectionAddress == null) {
+						continue;
+					}
+					if (connectionAddress.getV4Address() != null) {
+						foundStations.add(findStationForRange(connectionAddress.getV4Address().getParentRange()));
+						foundConnections.add(findConnectionForRange(connectionAddress.getV4Address().getParentRange()));
+					}
+					if (connectionAddress.getV6Address() != null) {
+						foundStations.add(findStationForRange(connectionAddress.getV6Address().getParentRange()));
+						foundConnections.add(findConnectionForRange(connectionAddress.getV6Address().getParentRange()));
+					}
 				}
 				// remove not found entries
 				foundConnections.remove(null);
@@ -210,27 +240,31 @@ public class AddressManagementBean {
 		// assign remaining interfaces to connections
 		final Iterator<NetworkInterface> freeInterfacesIterator = freeInterfaces.iterator();
 		final Iterator<Connection> unassignedConnectionsIterator = remainingConnections.iterator();
-		while (freeInterfacesIterator.hasNext() && unassignedConnectionsIterator.hasNext()) {
+		while (freeInterfacesIterator.hasNext() && userAssignedInterfaces.isEmpty()) {
 			final NetworkInterface networkInterface = freeInterfacesIterator.next();
 			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
 				// only lan interfaces
 				continue;
 			}
-			if (userAssignedInterfaces.isEmpty()) {
-				// first interface is always for user connection
-				final Set<VLan> ownNetworks = station.getOwnNetworks();
-				if (ownNetworks != null && !ownNetworks.isEmpty()) {
-					final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
-					networks.clear();
-					for (final VLan vlan : ownNetworks) {
-						final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
-						networks.add(ifaceVlan);
-						ifaceVlan.setNetworkInterface(networkInterface);
-					}
+			// first interface is always for user connection
+			final Set<VLan> ownNetworks = station.getOwnNetworks();
+			if (ownNetworks != null && !ownNetworks.isEmpty()) {
+				final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
+				networks.clear();
+				for (final VLan vlan : ownNetworks) {
+					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
+					networks.add(ifaceVlan);
+					ifaceVlan.setNetworkInterface(networkInterface);
 				}
-				networkInterface.setInterfaceName("home");
-				networkInterface.setRole(NetworkInterfaceRole.NETWORK);
-				userAssignedInterfaces.add(networkInterface);
+			}
+			networkInterface.setInterfaceName("home");
+			networkInterface.setRole(NetworkInterfaceRole.NETWORK);
+			userAssignedInterfaces.add(networkInterface);
+		}
+		while (freeInterfacesIterator.hasNext() && unassignedConnectionsIterator.hasNext()) {
+			final NetworkInterface networkInterface = freeInterfacesIterator.next();
+			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
+				// only lan interfaces
 				continue;
 			}
 			// take connection from list
@@ -369,15 +403,36 @@ public class AddressManagementBean {
 				reserveRange(singleRanges, AddressRangeType.LOOPBACK, 128, null);
 				reserveRange(ipV6ReservationRange, AddressRangeType.CONNECTION, 64, null);
 				reserveRange(ipV6ReservationRange, AddressRangeType.USER, 64, null);
-				System.out.println("v4-Network: " + ipV4ReservationRange);
-				System.out.println("v6-Network: " + ipV6ReservationRange);
 			}
-			for (final IpRange ipV4ReservationRange : resultList) {
-				System.out.println("Range: " + ipV4ReservationRange);
+			if (listGlobalDnsServers().isEmpty()) {
+				addGlobalDns(new IpAddress(InetAddress.getByName("8.8.8.8")));
+				addGlobalDns(new IpAddress(InetAddress.getByName("2001:4860:4860::8888")));
 			}
 		} catch (final UnknownHostException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	public Collection<IpAddress> listGlobalDnsServers() {
+		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+		final CriteriaQuery<GlobalDnsServer> query = criteriaBuilder.createQuery(GlobalDnsServer.class);
+		query.from(GlobalDnsServer.class);
+		final ArrayList<IpAddress> ret = new ArrayList<>();
+		for (final GlobalDnsServer dnsServer : entityManager.createQuery(query).getResultList()) {
+			ret.add(dnsServer.getAddress());
+		}
+		return ret;
+	}
+
+	private boolean overlap(final IpNetwork checkNetwork, final IpNetwork reserveNetwork) {
+		if (checkNetwork.containsAddress(reserveNetwork.getAddress())) {
+			return true;
+		}
+		return reserveNetwork.containsAddress(checkNetwork.getAddress());
+	}
+
+	public void removeGlobalDns(final IpAddress address) {
+		entityManager.remove(entityManager.merge(new GlobalDnsServer(address)));
 	}
 
 	public IpRange reserveRange(final IpRange parentRange, final AddressRangeType type, final int mask, final String comment) {
@@ -388,7 +443,7 @@ public class AddressManagementBean {
 		final BigInteger parentRangeStartAddress = parentRange.getRange().getAddress().getRawValue();
 		final BigInteger rangeSize = BigInteger.valueOf(1).shiftLeft((isV4 ? 32 : 128) - parentRange.getRangeMask());
 		// for single v4-address -> skip first and last address
-		final boolean isV4SingleAddress = mask == 32 && isV4;
+		final boolean isV4SingleAddress = parentRange.getRangeMask() == 32 && isV4;
 		final long availableReservations = isV4SingleAddress ? parentRange.getAvailableReservations() - 1 : parentRange.getAvailableReservations();
 		nextReservation:
 		for (int i = isV4SingleAddress ? 1 : 0; i < availableReservations; i++) {

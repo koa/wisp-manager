@@ -33,6 +33,9 @@ public class NetworkDeviceManagementBean {
 
 	public NetworkDevice detectNetworkDevice(final InetAddress host) {
 		final DetectedDevice identifiedDevice = provision.identify(host);
+		if (identifiedDevice == null) {
+			return null;
+		}
 		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
 		final CriteriaQuery<NetworkDevice> query = criteriaBuilder.createQuery(NetworkDevice.class);
 		final Root<NetworkDevice> devicePath = query.from(NetworkDevice.class);
@@ -81,10 +84,10 @@ public class NetworkDeviceManagementBean {
 			return;
 		}
 		if (host instanceof Inet4Address) {
-			device.setV4Address((Inet4Address) host);
+			device.setV4Address(host);
 		}
 		if (host instanceof Inet6Address) {
-			device.setV6Address((Inet6Address) host);
+			device.setV6Address(host);
 		}
 
 	}

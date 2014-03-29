@@ -4,8 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.ejb.EJB;
 import javax.inject.Inject;
 
+import lombok.extern.slf4j.Slf4j;
+import ch.bergturbenthal.wisp.manager.service.DemoSetupBean;
 import ch.bergturbenthal.wisp.manager.view.ConnectionView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
 import ch.bergturbenthal.wisp.manager.view.NetworkDeviceView;
@@ -26,7 +29,10 @@ import com.vaadin.ui.VerticalLayout;
 
 @CDIUI
 @Widgetset("ch.bergturbenthal.wisp.manager.WispManagerWidgetSet")
+@Slf4j
 public class WispManagerUI extends UI {
+	@EJB
+	private DemoSetupBean demoSetupBean;
 	@Inject
 	private CDIViewProvider viewProvider;
 
@@ -38,15 +44,17 @@ public class WispManagerUI extends UI {
 		navigatorLayout.setSizeFull();
 
 		final MenuBar menuBar = new MenuBar();
-		final MenuItem fileMenu = menuBar.addItem("File", null);
-		fileMenu.addItem("clear", new Command() {
+		menuBar.addItem("init", new Command() {
 
 			@Override
 			public void menuSelected(final MenuItem selectedItem) {
-				System.out.println("Clear clicked");
+				try {
+					demoSetupBean.initDemoData();
+				} catch (final Throwable e) {
+					log.error("Cannot init data", e);
+				}
 			}
 		});
-
 		final Map<String, String> menuEntries = new LinkedHashMap<>();
 		menuEntries.put("Map", MapView.VIEW_ID);
 		menuEntries.put("Connections", ConnectionView.VIEW_ID);

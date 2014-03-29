@@ -55,23 +55,23 @@ public class IpAddressTest {
 
 	@Test
 	public void testIpv4ConnectionReservationAddress() throws UnknownHostException {
-		Assert.assertEquals(InetAddress.getByName("172.16.0.0"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
-		Assert.assertEquals(InetAddress.getByName("172.16.0.8"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29));
-		Assert.assertEquals(InetAddress.getByName("172.16.0.16"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.0"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.8"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.16"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
 	}
 
 	@Test
 	public void testIpv4ConnectionReservationAddress2() throws UnknownHostException {
-		Assert.assertEquals(InetAddress.getByName("172.16.0.0"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
-		Assert.assertEquals(InetAddress.getByName("172.16.0.8"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29));
-		Assert.assertEquals(InetAddress.getByName("172.16.0.16"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.0"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.8"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29));
+		Assert.assertEquals(InetAddress.getByName("172.16.1.16"), nextRange(AddressRangeType.CONNECTION, IpAddressType.V4, 30));
 	}
 
 	@Test
 	public void testIpv4LoopbackReservationAddress() throws UnknownHostException {
-		Assert.assertEquals(InetAddress.getByName("172.16.1.1"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
-		Assert.assertEquals(InetAddress.getByName("172.16.1.2"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
-		Assert.assertEquals(InetAddress.getByName("172.16.1.3"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
+		Assert.assertEquals(InetAddress.getByName("172.16.0.1"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
+		Assert.assertEquals(InetAddress.getByName("172.16.0.2"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
+		Assert.assertEquals(InetAddress.getByName("172.16.0.3"), nextAddress(AddressRangeType.LOOPBACK, IpAddressType.V4));
 	}
 
 	@Test
