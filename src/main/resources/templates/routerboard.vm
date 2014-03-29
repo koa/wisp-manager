@@ -64,3 +64,22 @@
 #end
 #end	
 #end
+
+/ipv6 nd
+#set($first=1)
+#foreach($interface in $networkInterfaces)
+#if($interface.v6Address)
+#if($interface.role == "NETWORK")
+#if ($first==1)
+	set [ find default=yes ] advertise-dns=yes interface=$interface.ifName
+#set($first=0)
+#else
+	add interface=$interface.ifName advertise-dns=yes
+#end
+#end
+#end	
+#end
+
+
+/ip dns
+set servers=2001:4860:4860::8888,8.8.8.8
