@@ -6,22 +6,29 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.OrderColumn;
+import javax.persistence.Version;
 import javax.validation.constraints.NotNull;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Setter;
 import lombok.ToString;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
@@ -59,21 +66,30 @@ public class NetworkDevice {
 	@Enumerated(EnumType.STRING)
 	@Column(updatable = false)
 	private NetworkDeviceModel deviceModel;
+	@ElementCollection
+	@CollectionTable(name = "network_device_dns", joinColumns = @JoinColumn(name = "network_device"))
+	private Set<IpAddress> dnsServers;
 	@Id
 	@GeneratedValue
 	private Long id;
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
+	@Setter(AccessLevel.PROTECTED)
+	private Long lastProvisionedStationVersion;
+	@Setter(AccessLevel.PROTECTED)
+	private Long lastProvisionedVersion;
 	@Column(unique = true, nullable = true)
 	private String serialNumber;
-
 	@OneToOne(mappedBy = "device")
 	private Station station;
 	@Column(columnDefinition = "numeric")
 	private BigInteger v4AddressRaw;
 	@Column(columnDefinition = "numeric")
 	private BigInteger v6AddressRaw;
+	@Version
+	@Setter(AccessLevel.PROTECTED)
+	private Long version;
 
 	public String getTitle() {
 		if (interfaces != null && !interfaces.isEmpty()) {
@@ -91,6 +107,37 @@ public class NetworkDevice {
 
 	public InetAddress getV6Address() {
 		return IpAddress.bigInteger2InetAddress(v6AddressRaw);
+	}
+
+	public boolean isProvisioned() {
+		if (lastProvisionedVersion == null) {
+			return false;
+		}
+		if (version == null) {
+			return false;
+		}
+		if (version.longValue() - lastProvisionedVersion.longValue() != 1) {
+			return false;
+		}
+		if (station != null) {
+			if (lastProvisionedStationVersion == null) {
+				return false;
+			}
+			if (station.getVersion() == null) {
+				return false;
+			}
+			if (station.getVersion().longValue() != lastProvisionedStationVersion.longValue()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public void setProvisioned() {
+		lastProvisionedVersion = version;
+		if (station != null) {
+			lastProvisionedStationVersion = station.getVersion();
+		}
 	}
 
 	public void setV4Address(final InetAddress host) {

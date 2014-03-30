@@ -60,7 +60,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		devicesContainer.setAutoCommit(true);
 
 		final HorizontalLayout horizontalLayout = new HorizontalLayout();
-		final ListSelect deviceSelect = new ListSelect("Select a Country", devicesContainer);
+		final ListSelect deviceSelect = new ListSelect("Select a Network Device", devicesContainer);
 		deviceSelect.setItemCaptionMode(ItemCaptionMode.PROPERTY);
 		deviceSelect.setItemCaptionPropertyId("title");
 		final VerticalLayout selectDeviceLayout = new VerticalLayout();
@@ -198,7 +198,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						editDeviceForm.setEnabled(false);
 					}
 				}));
-				editDeviceForm.addComponent(new Button("Provision", new ClickListener() {
+				final Button provisionDeviceButton = new Button("Provision", new ClickListener() {
 
 					@Override
 					public void buttonClick(final ClickEvent event) {
@@ -214,7 +214,9 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 						editDeviceForm.setEnabled(false);
 					}
-				}));
+				});
+				provisionDeviceButton.setEnabled(!deviceItem.getEntity().isProvisioned());
+				editDeviceForm.addComponent(provisionDeviceButton);
 
 				editDeviceForm.setEnabled(true);
 			}

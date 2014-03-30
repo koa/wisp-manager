@@ -3,6 +3,8 @@ package ch.bergturbenthal.wisp.manager.service;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import javax.ejb.EJB;
@@ -14,6 +16,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 
+import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -54,6 +57,14 @@ public class NetworkDeviceManagementBean {
 			entityManager.persist(newDevice);
 			return newDevice;
 		}
+	}
+
+	private Collection<InetAddress> findDnsServers() {
+		final ArrayList<InetAddress> ret = new ArrayList<>();
+		for (final IpAddress entry : addressManagementBean.listGlobalDnsServers()) {
+			ret.add(entry.getInetAddress());
+		}
+		return ret;
 	}
 
 	public String generateConfig(final NetworkDevice device) {

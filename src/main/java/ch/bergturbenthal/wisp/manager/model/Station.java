@@ -11,9 +11,12 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
+import javax.persistence.Version;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Setter;
 
 @Data
 @Entity
@@ -31,8 +34,11 @@ public class Station {
 	private RangePair loopback;
 	private String name;
 	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
-	private Set<VLan> ownNetworks = new HashSet();
+	private Set<VLan> ownNetworks = new HashSet<>();
 	private Position position;
+	@Version
+	@Setter(AccessLevel.PROTECTED)
+	private Long version;
 
 	public String getLoopbackDescription() {
 		if (loopback == null) {

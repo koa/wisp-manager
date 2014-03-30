@@ -238,9 +238,18 @@ public class ProvisionRouterOs {
 				networkInterfaces.add(builder.build());
 			}
 		}
+
+		final StringBuilder dnsServerList = new StringBuilder();
+		for (final IpAddress ipAddress : device.getDnsServers()) {
+			if (dnsServerList.length() > 0) {
+				dnsServerList.append(",");
+			}
+			dnsServerList.append(ipAddress.getInetAddress().getHostAddress());
+		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
 		context.put("networkInterfaces", networkInterfaces);
+		context.put("dnsServers", dnsServerList.toString());
 		final Template template = Velocity.getTemplate("templates/routerboard.vm");
 		final StringWriter stringWriter = new StringWriter();
 		template.merge(context, stringWriter);
@@ -377,6 +386,7 @@ public class ProvisionRouterOs {
 			waitForReboot(newAddress.getInetAddress());
 			device.setV4Address(newAddress.getInetAddress());
 			device.setV6Address(loopback.getV6Address().getRange().getAddress().getInetAddress());
+			device.setProvisioned();
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);
 		}

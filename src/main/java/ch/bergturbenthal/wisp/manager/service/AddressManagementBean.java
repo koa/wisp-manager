@@ -171,6 +171,11 @@ public class AddressManagementBean {
 		if (networkDevice == null) {
 			return;
 		}
+		final Collection<IpAddress> dnsServers = listGlobalDnsServers();
+		final Set<IpAddress> dnsServersOfDevice = ensureMutableSet(networkDevice.getDnsServers());
+		dnsServersOfDevice.retainAll(dnsServers);
+		dnsServersOfDevice.addAll(dnsServers);
+		networkDevice.setDnsServers(dnsServersOfDevice);
 		// collect unassigned interfaces and connections at this station
 		final Set<Connection> remainingConnections = new HashSet<>(emptyIfNull(station.getBeginningConnections()));
 		remainingConnections.addAll(emptyIfNull(station.getEndingConnections()));
