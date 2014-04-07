@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -11,8 +12,6 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -37,7 +36,7 @@ public class IpRange {
 	private int rangeMask;
 	@OneToMany(mappedBy = "parentRange", cascade = CascadeType.ALL)
 	private Collection<IpRange> reservations = new ArrayList<>(0);
-	@NotNull
+	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
 	private AddressRangeType type;
 
@@ -47,7 +46,6 @@ public class IpRange {
 		type = rangeType;
 	}
 
-	@Min(1)
 	public long getAvailableReservations() {
 		final int availableBitCount = rangeMask - range.getNetmask();
 		if (availableBitCount > 60) {

@@ -9,11 +9,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import javax.inject.Singleton;
-
 import org.apache.commons.io.IOUtils;
+import org.springframework.stereotype.Component;
 
-@Singleton
+@Component
 public class FirmwareCache {
 	private final File cacheBaseDir = new File(System.getProperty("java.io.tmpdir") + File.separator + "fw-cache");
 	private final ConcurrentMap<URL, Object> downloadLock = new ConcurrentHashMap<>();

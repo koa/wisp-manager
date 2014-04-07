@@ -27,9 +27,6 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.Setter;
@@ -41,6 +38,8 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
@@ -62,7 +61,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 @Slf4j
-@Singleton
+@Component
 public class ProvisionRouterOs {
 	@Data
 	@Builder
@@ -124,8 +123,8 @@ public class ProvisionRouterOs {
 		return b;
 	}
 
-	@Inject
 	@Setter
+	@Autowired
 	private FirmwareCache fwCache;
 	private final JSch jSch = new JSch();
 

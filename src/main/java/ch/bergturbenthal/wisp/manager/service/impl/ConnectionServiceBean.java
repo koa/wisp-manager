@@ -1,15 +1,20 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.util.Collection;
 
-import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
+import ch.bergturbenthal.wisp.manager.service.EntityUtil;
 
-@Stateless
+@Component
+@Transactional
 public class ConnectionServiceBean implements ConnectionService {
 	@PersistenceContext
 	private EntityManager entityManager;

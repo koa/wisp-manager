@@ -1,4 +1,4 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.math.BigInteger;
 import java.net.Inet4Address;
@@ -12,16 +12,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import javax.ejb.Stateless;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Path;
-import javax.persistence.criteria.Root;
-
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -36,17 +32,41 @@ import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
+import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
+import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
+import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
+import ch.bergturbenthal.wisp.manager.repository.StationRepository;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 
 @Slf4j
-@Stateless
-public class AddressManagementBean {
-	@PersistenceContext
-	private EntityManager entityManager;
+@Component
+@Transactional
+public class AddressManagementBean implements AddressManagementService {
+	@Autowired
+	private ConnectionRepository connectionRepository;
+	@Autowired
+	private DnsServerRepository dnsServerRepository;
+	@Autowired
+	private IpRangeRepository ipRangeRepository;
+	@Autowired
+	private StationRepository stationRepository;
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
+	 */
+	@Override
 	public void addGlobalDns(final IpAddress address) {
-		entityManager.persist(new GlobalDnsServer(address));
+		dnsServerRepository.save(new GlobalDnsServer(address));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
+	 */
+	@Override
 	public IpRange addRootRange(final InetAddress rangeAddress, final int rangeMask, final int reservationMask, final String comment) {
 		if (reservationMask < rangeMask) {
 			throw new IllegalArgumentException("Error to create range for " + rangeAddress
@@ -67,7 +87,7 @@ public class AddressManagementBean {
 		}
 		final IpRange reservationRange = new IpRange(reserveNetwork, reservationMask, AddressRangeType.ROOT);
 		reservationRange.setComment(comment);
-		entityManager.persist(reservationRange);
+		ipRangeRepository.save(reservationRange);
 		return reservationRange;
 	}
 
@@ -85,23 +105,6 @@ public class AddressManagementBean {
 		return vLan;
 	}
 
-	private CriteriaQuery<IpRange> createFindMatchingRangeQuery() {
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<IpRange> query = criteriaBuilder.createQuery(IpRange.class);
-		final Root<IpRange> from = query.from(IpRange.class);
-		final Path<AddressRangeType> typePath = from.get("type");
-		final Path<IpNetwork> rangePath = from.get("range");
-		final Path<IpAddressType> addressTypePath = rangePath.get("address").get("addressType");
-		final Path<Integer> netmask = rangePath.get("netmask");
-		final Path<Integer> rangeMaskPath = from.get("rangeMask");
-		query.where(criteriaBuilder.equal(typePath, criteriaBuilder.parameter(AddressRangeType.class, "rangeType")),
-								criteriaBuilder.equal(addressTypePath, criteriaBuilder.parameter(IpAddressType.class, "addressType")),
-								criteriaBuilder.le(rangeMaskPath, criteriaBuilder.parameter(Integer.class, "maxNetSize")),
-								criteriaBuilder.lt(netmask, rangeMaskPath));
-		query.orderBy(criteriaBuilder.desc(rangeMaskPath));
-		return query;
-	}
-
 	private <T> List<T> emptyIfNull(final List<T> collection) {
 		if (collection == null) {
 			return java.util.Collections.emptyList();
@@ -116,15 +119,20 @@ public class AddressManagementBean {
 		return set;
 	}
 
-	public Connection fillConnection(final Connection originalConnection) {
-		final Connection connection = entityManager.merge(originalConnection);
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillConnection(ch.bergturbenthal.wisp.manager.model.Connection)
+	 */
+	@Override
+	public Connection fillConnection(final Connection connection) {
 		final RangePair addresses;
 		if (connection.getAddresses() == null) {
 			addresses = new RangePair();
 		} else {
 			addresses = connection.getAddresses();
 		}
-		fillRangePair(addresses, AddressRangeType.CONNECTION, 29, 32, 64, 128, "Connection " + originalConnection.getId());
+		fillRangePair(addresses, AddressRangeType.CONNECTION, 29, 32, 64, 128, "Connection " + connection.getId());
 		connection.setAddresses(addresses);
 		return connection;
 	}
@@ -302,25 +310,38 @@ public class AddressManagementBean {
 		}
 	}
 
-	public Station fillStation(final Station originalStation) {
-		final Station station = entityManager.merge(originalStation);
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
+	 */
+	@Override
+	public Station fillStation(final Station station) {
 		fillLoopbackAddress(station);
 		fillLanIfNone(station);
 		fillNetworkDevice(station);
 		return station;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
+	 */
+	@Override
 	public List<IpRange> findAllRootRanges() {
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<IpRange> query = criteriaBuilder.createQuery(IpRange.class);
-		final Root<IpRange> from = query.from(IpRange.class);
-		final Path<AddressRangeType> typePath = from.get("type");
-		query.where(criteriaBuilder.equal(typePath, AddressRangeType.ROOT));
-
-		final List<IpRange> resultList = entityManager.createQuery(query).getResultList();
-		return resultList;
+		return ipRangeRepository.findAllRootRanges();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see
+	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
+	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
+	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, java.lang.String)
+	 */
+	@Override
 	public IpRange findAndReserveAddressRange(final AddressRangeType rangeType,
 																						final IpAddressType addressType,
 																						final int maxNetSize,
@@ -335,33 +356,11 @@ public class AddressManagementBean {
 	}
 
 	private Connection findConnectionForRange(final IpRange connectionRange) {
-		final IpAddressType rangeType = connectionRange.getRange().getAddress().getAddressType();
-
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<Connection> query = criteriaBuilder.createQuery(Connection.class);
-		final Root<Connection> connectionPath = query.from(Connection.class);
-		final Path<IpRange> v4AddressPath = connectionPath.get("addresses").get(rangeType == IpAddressType.V4 ? "v4Address" : "v6Address");
-		query.where(criteriaBuilder.equal(v4AddressPath, criteriaBuilder.parameter(IpRange.class, "connectionRange")));
-
-		final TypedQuery<Connection> typedQuery = entityManager.createQuery(query);
-		typedQuery.setParameter("connectionRange", connectionRange);
-		typedQuery.setMaxResults(1);
-		final List<Connection> results = typedQuery.getResultList();
-		if (results.isEmpty()) {
-			return null;
-		} else {
-			return results.get(0);
-		}
+		return connectionRepository.findConnectionForRange(connectionRange);
 	}
 
 	private IpRange findMatchingRange(final AddressRangeType rangeType, final IpAddressType addressType, final int maxNetSize) {
-		final CriteriaQuery<IpRange> query = createFindMatchingRangeQuery();
-
-		final TypedQuery<IpRange> typedQuery = entityManager.createQuery(query);
-		typedQuery.setParameter("rangeType", rangeType);
-		typedQuery.setParameter("addressType", addressType);
-		typedQuery.setParameter("maxNetSize", Integer.valueOf(maxNetSize));
-		for (final IpRange range : typedQuery.getResultList()) {
+		for (final IpRange range : ipRangeRepository.findMatchingRange(rangeType, addressType, maxNetSize)) {
 			if (range.getAvailableReservations() <= range.getReservations().size()) {
 				// range full
 				continue;
@@ -373,25 +372,15 @@ public class AddressManagementBean {
 	}
 
 	private Station findStationForRange(final IpRange range) {
-		final IpAddressType rangeType = range.getRange().getAddress().getAddressType();
-
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<Station> query = criteriaBuilder.createQuery(Station.class);
-		final Root<Station> connectionPath = query.from(Station.class);
-		final Path<IpRange> addressPath = connectionPath.get("ownNetworks").get("address").get(rangeType == IpAddressType.V4 ? "v4Address" : "v6Address");
-		query.where(criteriaBuilder.equal(addressPath, criteriaBuilder.parameter(IpRange.class, "range")));
-
-		final TypedQuery<Station> typedQuery = entityManager.createQuery(query);
-		typedQuery.setParameter("range", range);
-		typedQuery.setMaxResults(1);
-		final List<Station> results = typedQuery.getResultList();
-		if (results.isEmpty()) {
-			return null;
-		} else {
-			return results.get(0);
-		}
+		return stationRepository.findStationForRange(range);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
+	 */
+	@Override
 	public void initAddressRanges() {
 		try {
 			final List<IpRange> resultList = findAllRootRanges();
@@ -418,13 +407,16 @@ public class AddressManagementBean {
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
+	 */
+	@Override
 	public Collection<IpAddress> listGlobalDnsServers() {
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<GlobalDnsServer> query = criteriaBuilder.createQuery(GlobalDnsServer.class);
-		query.from(GlobalDnsServer.class);
-		final ArrayList<IpAddress> ret = new ArrayList<>();
-		for (final GlobalDnsServer dnsServer : entityManager.createQuery(query).getResultList()) {
-			ret.add(dnsServer.getAddress());
+		final Collection<IpAddress> ret = new ArrayList<>();
+		for (final GlobalDnsServer server : dnsServerRepository.findAll()) {
+			ret.add(server.getAddress());
 		}
 		return ret;
 	}
@@ -436,10 +428,23 @@ public class AddressManagementBean {
 		return reserveNetwork.containsAddress(checkNetwork.getAddress());
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
+	 */
+	@Override
 	public void removeGlobalDns(final IpAddress address) {
-		entityManager.remove(entityManager.merge(new GlobalDnsServer(address)));
+		dnsServerRepository.delete(address);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
+	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
+	 */
+	@Override
 	public IpRange reserveRange(final IpRange parentRange, final AddressRangeType type, final int mask, final String comment) {
 		if (mask < parentRange.getRangeMask()) {
 			throw new IllegalArgumentException("To big range: " + mask + " parent allowes " + parentRange.getRangeMask());
@@ -464,9 +469,8 @@ public class AddressManagementBean {
 			newRange.setParentRange(parentRange);
 			parentRange.getReservations().add(newRange);
 			newRange.setComment(comment);
-			entityManager.persist(newRange);
 			System.out.println("Reserved: " + newRange);
-			return newRange;
+			return ipRangeRepository.save(newRange);
 		}
 		// no free reservation found in range
 		return null;

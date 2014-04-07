@@ -1,18 +1,20 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import javax.annotation.PostConstruct;
-import javax.ejb.Stateless;
-import javax.ejb.TransactionManagement;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.IpRange;
+import ch.bergturbenthal.wisp.manager.service.IpRangeEntityProvider;
 
 import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 
-@Stateless
-@TransactionManagement
-public class IpRangeProviderBean extends MutableLocalEntityProvider<IpRange> {
+@Component
+@Transactional
+public class IpRangeProviderBean extends MutableLocalEntityProvider<IpRange> implements IpRangeEntityProvider {
 	@PersistenceContext
 	private EntityManager em;
 

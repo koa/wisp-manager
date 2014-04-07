@@ -1,24 +1,29 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaQuery;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.service.StationService;
 
-@Stateless
+@Component
+@Transactional
 public class StationServiceBean implements StationService {
-	@EJB
-	private AddressManagementBean addressManagementBean;
+	@Autowired
+	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
 

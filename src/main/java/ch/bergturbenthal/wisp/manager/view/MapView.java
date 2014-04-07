@@ -3,9 +3,9 @@ package ch.bergturbenthal.wisp.manager.view;
 import java.util.Arrays;
 import java.util.Locale;
 
-import javax.ejb.EJB;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.dialogs.ConfirmDialog;
+import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -13,15 +13,14 @@ import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
-import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
-import ch.bergturbenthal.wisp.manager.service.StationProviderBean;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.StationEntityProvider;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
 
 import com.vaadin.addon.jpacontainer.EntityItem;
 import com.vaadin.addon.jpacontainer.JPAContainer;
 import com.vaadin.addon.jpacontainer.filter.Filters;
-import com.vaadin.cdi.CDIView;
 import com.vaadin.data.Container.Filter;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.DefaultFieldGroupFieldFactory;
@@ -48,19 +47,19 @@ import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.VerticalLayout;
 
-@CDIView(value = MapView.VIEW_ID)
+@VaadinView(name = MapView.VIEW_ID)
 public class MapView extends CustomComponent implements View {
 
 	public static final String VIEW_ID = "Map";
-	@EJB
+	@Autowired
 	private ConnectionService connectionService;
 	private JPAContainer<NetworkDevice> devicesContainer;
 	private FormLayout editStationForm;
-	@EJB
-	private NetworkDeviceProviderBean networkDeviceProviderBean;
-	@EJB
-	private StationProviderBean stationProviderBean;
-	@EJB
+	@Autowired
+	private NetworkDeviceEntityProvider networkDeviceProviderBean;
+	@Autowired
+	private StationEntityProvider stationProviderBean;
+	@Autowired
 	private StationService stationService;
 
 	private void activateStation(final FieldGroup fieldGroup, final EntityItem<Station> stationItem) {

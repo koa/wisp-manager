@@ -4,12 +4,14 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.UnknownHostException;
 
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
@@ -19,13 +21,14 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 
-@Stateless
+@Component
+@Transactional
 public class TestHelperBean {
-	@EJB
-	private AddressManagementBean addressManagementBean;
+	@Autowired
+	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
-	@EJB
+	@Autowired
 	private StationService stationService;
 
 	public void clearData() {

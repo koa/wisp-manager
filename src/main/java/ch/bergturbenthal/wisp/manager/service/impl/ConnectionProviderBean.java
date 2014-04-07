@@ -1,21 +1,24 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import javax.annotation.PostConstruct;
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
-import javax.ejb.TransactionManagement;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.service.ConnectionEntityProvider;
 
 import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 
-@Stateless
-@TransactionManagement
-public class ConnectionProviderBean extends MutableLocalEntityProvider<Connection> {
-	@EJB
-	private AddressManagementBean addressManagementBean;
+@Component
+@Transactional
+public class ConnectionProviderBean extends MutableLocalEntityProvider<Connection> implements ConnectionEntityProvider {
+	@Autowired
+	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager em;
 

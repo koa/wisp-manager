@@ -1,11 +1,12 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Set;
 
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -13,16 +14,22 @@ import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
+import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
+import ch.bergturbenthal.wisp.manager.service.StationService;
 
-@Stateless
-public class DemoSetupBean {
-	@EJB
-	private AddressManagementBean addressManagementBean;
-	@EJB
+@Component
+@Transactional
+public class DemoSetupBean implements DemoSetupService {
+	@Autowired
+	private AddressManagementService addressManagementBean;
+	@Autowired
 	private ConnectionService connectionService;
-	@EJB
-	private NetworkDeviceManagementBean networkDeviceManagementBean;
-	@EJB
+	@Autowired
+	private NetworkDeviceManagementService networkDeviceManagementBean;
+	@Autowired
 	private StationService stationService;
 
 	private void appendVlan(final Station station, final int vlanId) {
@@ -43,6 +50,12 @@ public class DemoSetupBean {
 		return device;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
+	 */
+	@Override
 	public void initDemoData() {
 		addressManagementBean.initAddressRanges();
 		if (stationService.listAllStations().isEmpty()) {

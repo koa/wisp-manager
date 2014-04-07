@@ -3,35 +3,24 @@ package ch.bergturbenthal.wisp.manager.service.test;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import javax.ejb.EJB;
-import javax.ejb.EJBException;
-
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import ch.bergturbenthal.wisp.manager.service.AddressManagementBean;
+import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 
-@RunWith(Arquillian.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringApplicationConfiguration(classes = WispManager.class)
 public class AddressManagementTest {
-	@Deployment
-	public static JavaArchive createDeployment() {
-		return ShrinkWrap.create(JavaArchive.class)
-											.addClass(AddressManagementBean.class)
-											.addClass(TestHelperBean.class)
-											.addAsResource("META-INF/persistence.xml")
-											.addAsManifestResource(EmptyAsset.INSTANCE, "beans.xml");
-	}
 
-	@EJB
-	private AddressManagementBean addressManagementBean;
-	@EJB
+	@Autowired
+	private AddressManagementService addressManagementBean;
+	@Autowired
 	private TestHelperBean testHelperBean;
 
 	@Before
@@ -39,7 +28,7 @@ public class AddressManagementTest {
 		testHelperBean.clearData();
 	}
 
-	@Test(expected = EJBException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testV4AddressOverlap() throws UnknownHostException {
 		addressManagementBean.addRootRange(InetAddress.getByName("10.0.0.0"), 8, 16, "Big reservation");
 		addressManagementBean.addRootRange(InetAddress.getByName("10.14.20.0"), 24, 28, "Small reservation");
@@ -51,7 +40,7 @@ public class AddressManagementTest {
 		addressManagementBean.addRootRange(InetAddress.getByName("10.14.20.0"), 24, 28, "Small reservation");
 	}
 
-	@Test(expected = EJBException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testV6AddressOverlap() throws UnknownHostException {
 		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab::"), 48, 64, "Big reservation");
 		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab:200::"), 56, 64, "Small reservation");

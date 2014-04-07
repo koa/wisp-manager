@@ -23,7 +23,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.OrderColumn;
 import javax.persistence.Version;
-import javax.validation.constraints.NotNull;
 
 import lombok.AccessLevel;
 import lombok.Data;
@@ -62,9 +61,8 @@ public class NetworkDevice {
 		return networkDevice;
 	}
 
-	@NotNull
 	@Enumerated(EnumType.STRING)
-	@Column(updatable = false)
+	@Column(updatable = false, nullable = false)
 	private NetworkDeviceModel deviceModel;
 	@ElementCollection
 	@CollectionTable(name = "network_device_dns", joinColumns = @JoinColumn(name = "network_device"))

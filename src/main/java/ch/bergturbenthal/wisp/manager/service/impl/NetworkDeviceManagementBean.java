@@ -1,4 +1,4 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -7,14 +7,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
-import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
@@ -23,17 +24,26 @@ import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
 
-@Stateless
-public class NetworkDeviceManagementBean {
-	@EJB
-	private AddressManagementBean addressManagementBean;
+@Component
+@Transactional
+public class NetworkDeviceManagementBean implements NetworkDeviceManagementService {
+	@Autowired
+	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
-	@Inject
+	@Autowired
 	private ProvisionRouterOs provision;
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#detectNetworkDevice(java.net.InetAddress)
+	 */
+	@Override
 	public NetworkDevice detectNetworkDevice(final InetAddress host) {
 		final DetectedDevice identifiedDevice = provision.identify(host);
 		if (identifiedDevice == null) {
@@ -67,6 +77,12 @@ public class NetworkDeviceManagementBean {
 		return ret;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
+	 */
+	@Override
 	public String generateConfig(final NetworkDevice device) {
 		final NetworkDevice mergedDevice = entityManager.merge(device);
 		if (mergedDevice.getStation() != null) {
@@ -76,6 +92,12 @@ public class NetworkDeviceManagementBean {
 		return provision.generateConfig(mergedDevice);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
+	 */
+	@Override
 	public void loadConfig(final InetAddress host) {
 		final NetworkDevice detectNetworkDevice = detectNetworkDevice(host);
 		if (detectNetworkDevice == null) {

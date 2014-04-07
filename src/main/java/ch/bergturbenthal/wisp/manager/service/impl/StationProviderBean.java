@@ -1,18 +1,20 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import javax.annotation.PostConstruct;
-import javax.ejb.Stateless;
-import javax.ejb.TransactionManagement;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.service.StationEntityProvider;
 
 import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 
-@Stateless
-@TransactionManagement
-public class StationProviderBean extends MutableLocalEntityProvider<Station> {
+@Component
+@Transactional
+public class StationProviderBean extends MutableLocalEntityProvider<Station> implements StationEntityProvider {
 	@PersistenceContext
 	private EntityManager em;
 

@@ -1,18 +1,20 @@
-package ch.bergturbenthal.wisp.manager.service;
+package ch.bergturbenthal.wisp.manager.service.impl;
 
 import javax.annotation.PostConstruct;
-import javax.ejb.Stateless;
-import javax.ejb.TransactionManagement;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceEntityProvider;
 
 import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 
-@Stateless
-@TransactionManagement
-public class NetworkDeviceProviderBean extends MutableLocalEntityProvider<NetworkDevice> {
+@Component
+@Transactional
+public class NetworkDeviceProviderBean extends MutableLocalEntityProvider<NetworkDevice> implements NetworkDeviceEntityProvider {
 	@PersistenceContext
 	private EntityManager em;
 

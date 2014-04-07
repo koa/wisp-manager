@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.model;
 
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -19,7 +20,7 @@ import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 @Embeddable
 @NoArgsConstructor
 @AllArgsConstructor
-public class IpAddress {
+public class IpAddress implements Serializable {
 	public static InetAddress bigInteger2InetAddress(final BigInteger rawValue) {
 		if (rawValue == null) {
 			return null;

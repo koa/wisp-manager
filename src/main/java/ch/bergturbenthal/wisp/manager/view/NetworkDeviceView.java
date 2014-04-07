@@ -5,21 +5,22 @@ import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.ejb.EJB;
-
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.spring.navigator.VaadinView;
+
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
-import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementBean;
-import ch.bergturbenthal.wisp.manager.service.NetworkDeviceProviderBean;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.view.InputIpDialog.DialogResultHandler;
 
 import com.vaadin.addon.jpacontainer.EntityItem;
 import com.vaadin.addon.jpacontainer.EntityItemProperty;
 import com.vaadin.addon.jpacontainer.JPAContainer;
-import com.vaadin.cdi.CDIView;
 import com.vaadin.data.Property;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
@@ -42,14 +43,14 @@ import com.vaadin.ui.Table;
 import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
 
-@CDIView(value = NetworkDeviceView.VIEW_ID)
 @Slf4j
+@VaadinView(name = NetworkDeviceView.VIEW_ID)
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
-	@EJB
-	private NetworkDeviceManagementBean networkDeviceManagementBean;
-	@EJB
-	private NetworkDeviceProviderBean networkDeviceProviderBean;
+	@Autowired
+	private NetworkDeviceManagementService networkDeviceManagementBean;
+	@Autowired
+	private NetworkDeviceEntityProvider networkDeviceProviderBean;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {

@@ -4,16 +4,16 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.ejb.EJB;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.service.ConnectionProviderBean;
-import ch.bergturbenthal.wisp.manager.service.StationProviderBean;
+import ch.bergturbenthal.wisp.manager.service.ConnectionEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.StationEntityProvider;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
-import com.vaadin.cdi.CDIView;
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
 import com.vaadin.data.util.AbstractBeanContainer.BeanIdResolver;
@@ -35,14 +35,14 @@ import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.TableFieldFactory;
 import com.vaadin.ui.VerticalLayout;
 
-@CDIView(value = ConnectionView.VIEW_ID)
+@VaadinView(name = ConnectionView.VIEW_ID)
 public class ConnectionView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Connections";
-	@EJB
-	private ConnectionProviderBean connectionProviderBean;
-	@EJB
-	private StationProviderBean stationProviderBean;
-	@EJB
+	@Autowired
+	private ConnectionEntityProvider connectionProviderBean;
+	@Autowired
+	private StationEntityProvider stationProviderBean;
+	@Autowired
 	private StationService stationService;
 
 	@Override

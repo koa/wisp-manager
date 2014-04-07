@@ -2,55 +2,36 @@ package ch.bergturbenthal.wisp.manager.service.test;
 
 import java.net.UnknownHostException;
 
-import javax.ejb.EJB;
-
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import ch.bergturbenthal.wisp.manager.WispManager;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
-import ch.bergturbenthal.wisp.manager.service.AddressManagementBean;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
-import ch.bergturbenthal.wisp.manager.service.ConnectionServiceBean;
-import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementBean;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.service.StationServiceBean;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
-import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
-import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
 
-@RunWith(Arquillian.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringApplicationConfiguration(classes = WispManager.class)
 public class TestRouterOsVelocity {
-	@Deployment
-	public static JavaArchive createDeployment() {
-		return ShrinkWrap.create(JavaArchive.class)
-											.addClass(AddressManagementBean.class)
-											.addClass(StationServiceBean.class)
-											.addClass(TestHelperBean.class)
-											.addClass(ProvisionRouterOs.class)
-											.addClass(FirmwareCache.class)
-											.addClass(NetworkDeviceManagementBean.class)
-											.addClass(ConnectionServiceBean.class)
-											.addAsResource("META-INF/persistence.xml")
-											.addAsManifestResource(EmptyAsset.INSTANCE, "beans.xml");
-	}
 
-	@EJB
-	private AddressManagementBean addressManagementBean;
-	@EJB
+	@Autowired
+	private AddressManagementService addressManagementBean;
+	@Autowired
 	private ConnectionService connectionService;
-	@EJB
-	private NetworkDeviceManagementBean networkDeviceManagementBean;
-	@EJB
+	@Autowired
+	private NetworkDeviceManagementService networkDeviceManagementBean;
+	@Autowired
 	private StationService stationService;
 
-	@EJB
+	@Autowired
 	private TestHelperBean testHelperBean;
 
 	@Before

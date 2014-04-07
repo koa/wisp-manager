@@ -3,37 +3,27 @@ package ch.bergturbenthal.wisp.manager.model.test;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import javax.ejb.EJB;
-
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import ch.bergturbenthal.wisp.manager.WispManager;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
-import ch.bergturbenthal.wisp.manager.service.AddressManagementBean;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 
-@RunWith(Arquillian.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringApplicationConfiguration(classes = WispManager.class)
 public class IpAddressTest {
-	@Deployment
-	public static JavaArchive createDeployment() {
-		return ShrinkWrap.create(JavaArchive.class)
-											.addClass(AddressManagementBean.class)
-											.addClass(TestHelperBean.class)
-											.addAsResource("META-INF/persistence.xml")
-											.addAsManifestResource(EmptyAsset.INSTANCE, "beans.xml");
-	}
 
-	@EJB
-	private AddressManagementBean addressManagementBean;
-	@EJB
+	@Autowired
+	private AddressManagementService addressManagementBean;
+	@Autowired
 	private TestHelperBean testHelperBean;
 
 	@Before
