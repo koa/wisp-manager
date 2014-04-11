@@ -17,6 +17,7 @@ import com.vaadin.addon.jpacontainer.provider.MutableLocalEntityProvider;
 @Component
 @Transactional
 public class ConnectionProviderBean extends MutableLocalEntityProvider<Connection> implements ConnectionEntityProvider {
+
 	@Autowired
 	private AddressManagementService addressManagementBean;
 	@PersistenceContext

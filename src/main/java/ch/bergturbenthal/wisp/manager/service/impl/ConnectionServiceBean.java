@@ -1,21 +1,22 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
-import java.util.Collection;
-
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
-import ch.bergturbenthal.wisp.manager.service.EntityUtil;
 
 @Component
 @Transactional
 public class ConnectionServiceBean implements ConnectionService {
+	@Autowired
+	private ConnectionRepository connectionRepository;
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -33,8 +34,8 @@ public class ConnectionServiceBean implements ConnectionService {
 	}
 
 	@Override
-	public Collection<Connection> listAllConnections() {
-		return EntityUtil.queryAll(Connection.class, entityManager);
+	public Iterable<Connection> listAllConnections() {
+		return connectionRepository.findAll();
 	}
 
 }

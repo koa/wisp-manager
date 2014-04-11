@@ -14,13 +14,14 @@ import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
-import ch.bergturbenthal.wisp.manager.service.NetworkDeviceEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.view.InputIpDialog.DialogResultHandler;
 
 import com.vaadin.addon.jpacontainer.EntityItem;
 import com.vaadin.addon.jpacontainer.EntityItemProperty;
 import com.vaadin.addon.jpacontainer.JPAContainer;
+import com.vaadin.addon.jpacontainer.JPAContainerFactory;
 import com.vaadin.data.Property;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
@@ -48,17 +49,15 @@ import com.vaadin.ui.VerticalLayout;
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@Autowired
-	private NetworkDeviceManagementService networkDeviceManagementBean;
+	private CurrentEntityManagerHolder entityManagerHolder;
 	@Autowired
-	private NetworkDeviceEntityProvider networkDeviceProviderBean;
+	private NetworkDeviceManagementService networkDeviceManagementBean;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
 
-		final JPAContainer<NetworkDevice> devicesContainer = new JPAContainer<>(NetworkDevice.class);
-		devicesContainer.setEntityProvider(networkDeviceProviderBean);
-		// devicesContainer.addNestedContainerProperty("interfaces.macAddress");
-		devicesContainer.setAutoCommit(true);
+		final JPAContainer<NetworkDevice> devicesContainer = JPAContainerFactory.make(NetworkDevice.class, entityManagerHolder.getCurrentEntityManager());
+		// devicesContainer.setAutoCommit(true);
 
 		final HorizontalLayout horizontalLayout = new HorizontalLayout();
 		final ListSelect deviceSelect = new ListSelect("Select a Network Device", devicesContainer);

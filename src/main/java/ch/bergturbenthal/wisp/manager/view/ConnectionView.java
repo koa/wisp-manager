@@ -4,16 +4,18 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.persistence.EntityManager;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.service.ConnectionEntityProvider;
-import ch.bergturbenthal.wisp.manager.service.StationEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
+import com.vaadin.addon.jpacontainer.JPAContainerFactory;
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
 import com.vaadin.data.util.AbstractBeanContainer.BeanIdResolver;
@@ -39,19 +41,14 @@ import com.vaadin.ui.VerticalLayout;
 public class ConnectionView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Connections";
 	@Autowired
-	private ConnectionEntityProvider connectionProviderBean;
-	@Autowired
-	private StationEntityProvider stationProviderBean;
+	private CurrentEntityManagerHolder entityManagerHolder;
 	@Autowired
 	private StationService stationService;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
-
-		final JPAContainer<Connection> connectionContainer = new JPAContainer<>(Connection.class);
-		connectionContainer.setEntityProvider(connectionProviderBean);
-		final JPAContainer<Station> stationContainer = new JPAContainer<>(Station.class);
-		stationContainer.setEntityProvider(stationProviderBean);
+		final EntityManager currentEntityManager = entityManagerHolder.getCurrentEntityManager();
+		final JPAContainer<Connection> connectionContainer = JPAContainerFactory.make(Connection.class, currentEntityManager);
 		final BeanContainer<String, Station> beanContainer = new BeanContainer<>(Station.class);
 		beanContainer.setBeanIdResolver(new BeanIdResolver<String, Station>() {
 			@Override

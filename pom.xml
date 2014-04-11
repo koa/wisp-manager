@@ -145,7 +145,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      </dependency>
+    </dependency>
     <dependency>
       <groupId>org.apache.velocity</groupId>
       <artifactId>velocity</artifactId>
@@ -159,7 +159,7 @@
     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
-      </dependency>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>
@@ -175,9 +175,15 @@
   </dependencyManagement>
   <build>
     <plugins>
-      <!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-compiler-plugin</artifactId> 
-        <version>3.1</version> <configuration> <source>1.7</source> <target>1.7</target> 
-        </configuration> </plugin> -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
         <version>2.5</version>

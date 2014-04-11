@@ -5,13 +5,16 @@ import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
-import ch.bergturbenthal.wisp.manager.service.IpRangeEntityProvider;
+import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
+import com.vaadin.addon.jpacontainer.JPAContainerFactory;
+import com.vaadin.addon.jpacontainer.provider.CachingLocalEntityProvider;
+import com.vaadin.addon.jpacontainer.util.HibernateLazyLoadingDelegate;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
 import com.vaadin.ui.CustomComponent;
-import com.vaadin.ui.Label;
+import com.vaadin.ui.Table;
 
 @VaadinView(name = RootRangesView.VIEW_ID)
 public class RootRangesView extends CustomComponent implements View {
@@ -19,13 +22,15 @@ public class RootRangesView extends CustomComponent implements View {
 	@Autowired
 	private AddressManagementService addressManagementBean;
 	@Autowired
-	private IpRangeEntityProvider ipV4AddressReservationRangeProviderBean;
+	private CurrentEntityManagerHolder entityManagerHolder;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
-		final JPAContainer<IpRange> connectionContainer = new JPAContainer<>(IpRange.class);
-		connectionContainer.setEntityProvider(ipV4AddressReservationRangeProviderBean);
 		addressManagementBean.initAddressRanges();
-		setCompositionRoot(new Label("Empty"));
+		final JPAContainer<IpRange> connectionContainer = JPAContainerFactory.make(IpRange.class, entityManagerHolder.getCurrentEntityManager());
+		final HibernateLazyLoadingDelegate hibernateLazyLoadingDelegate = new HibernateLazyLoadingDelegate();
+		hibernateLazyLoadingDelegate.setEntityProvider(new CachingLocalEntityProvider<IpRange>(IpRange.class, entityManagerHolder.getCurrentEntityManager()));
+		connectionContainer.getEntityProvider().setLazyLoadingDelegate(hibernateLazyLoadingDelegate);
+		setCompositionRoot(new Table("IP Ranges", connectionContainer));
 	}
 }
