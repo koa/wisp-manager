@@ -13,6 +13,8 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
 
+@Slf4j
 @Component
 @Transactional
 public class NetworkDeviceManagementBean implements NetworkDeviceManagementService {
@@ -103,7 +106,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		if (detectNetworkDevice == null) {
 			return;
 		}
-		System.out.println("Detected: " + detectNetworkDevice);
+		log.info("Detected: " + detectNetworkDevice);
 		if (detectNetworkDevice.getStation() != null) {
 			final Station station = addressManagementBean.fillStation(detectNetworkDevice.getStation());
 			provision.loadConfig(station.getDevice(), host);

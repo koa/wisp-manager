@@ -114,10 +114,10 @@ public class ProvisionRouterOs {
 				sb.append((char) c);
 			} while (c != '\n');
 			if (b == 1) { // error
-				System.out.print(sb.toString());
+				log.error(sb.toString());
 			}
 			if (b == 2) { // fatal error
-				System.out.print(sb.toString());
+				log.error(sb.toString());
 			}
 		}
 		return b;

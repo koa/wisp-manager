@@ -384,7 +384,7 @@ public class AddressManagementBean implements AddressManagementService {
 	public void initAddressRanges() {
 		try {
 			final List<IpRange> resultList = findAllRootRanges();
-			// System.out.println("Ranges: " + resultList);
+			// log.info("Ranges: " + resultList);
 			if (resultList.isEmpty()) {
 
 				final IpRange ipV4ReservationRange = addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
@@ -469,7 +469,7 @@ public class AddressManagementBean implements AddressManagementService {
 			newRange.setParentRange(parentRange);
 			parentRange.getReservations().add(newRange);
 			newRange.setComment(comment);
-			System.out.println("Reserved: " + newRange);
+			log.info("Reserved: " + newRange);
 			return ipRangeRepository.save(newRange);
 		}
 		// no free reservation found in range

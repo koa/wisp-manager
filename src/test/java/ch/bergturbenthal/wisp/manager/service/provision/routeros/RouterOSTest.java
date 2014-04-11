@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -16,9 +18,9 @@ import com.jcraft.jsch.HostKey;
 import com.jcraft.jsch.HostKeyRepository;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Logger;
 import com.jcraft.jsch.Session;
 
+@Slf4j
 public class RouterOSTest {
 	@Test
 	@Ignore
@@ -26,31 +28,20 @@ public class RouterOSTest {
 		final ProvisionRouterOs routerOs = new ProvisionRouterOs();
 		routerOs.setFwCache(new FirmwareCache());
 		final DetectedDevice macList = routerOs.identify(NetworkDeviceModel.RB750GL.getFactoryDefaultAddress());
-		System.out.println(macList);
+		log.info(macList.toString());
 	}
 
 	@Test
 	@Ignore
 	public void testConnectDefault() throws JSchException, IOException {
 		final JSch jSch = new JSch();
-		JSch.setLogger(new Logger() {
-
-			@Override
-			public boolean isEnabled(final int level) {
-				return false;
-			}
-
-			@Override
-			public void log(final int level, final String message) {
-				System.out.println("Level: " + level + ": " + message);
-			}
-		});
+		JSch.setLogger(new SSHLogger());
 		final Session session = jSch.getSession("admin", NetworkDeviceModel.RB750GL.getFactoryDefaultAddress().getHostAddress());
 		final HostKeyRepository hostKeyRepository = jSch.getHostKeyRepository();
 		session.setConfig("StrictHostKeyChecking", "no");
 		session.connect();
 		for (final HostKey hostKey : hostKeyRepository.getHostKey()) {
-			System.out.println(hostKey.getHost() + ":" + hostKey.getKey());
+			log.info(hostKey.getHost() + ":" + hostKey.getKey());
 		}
 		final ChannelExec cmdChannel = (ChannelExec) session.openChannel("exec");
 		cmdChannel.setCommand("interface ethernet print terse");
@@ -65,7 +56,7 @@ public class RouterOSTest {
 			}
 			if (line.length() > 10) {
 				final PrintLine parsedLine = PrintLine.parseLine(3, 3, line);
-				System.out.println(parsedLine);
+				log.info(parsedLine.toString());
 				// final int interfaceNr = Integer.parseInt(line.substring(0, 3).trim());
 				// final String flags = line.substring(3, 6);
 				// final String[] values = line.substring(6).split(" ");
@@ -78,7 +69,7 @@ public class RouterOSTest {
 			}
 			// System.out.println(line);
 		}
-		System.out.println("exit-status: " + cmdChannel.getExitStatus());
+		log.info("exit-status: " + cmdChannel.getExitStatus());
 		cmdChannel.disconnect();
 		session.disconnect();
 	}

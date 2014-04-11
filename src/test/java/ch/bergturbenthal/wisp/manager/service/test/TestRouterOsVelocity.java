@@ -2,6 +2,8 @@ package ch.bergturbenthal.wisp.manager.service.test;
 
 import java.net.UnknownHostException;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -18,6 +20,7 @@ import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 
+@Slf4j
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = WispManager.class)
 public class TestRouterOsVelocity {
@@ -45,8 +48,8 @@ public class TestRouterOsVelocity {
 		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg");
 		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg");
 		final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
-		System.out.println(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
-		System.out.println(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
+		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
+		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
 		// networkDeviceManagementBean.loadConfig(device, InetAddress.getByName("192.168.88.1"));
 	}
 
