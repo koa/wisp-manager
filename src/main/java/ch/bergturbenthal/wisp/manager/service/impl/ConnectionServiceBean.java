@@ -11,6 +11,7 @@ import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 @Component
 @Transactional
@@ -22,20 +23,28 @@ public class ConnectionServiceBean implements ConnectionService {
 
 	@Override
 	public Connection connectStations(final Station s1, final Station s2) {
-		final Station s1Merged = entityManager.merge(s1);
-		final Station s2Merged = entityManager.merge(s2);
 		final Connection connection = new Connection();
-		connection.setStartStation(s1Merged);
-		connection.setEndStation(s2Merged);
-		s1Merged.getBeginningConnections().add(connection);
-		s2Merged.getEndingConnections().add(connection);
-		entityManager.persist(connection);
-		return connection;
+		connection.setStartStation(s1);
+		connection.setEndStation(s2);
+		// s1.getBeginningConnections().add(connection);
+		// s2.getEndingConnections().add(connection);
+		return connectionRepository.save(connection);
 	}
 
 	@Override
 	public Iterable<Connection> listAllConnections() {
 		return connectionRepository.findAll();
+	}
+
+	@Override
+	public CrudRepositoryContainer<Connection, Long> makeContainer() {
+		return new CrudRepositoryContainer<Connection, Long>(connectionRepository, Connection.class) {
+
+			@Override
+			protected Long idFromValue(final Connection entry) {
+				return entry.getId();
+			}
+		};
 	}
 
 }

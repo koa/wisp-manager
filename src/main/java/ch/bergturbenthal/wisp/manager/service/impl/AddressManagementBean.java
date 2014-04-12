@@ -37,11 +37,87 @@ import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
+
+import com.vaadin.data.Container;
 
 @Slf4j
 @Component
 @Transactional
 public class AddressManagementBean implements AddressManagementService {
+
+	private static class IpRangeCrudContainer extends CrudRepositoryContainer<IpRange, Long> implements Container.Hierarchical {
+		private final IpRangeRepository repository;
+
+		private IpRangeCrudContainer(final IpRangeRepository repository, final Class<IpRange> entityType) {
+			super(repository, entityType);
+			this.repository = repository;
+		}
+
+		@Override
+		public boolean areChildrenAllowed(final Object itemId) {
+			return true;
+		}
+
+		@Override
+		public Collection<?> getChildren(final Object itemId) {
+			final IpRange ipRange = loadPojo(itemId);
+			final ArrayList<Long> childrenIds = new ArrayList<Long>();
+			for (final IpRange reservationRange : ipRange.getReservations()) {
+				childrenIds.add(reservationRange.getId());
+			}
+			return childrenIds;
+		}
+
+		@Override
+		public Object getParent(final Object itemId) {
+			final IpRange parentRange = loadPojo(itemId).getParentRange();
+			if (parentRange == null) {
+				return null;
+			}
+			return parentRange.getId();
+		}
+
+		@Override
+		public boolean hasChildren(final Object itemId) {
+			final Collection<IpRange> reservations = loadPojo(itemId).getReservations();
+			return reservations != null && !reservations.isEmpty();
+		}
+
+		@Override
+		protected Long idFromValue(final IpRange entry) {
+			return entry.getId();
+		}
+
+		@Override
+		public boolean isRoot(final Object itemId) {
+			return loadPojo(itemId).getParentRange() == null;
+		}
+
+		private IpRange loadPojo(final Object itemId) {
+			return repository.findOne((Long) itemId);
+		}
+
+		@Override
+		public Collection<?> rootItemIds() {
+			final ArrayList<Long> ret = new ArrayList<Long>();
+			for (final IpRange range : repository.findAllRootRanges()) {
+				ret.add(range.getId());
+			}
+			return ret;
+		}
+
+		@Override
+		public boolean setChildrenAllowed(final Object itemId, final boolean areChildrenAllowed) throws UnsupportedOperationException {
+			return false;
+		}
+
+		@Override
+		public boolean setParent(final Object itemId, final Object newParentId) throws UnsupportedOperationException {
+			return false;
+		}
+	}
+
 	@Autowired
 	private ConnectionRepository connectionRepository;
 	@Autowired
@@ -53,7 +129,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -63,7 +139,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -105,6 +181,11 @@ public class AddressManagementBean implements AddressManagementService {
 		return vLan;
 	}
 
+	@Override
+	public CrudRepositoryContainer<IpRange, Long> createIpContainer() {
+		return new IpRangeCrudContainer(ipRangeRepository, IpRange.class);
+	}
+
 	private <T> List<T> emptyIfNull(final List<T> collection) {
 		if (collection == null) {
 			return java.util.Collections.emptyList();
@@ -121,7 +202,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillConnection(ch.bergturbenthal.wisp.manager.model.Connection)
 	 */
 	@Override
@@ -312,7 +393,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -325,7 +406,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -335,7 +416,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -377,7 +458,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -409,7 +490,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -430,7 +511,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -440,7 +521,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */

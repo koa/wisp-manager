@@ -16,8 +16,10 @@ import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 @Component
 @Transactional
@@ -26,6 +28,9 @@ public class StationServiceBean implements StationService {
 	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
+
+	@Autowired
+	private StationRepository repository;
 
 	@Override
 	public Station addStation(final Position position) {
@@ -48,6 +53,17 @@ public class StationServiceBean implements StationService {
 	@Override
 	public Station findStation(final long id) {
 		return entityManager.find(Station.class, Long.valueOf(id));
+	}
+
+	@Override
+	public CrudRepositoryContainer<Station, Long> createContainerRepository() {
+		return new CrudRepositoryContainer<Station, Long>(repository, Station.class) {
+
+			@Override
+			protected Long idFromValue(final Station entry) {
+				return entry.getId();
+			}
+		};
 	}
 
 	@Override

@@ -25,10 +25,13 @@ import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
+import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 @Slf4j
 @Component
@@ -40,6 +43,24 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	private EntityManager entityManager;
 	@Autowired
 	private ProvisionRouterOs provision;
+	@Autowired
+	private NetworkDeviceRepository repository;
+
+	@Override
+	public CrudRepositoryContainer<NetworkDevice, Long> createContainerRepository() {
+		return new CrudRepositoryContainer<NetworkDevice, Long>(repository, NetworkDevice.class) {
+
+			@Override
+			protected Long idFromValue(final NetworkDevice entry) {
+				return entry.getId();
+			}
+		};
+	}
+
+	@Override
+	public void createDevice(final NetworkDeviceModel model) {
+		repository.save(NetworkDevice.createDevice(model));
+	}
 
 	/*
 	 * (non-Javadoc)

@@ -5,6 +5,7 @@ import java.util.Collection;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 public interface StationService {
 
@@ -21,5 +22,7 @@ public interface StationService {
 	void removeStation(final Station bean);
 
 	Iterable<Connection> findConnectionsOfStation(final long station);
+
+	CrudRepositoryContainer<Station, Long> createContainerRepository();
 
 }

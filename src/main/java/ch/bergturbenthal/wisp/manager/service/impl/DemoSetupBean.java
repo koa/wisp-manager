@@ -1,14 +1,11 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
@@ -59,37 +56,37 @@ public class DemoSetupBean implements DemoSetupService {
 	public void initDemoData() {
 		addressManagementBean.initAddressRanges();
 		if (stationService.listAllStations().isEmpty()) {
-			try {
-				final NetworkDevice d1 = createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", new Position(47.4202405, 8.8861531));
-				final NetworkDevice d2 = createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", new Position(47.4111584, 8.9025307));
-				final Station stationBerg = d1.getStation();
-				final Station stationChalchegg = d2.getStation();
-				final Connection connection = connectionService.connectStations(stationBerg, stationChalchegg);
+			final NetworkDevice d1 = createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", new Position(47.4196598, 8.8859171));
+			final NetworkDevice d2 = createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", new Position(47.4113853, 8.9027828));
+			final NetworkDevice d3 = createStationWithDevice("3B05027CF738", "d4ca6db5e9f7", "Susanne", new Position(47.4186617, 8.8852251));
+			final NetworkDevice d4 = createStationWithDevice("3B05027CF739", "d4ca6db5e9d7", "Fäsigrund", new Position(47.4273742, 8.9079165));
+			final Station stationBerg = d1.getStation();
+			final Station stationChalchegg = d2.getStation();
+			final Station stationSusanne = d3.getStation();
+			final Station stationFaesigrund = d4.getStation();
 
-				// final IpRange bergRootRange = addressManagementBean.addRootRange(InetAddress.getByName("10.14.0.0"), 16, 16, "Reservation König Berg");
-				// final IpRange bergUserRange = addressManagementBean.reserveRange(bergRootRange, AddressRangeType.USER, 32, "Internal Berg");
-				// final IpRange routerIp = addressManagementBean.reserveRange(bergUserRange, AddressRangeType.ASSIGNED, 32, "Router Address");
+			// final IpRange bergRootRange = addressManagementBean.addRootRange(InetAddress.getByName("10.14.0.0"), 16, 16, "Reservation König Berg");
+			// final IpRange bergUserRange = addressManagementBean.reserveRange(bergRootRange, AddressRangeType.USER, 32, "Internal Berg");
+			// final IpRange routerIp = addressManagementBean.reserveRange(bergUserRange, AddressRangeType.ASSIGNED, 32, "Router Address");
 
-				// final Set<VLan> bergNetworks = stationBerg.getOwnNetworks();
-				// final VLan vlan1Berg = new VLan();
-				// vlan1Berg.setVlanId(1);
-				// vlan1Berg.setAddress(new RangePair(bergUserRange, null));
-				// bergNetworks.add(vlan1Berg);
-				// vlan1Berg.setStation(stationBerg);
+			// final Set<VLan> bergNetworks = stationBerg.getOwnNetworks();
+			// final VLan vlan1Berg = new VLan();
+			// vlan1Berg.setVlanId(1);
+			// vlan1Berg.setAddress(new RangePair(bergUserRange, null));
+			// bergNetworks.add(vlan1Berg);
+			// vlan1Berg.setStation(stationBerg);
 
-				appendVlan(stationChalchegg, 1);
-				appendVlan(stationChalchegg, 2);
-				appendVlan(stationChalchegg, 10);
+			appendVlan(stationChalchegg, 1);
+			appendVlan(stationChalchegg, 2);
+			appendVlan(stationChalchegg, 10);
 
-				addressManagementBean.fillStation(stationBerg);
-				addressManagementBean.fillStation(stationChalchegg);
-				addressManagementBean.fillConnection(connection);
-
-				networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("172.16.0.1"));
-				networkDeviceManagementBean.detectNetworkDevice(InetAddress.getByName("172.16.0.2"));
-			} catch (final UnknownHostException e) {
-				throw new RuntimeException(e);
-			}
+			addressManagementBean.fillStation(stationBerg);
+			addressManagementBean.fillStation(stationChalchegg);
+			addressManagementBean.fillStation(stationSusanne);
+			addressManagementBean.fillStation(stationFaesigrund);
+			addressManagementBean.fillConnection(connectionService.connectStations(stationBerg, stationChalchegg));
+			addressManagementBean.fillConnection(connectionService.connectStations(stationSusanne, stationFaesigrund));
+			addressManagementBean.fillConnection(connectionService.connectStations(stationBerg, stationSusanne));
 		}
 	}
 

@@ -14,14 +14,11 @@ import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
-import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
+import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.view.InputIpDialog.DialogResultHandler;
 
-import com.vaadin.addon.jpacontainer.EntityItem;
-import com.vaadin.addon.jpacontainer.EntityItemProperty;
-import com.vaadin.addon.jpacontainer.JPAContainer;
-import com.vaadin.addon.jpacontainer.JPAContainerFactory;
 import com.vaadin.data.Property;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
@@ -49,14 +46,12 @@ import com.vaadin.ui.VerticalLayout;
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@Autowired
-	private CurrentEntityManagerHolder entityManagerHolder;
-	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementBean;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
 
-		final JPAContainer<NetworkDevice> devicesContainer = JPAContainerFactory.make(NetworkDevice.class, entityManagerHolder.getCurrentEntityManager());
+		final CrudRepositoryContainer<NetworkDevice, Long> devicesContainer = networkDeviceManagementBean.createContainerRepository();
 		// devicesContainer.setAutoCommit(true);
 
 		final HorizontalLayout horizontalLayout = new HorizontalLayout();
@@ -71,7 +66,8 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 				@Override
 				public void buttonClick(final ClickEvent event) {
-					devicesContainer.addEntity(NetworkDevice.createDevice(model));
+					networkDeviceManagementBean.createDevice(model);
+					devicesContainer.notifyDataChanged();
 				}
 			}));
 		}
@@ -95,7 +91,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						@Override
 						public void takeIp(final InetAddress address) {
 							final NetworkDevice detectNetworkDevice = networkDeviceManagementBean.detectNetworkDevice(address);
-							devicesContainer.refresh();
+							devicesContainer.notifyDataChanged();
 							deviceSelect.select(detectNetworkDevice.getId());
 						}
 					});
@@ -121,7 +117,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		editDeviceForm.setEnabled(false);
 		deviceSelect.addValueChangeListener(new ValueChangeListener() {
 
-			private TextField createInetAddressField(final EntityItem<NetworkDevice> deviceItem, final String fieldName) {
+			private TextField createInetAddressField(final CrudItem<NetworkDevice> deviceItem, final String fieldName) {
 				final TextField field = withConverter(new TextField(fieldName), InetAddressConverter.getInstance());
 				field.setPropertyDataSource(deviceItem.getItemProperty(fieldName));
 				field.setNullRepresentation("");
@@ -132,10 +128,10 @@ public class NetworkDeviceView extends CustomComponent implements View {
 			public void valueChange(final ValueChangeEvent event) {
 
 				final Long deviceId = (Long) event.getProperty().getValue();
-				final EntityItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
+				final CrudItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
 				editDeviceForm.removeAllComponents();
 				editDeviceForm.addComponent(new Label(deviceItem.getItemProperty("title")));
-				final EntityItemProperty itemProperty = deviceItem.getItemProperty("interfaces");
+				final Property itemProperty = deviceItem.getItemProperty("interfaces");
 				final Property<String> macAddressDataSource = new Property<String>() {
 
 					@Override
@@ -160,12 +156,12 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 					@Override
 					public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
-						final List<NetworkInterface> interfaces = deviceItem.getEntity().getInterfaces();
-						final Iterator<MacAddress> macAddressIterator = deviceItem.getEntity()
-																																			.getDeviceModel()
-																																			.getAddressIncrementorFactory()
-																																			.getAllMacAddresses(new MacAddress(newValue))
-																																			.iterator();
+						final NetworkDevice device = deviceItem.getPojo();
+						final List<NetworkInterface> interfaces = device.getInterfaces();
+						final Iterator<MacAddress> macAddressIterator = device.getDeviceModel()
+																																	.getAddressIncrementorFactory()
+																																	.getAllMacAddresses(new MacAddress(newValue))
+																																	.iterator();
 						for (final NetworkInterface networkInterface : interfaces) {
 							networkInterface.setMacAddress(macAddressIterator.next());
 						}
@@ -180,7 +176,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				// editDeviceForm.addComponent(withConverter(new Label(deviceItem.getItemProperty("v6Address")), new
 				// InetAddressConverter<>(Inet6Address.class)));
 
-				final BeanItemContainer<NetworkInterface> dataSource = new BeanItemContainer<>(NetworkInterface.class, deviceItem.getEntity().getInterfaces());
+				final BeanItemContainer<NetworkInterface> dataSource = new BeanItemContainer<>(NetworkInterface.class, deviceItem.getPojo().getInterfaces());
 				dataSource.addNestedContainerProperty("macAddress.address");
 				final Table table = new Table("interfaces", dataSource);
 				table.setVisibleColumns("type", "macAddress.address");
@@ -193,8 +189,6 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					@Override
 					public void buttonClick(final ClickEvent event) {
 						table.commit();
-
-						deviceItem.commit();
 						editDeviceForm.setEnabled(false);
 					}
 				}));
@@ -203,9 +197,8 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					@Override
 					public void buttonClick(final ClickEvent event) {
 						table.commit();
-						deviceItem.commit();
-						log.info("new Configuration: " + networkDeviceManagementBean.generateConfig(deviceItem.getEntity()));
-						final NetworkDevice networkDevice = deviceItem.getEntity();
+						log.info("new Configuration: " + networkDeviceManagementBean.generateConfig(deviceItem.getPojo()));
+						final NetworkDevice networkDevice = deviceItem.getPojo();
 						if (isReachable(networkDevice.getV4Address())) {
 							networkDeviceManagementBean.loadConfig(networkDevice.getV4Address());
 						} else if (isReachable(networkDevice.getV6Address())) {
@@ -215,7 +208,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						editDeviceForm.setEnabled(false);
 					}
 				});
-				provisionDeviceButton.setEnabled(!deviceItem.getEntity().isProvisioned());
+				provisionDeviceButton.setEnabled(!deviceItem.getPojo().isProvisioned());
 				editDeviceForm.addComponent(provisionDeviceButton);
 
 				editDeviceForm.setEnabled(true);

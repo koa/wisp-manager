@@ -5,19 +5,16 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.persistence.EntityManager;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.GeoService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
-import com.vaadin.addon.jpacontainer.JPAContainer;
-import com.vaadin.addon.jpacontainer.JPAContainerFactory;
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
 import com.vaadin.data.util.AbstractBeanContainer.BeanIdResolver;
@@ -44,7 +41,7 @@ import com.vaadin.ui.VerticalLayout;
 public class ConnectionView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Connections";
 	@Autowired
-	private CurrentEntityManagerHolder entityManagerHolder;
+	private ConnectionService connectionService;
 	@Autowired
 	private GeoService geoService;
 	@Autowired
@@ -52,8 +49,7 @@ public class ConnectionView extends CustomComponent implements View {
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
-		final EntityManager currentEntityManager = entityManagerHolder.getCurrentEntityManager();
-		final JPAContainer<Connection> connectionContainer = JPAContainerFactory.make(Connection.class, currentEntityManager);
+		final CrudRepositoryContainer<Connection, Long> connectionContainer = connectionService.makeContainer();
 		final BeanContainer<String, Station> beanContainer = new BeanContainer<>(Station.class);
 		beanContainer.setBeanIdResolver(new BeanIdResolver<String, Station>() {
 			@Override
@@ -115,7 +111,7 @@ public class ConnectionView extends CustomComponent implements View {
 
 			@Override
 			public Component generateCell(final Table source, final Object itemId, final Object columnId) {
-				final Connection connection = connectionContainer.getItem(itemId).getEntity();
+				final Connection connection = connectionContainer.getItem(itemId).getPojo();
 				final Station startStation = connection.getStartStation();
 				final Station endStation = connection.getEndStation();
 				if (startStation == null || endStation == null) {
@@ -148,7 +144,9 @@ public class ConnectionView extends CustomComponent implements View {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
-				connectionContainer.addEntity(new Connection());
+				connectionService.connectStations(null, null);
+				table.refreshRowCache();
+				// connectionContainer.addEntity(new Connection());
 			}
 		});
 
@@ -156,10 +154,11 @@ public class ConnectionView extends CustomComponent implements View {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
-				connectionContainer.commit();
+				table.commit();
+				// connectionContainer.commit();
 			}
 		});
-		connectionContainer.setAutoCommit(true);
+		// connectionContainer.setAutoCommit(true);
 		final VerticalLayout verticalLayout = new VerticalLayout(table, new HorizontalLayout(addButton, saveButton));
 		verticalLayout.setSizeFull();
 		verticalLayout.setExpandRatio(table, 1);

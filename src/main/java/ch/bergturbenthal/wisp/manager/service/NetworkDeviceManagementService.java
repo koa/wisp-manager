@@ -3,13 +3,18 @@ package ch.bergturbenthal.wisp.manager.service;
 import java.net.InetAddress;
 
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 public interface NetworkDeviceManagementService {
 
-	public abstract NetworkDevice detectNetworkDevice(InetAddress host);
+	NetworkDevice detectNetworkDevice(final InetAddress host);
 
-	public abstract String generateConfig(NetworkDevice device);
+	String generateConfig(final NetworkDevice device);
 
-	public abstract void loadConfig(InetAddress host);
+	void loadConfig(final InetAddress host);
 
+	CrudRepositoryContainer<NetworkDevice, Long> createContainerRepository();
+
+	void createDevice(final NetworkDeviceModel model);
 }

@@ -17,10 +17,12 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Setter;
+import lombok.ToString;
 
 @Data
 @Entity
 @EqualsAndHashCode(of = "id")
+@ToString(exclude = { "beginningConnections", "endingConnections" })
 public class Station {
 	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
 	private List<Connection> beginningConnections = new ArrayList<>();

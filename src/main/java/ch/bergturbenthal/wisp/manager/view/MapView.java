@@ -1,12 +1,13 @@
 package ch.bergturbenthal.wisp.manager.view;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
-import javax.persistence.EntityManager;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.vaadin.dialogs.ConfirmDialog;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
@@ -15,15 +16,13 @@ import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
-import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
+import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
+import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
 
-import com.vaadin.addon.jpacontainer.EntityItem;
-import com.vaadin.addon.jpacontainer.JPAContainer;
-import com.vaadin.addon.jpacontainer.JPAContainerFactory;
-import com.vaadin.addon.jpacontainer.filter.Filters;
-import com.vaadin.data.Container.Filter;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.DefaultFieldGroupFieldFactory;
 import com.vaadin.data.fieldgroup.FieldGroup;
@@ -47,45 +46,56 @@ import com.vaadin.ui.Field;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Notification;
+import com.vaadin.ui.Notification.Type;
 import com.vaadin.ui.VerticalLayout;
 
+@Slf4j
 @VaadinView(name = MapView.VIEW_ID)
 public class MapView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Map";
 	@Autowired
 	private ConnectionService connectionService;
-	private JPAContainer<NetworkDevice> devicesContainer;
+	private CrudRepositoryContainer<NetworkDevice, Long> devicesContainer;
 	private FormLayout editStationForm;
 	@Autowired
-	private CurrentEntityManagerHolder entityManagerHolder;
+	private NetworkDeviceManagementService networkDeviceManagementService;
 	@Autowired
 	private StationService stationService;
 
-	private void activateStation(final FieldGroup fieldGroup, final EntityItem<Station> stationItem) {
-		fieldGroup.setItemDataSource(stationItem);
-		devicesContainer.removeAllContainerFilters();
-		devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.joinFilter("station", Filters.eq("id", stationItem.getEntity().getId()))));
-		final Filter[] modelFilters = new Filter[NetworkDeviceModel.stationModels.length];
-		for (int i = 0; i < modelFilters.length; i++) {
-			modelFilters[i] = Filters.eq("deviceModel", NetworkDeviceModel.stationModels[i]);
-		}
-		devicesContainer.addContainerFilter(Filters.or(modelFilters));
+	private void activateStation(final FieldGroup fieldGroup, final CrudItem<Station> crudItem) {
+		fieldGroup.setItemDataSource(crudItem);
+		devicesContainer.removeAllFilters();
+		final Long stationId = crudItem.getPojo().getId();
+		final Set<NetworkDeviceModel> stationModels = new HashSet<NetworkDeviceModel>(Arrays.asList(NetworkDeviceModel.stationModels));
+		devicesContainer.addFilter(new PojoFilter<NetworkDevice>() {
+
+			@Override
+			public boolean accept(final NetworkDevice candidate) {
+				if (!stationModels.contains(candidate.getDeviceModel())) {
+					return false;
+				}
+				return candidate.getStation() == null || candidate.getStation().getId().equals(stationId);
+			}
+		});
+		// devicesContainer.removeAllContainerFilters();
+		// devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.joinFilter("station", Filters.eq("id",
+		// crudItem.getPojo().getId()))));
+		// final Filter[] modelFilters = new Filter[NetworkDeviceModel.stationModels.length];
+		// for (int i = 0; i < modelFilters.length; i++) {
+		// modelFilters[i] = Filters.eq("deviceModel", NetworkDeviceModel.stationModels[i]);
+		// }
+		// devicesContainer.addContainerFilter(Filters.or(modelFilters));
 		editStationForm.setEnabled(true);
 	}
 
 	private void doIfDiscardOk(final FieldGroup fieldGroup, final Runnable runnable) {
-		if (fieldGroup.isModified()) {
-			ConfirmDialog.show(getUI(), "Sure to discard changes?", new ConfirmDialog.Listener() {
-
-				@Override
-				public void onClose(final ConfirmDialog dialog) {
-					if (dialog.isConfirmed()) {
-						runnable.run();
-					}
-				}
-			});
-		} else {
+		try {
+			if (fieldGroup.isModified()) {
+				fieldGroup.commit();
+			}
 			runnable.run();
+		} catch (final CommitException e) {
+			Notification.show("Cannot save station", Type.ERROR_MESSAGE);
 		}
 	}
 
@@ -99,9 +109,8 @@ public class MapView extends CustomComponent implements View {
 	@Override
 	public void enter(final ViewChangeEvent event) {
 
-		final EntityManager entityManager = entityManagerHolder.getCurrentEntityManager();
-		final JPAContainer<Station> stationContainer = JPAContainerFactory.make(Station.class, entityManager);
-		devicesContainer = JPAContainerFactory.make(NetworkDevice.class, entityManager);
+		final CrudRepositoryContainer<Station, Long> stationContainer = stationService.createContainerRepository();
+		devicesContainer = networkDeviceManagementService.createContainerRepository();
 
 		editStationForm = new FormLayout();
 
@@ -140,7 +149,7 @@ public class MapView extends CustomComponent implements View {
 				doIfDiscardOk(fieldGroup, new Runnable() {
 					@Override
 					public void run() {
-						final EntityItem<Station> stationItem = stationContainer.getItem(Long.valueOf(clickedMarker.getId()));
+						final CrudItem<Station> stationItem = stationContainer.getItem(Long.valueOf(clickedMarker.getId()));
 						activateStation(fieldGroup, stationItem);
 					}
 				});
@@ -154,15 +163,16 @@ public class MapView extends CustomComponent implements View {
 			public <T extends Field> T createField(final Class<?> dataType, final Class<T> fieldType) {
 				if (dataType.isAssignableFrom(NetworkDevice.class)) {
 					final ComboBox comboBox = new ComboBox("Device", devicesContainer);
+					comboBox.setNullSelectionAllowed(true);
 					comboBox.setItemCaptionPropertyId("title");
 					comboBox.setConverter(new Converter<Object, NetworkDevice>() {
 
 						@Override
 						public NetworkDevice convertToModel(final Object value, final Class<? extends NetworkDevice> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
 							if (value == null) {
-								return new NetworkDevice();
+								return null;
 							}
-							return devicesContainer.getItem(value).getEntity();
+							return devicesContainer.getItem(value).getPojo();
 						}
 
 						@Override
@@ -195,19 +205,6 @@ public class MapView extends CustomComponent implements View {
 		addressField.setReadOnly(true);
 		editStationForm.addComponent(addressField);
 
-		editStationForm.addComponent(new Button("Save", new ClickListener() {
-
-			@Override
-			public void buttonClick(final ClickEvent event) {
-				try {
-					fieldGroup.commit();
-					// final Station bean = fieldGroup.getItemDataSource().getBean();
-					// stationService.updateStation(bean);
-				} catch (final CommitException e) {
-					Notification.show(e.getLocalizedMessage());
-				}
-			}
-		}));
 		editStationForm.addComponent(new Button("Revert", new ClickListener() {
 
 			@Override
