@@ -64,7 +64,7 @@ public class MapView extends CustomComponent implements View {
 	private void activateStation(final FieldGroup fieldGroup, final EntityItem<Station> stationItem) {
 		fieldGroup.setItemDataSource(stationItem);
 		devicesContainer.removeAllContainerFilters();
-		devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.eq("station", stationItem.getEntity())));
+		devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.joinFilter("station", Filters.eq("id", stationItem.getEntity().getId()))));
 		final Filter[] modelFilters = new Filter[NetworkDeviceModel.stationModels.length];
 		for (int i = 0; i < modelFilters.length; i++) {
 			modelFilters[i] = Filters.eq("deviceModel", NetworkDeviceModel.stationModels[i]);
