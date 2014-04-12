@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view;
 
+import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.vaadin.spring.navigator.VaadinView;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
+import ch.bergturbenthal.wisp.manager.service.GeoService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
@@ -32,6 +34,7 @@ import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.DefaultFieldFactory;
 import com.vaadin.ui.Field;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Label;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.TableFieldFactory;
@@ -42,6 +45,8 @@ public class ConnectionView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Connections";
 	@Autowired
 	private CurrentEntityManagerHolder entityManagerHolder;
+	@Autowired
+	private GeoService geoService;
 	@Autowired
 	private StationService stationService;
 
@@ -106,7 +111,24 @@ public class ConnectionView extends CustomComponent implements View {
 			}
 		});
 
-		final ColumnGenerator generatedColumn = new ColumnGenerator() {
+		table.addGeneratedColumn("distance", new ColumnGenerator() {
+
+			@Override
+			public Component generateCell(final Table source, final Object itemId, final Object columnId) {
+				final Connection connection = connectionContainer.getItem(itemId).getEntity();
+				final Station startStation = connection.getStartStation();
+				final Station endStation = connection.getEndStation();
+				if (startStation == null || endStation == null) {
+					return new Label("");
+				}
+				if (startStation.getPosition() == null || endStation.getPosition() == null) {
+					return new Label("");
+				}
+				final double distance = geoService.distance(startStation.getPosition(), endStation.getPosition());
+				return new Label(NumberFormat.getIntegerInstance().format(distance) + " m");
+			}
+		});
+		table.addGeneratedColumn("remove", new ColumnGenerator() {
 
 			@Override
 			public Component generateCell(final Table source, final Object itemId, final Object columnId) {
@@ -118,8 +140,7 @@ public class ConnectionView extends CustomComponent implements View {
 					}
 				});
 			}
-		};
-		table.addGeneratedColumn("remove", generatedColumn);
+		});
 
 		table.setSizeFull();
 

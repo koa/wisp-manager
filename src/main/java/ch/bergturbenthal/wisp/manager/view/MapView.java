@@ -92,6 +92,7 @@ public class MapView extends CustomComponent implements View {
 	private void drawStation(final GoogleMap googleMap, final Station station) {
 		final GoogleMapMarker mapMarker = new GoogleMapMarker(station.getName(), station.getPosition().getGooglePostion(), true);
 		mapMarker.setId(station.getId());
+		mapMarker.setCaption(station.getName());
 		googleMap.addMarker(mapMarker);
 	}
 
@@ -255,6 +256,7 @@ public class MapView extends CustomComponent implements View {
 			}
 			final GoogleMapPolyline polyline = new GoogleMapPolyline(Arrays.asList(startStation.getPosition().getGooglePostion(), endStation.getPosition().getGooglePostion()));
 			polyline.setId(connection.getId().longValue());
+			polyline.setStrokeWeight(3);
 			googleMap.addPolyline(polyline);
 		}
 	}
