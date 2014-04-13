@@ -11,6 +11,7 @@ import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 
+import com.vaadin.data.Item;
 import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.util.BeanItem;
 import com.vaadin.ui.CustomComponent;
@@ -30,6 +31,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		devicesContainer = container;
 		fieldGroup = new FieldGroup(new BeanItem<Station>(new Station()));
 		fieldGroup.setFieldFactory(new CustomFieldFactory(devicesContainer));
+		fieldGroup.setBuffered(false);
 		mainLayout = new FormLayout();
 		mainLayout.setSizeFull();
 		setSizeFull();
@@ -38,6 +40,16 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		mainLayout.addComponent(fieldGroup.buildAndBind("loopbackDescription"));
 		setCompositionRoot(mainLayout);
 		mainLayout.setVisible(false);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public CrudItem<Station> getCurrentItem() {
+		final Item itemDataSource = fieldGroup.getItemDataSource();
+		if (itemDataSource instanceof CrudItem) {
+			return (CrudItem<Station>) itemDataSource;
+		}
+		return null;
 	}
 
 	@Override

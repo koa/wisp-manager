@@ -28,7 +28,6 @@ public class StationServiceBean implements StationService {
 	private AddressManagementService addressManagementBean;
 	@PersistenceContext
 	private EntityManager entityManager;
-
 	@Autowired
 	private StationRepository repository;
 
@@ -39,6 +38,17 @@ public class StationServiceBean implements StationService {
 		entityManager.persist(station);
 		station.setName("Station-" + station.getId());
 		return station;
+	}
+
+	@Override
+	public CrudRepositoryContainer<Station, Long> createContainerRepository() {
+		return new CrudRepositoryContainer<Station, Long>(repository, Station.class) {
+
+			@Override
+			protected Long idFromValue(final Station entry) {
+				return entry.getId();
+			}
+		};
 	}
 
 	@Override
@@ -53,17 +63,6 @@ public class StationServiceBean implements StationService {
 	@Override
 	public Station findStation(final long id) {
 		return entityManager.find(Station.class, Long.valueOf(id));
-	}
-
-	@Override
-	public CrudRepositoryContainer<Station, Long> createContainerRepository() {
-		return new CrudRepositoryContainer<Station, Long>(repository, Station.class) {
-
-			@Override
-			protected Long idFromValue(final Station entry) {
-				return entry.getId();
-			}
-		};
 	}
 
 	@Override
@@ -89,8 +88,15 @@ public class StationServiceBean implements StationService {
 	}
 
 	@Override
-	public void removeStation(final Station bean) {
-		entityManager.remove(entityManager.find(Station.class, bean.getId()));
+	public boolean removeStation(final Station bean) {
+		if (bean.getBeginningConnections() != null && !bean.getBeginningConnections().isEmpty()) {
+			return false;
+		}
+		if (bean.getEndingConnections() != null && !bean.getEndingConnections().isEmpty()) {
+			return false;
+		}
+		repository.delete(bean);
+		return true;
 	}
 
 	@Override

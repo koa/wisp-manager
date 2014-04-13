@@ -94,6 +94,9 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 			@Override
 			public Object getValue() {
 				final T foundItem = loadItem(itemId);
+				if (foundItem == null) {
+					return null;
+				}
 				try {
 					return propertyDescriptor.getReadMethod().invoke(foundItem);
 				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {

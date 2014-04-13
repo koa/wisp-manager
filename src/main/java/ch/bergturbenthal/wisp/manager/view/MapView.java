@@ -14,6 +14,7 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
+import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.view.component.StationEditor;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
@@ -85,6 +86,7 @@ public class MapView extends CustomComponent implements View {
 				final Station newStation = stationService.addStation(new Position(position));
 				drawStation(googleMap, newStation);
 				stationEditor.setItem(stationContainer.getItem(newStation.getId()));
+				stationEditor.setVisible(true);
 			}
 		});
 		googleMap.addMarkerDragListener(new MarkerDragListener() {
@@ -100,12 +102,26 @@ public class MapView extends CustomComponent implements View {
 			@Override
 			public void markerClicked(final GoogleMapMarker clickedMarker) {
 				stationEditor.setItem(stationContainer.getItem(Long.valueOf(clickedMarker.getId())));
+				stationEditor.setVisible(true);
 			}
 		});
 		updateMarkers(googleMap);
 		googleMap.setSizeFull();
 
 		final VerticalLayout editPanel = new VerticalLayout(stationEditor);
+		editPanel.addComponent(new Button("remove Station", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				final CrudItem<Station> currentItem = stationEditor.getCurrentItem();
+				if (currentItem == null) {
+					return;
+				}
+				stationService.removeStation(currentItem.getPojo());
+				updateMarkers(googleMap);
+				stationEditor.setVisible(false);
+			}
+		}));
 		editPanel.addComponent(new Button("zoom all", new ClickListener() {
 
 			@Override

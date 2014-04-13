@@ -110,7 +110,7 @@
     <dependency>
       <groupId>com.vaadin.tapio</groupId>
       <artifactId>googlemaps</artifactId>
-      <version>0.8.0</version>
+      <version>0.8.1</version>
     </dependency>
     <dependency>
       <groupId>org.vaadin.addon</groupId>
