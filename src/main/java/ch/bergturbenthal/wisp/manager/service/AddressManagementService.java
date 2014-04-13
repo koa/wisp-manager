@@ -41,4 +41,6 @@ public interface AddressManagementService {
 
 	CrudRepositoryContainer<IpRange, Long> createIpContainer();
 
+	String describeRangeUser(final IpRange range);
+
 }

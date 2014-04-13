@@ -8,5 +8,8 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 
 public interface StationRepository extends CrudRepository<Station, Long> {
 	@Query("select s from Station s where loopback.v4Address=?1 or loopback.v6Address=?1")
-	Station findStationForRange(final IpRange range);
+	Station findStationLoopbackForRange(final IpRange range);
+
+	@Query("select s from Station s inner join s.ownNetworks n where n.address.v4Address=?1 or n.address.v6Address=?1")
+	Station findStationNetworkForRange(final IpRange range);
 }

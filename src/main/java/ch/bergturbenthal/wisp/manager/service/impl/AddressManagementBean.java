@@ -35,7 +35,9 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
+import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
+import ch.bergturbenthal.wisp.manager.repository.VLanRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
@@ -125,11 +127,15 @@ public class AddressManagementBean implements AddressManagementService {
 	@Autowired
 	private IpRangeRepository ipRangeRepository;
 	@Autowired
+	private NetworkDeviceRepository networkDeviceRepository;
+	@Autowired
 	private StationRepository stationRepository;
+	@Autowired
+	private VLanRepository vLanRepository;
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -139,7 +145,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -186,6 +192,37 @@ public class AddressManagementBean implements AddressManagementService {
 		return new IpRangeCrudContainer(ipRangeRepository, IpRange.class);
 	}
 
+	@Override
+	public String describeRangeUser(final IpRange ipRange) {
+		final VLan foundVlan = vLanRepository.findVlanByRange(ipRange);
+		if (foundVlan != null) {
+			final NetworkInterface networkInterface = foundVlan.getNetworkInterface();
+			if (networkInterface != null) {
+				final NetworkDevice networkDevice = networkInterface.getNetworkDevice();
+				return "Network-Device: " + networkDevice.getTitle() + "; " + networkInterface.getInterfaceName() + ";" + foundVlan.getVlanId();
+			}
+			final Station station = foundVlan.getStation();
+			return "Station Network: " + station.getName() + ";" + foundVlan.getVlanId();
+		}
+		final Connection foundConnection = connectionRepository.findConnectionForRange(ipRange);
+		if (foundConnection != null) {
+			return "Connection: " + foundConnection.getTitle();
+		}
+		final NetworkDevice foundNetworkDevice = networkDeviceRepository.findDeviceForRange(ipRange);
+		if (foundNetworkDevice != null) {
+			return "Network-Device: " + foundNetworkDevice.getTitle();
+		}
+		final Station stationLoopback = stationRepository.findStationLoopbackForRange(ipRange);
+		if (stationLoopback != null) {
+			return "Station Loopback: " + stationLoopback.getName();
+		}
+		final Station stationNetwork = stationRepository.findStationNetworkForRange(ipRange);
+		if (stationNetwork != null) {
+			return "Station Network: " + stationNetwork.getName();
+		}
+		return null;
+	}
+
 	private <T> List<T> emptyIfNull(final List<T> collection) {
 		if (collection == null) {
 			return java.util.Collections.emptyList();
@@ -202,7 +239,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillConnection(ch.bergturbenthal.wisp.manager.model.Connection)
 	 */
 	@Override
@@ -393,7 +430,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -406,7 +443,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -416,7 +453,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -453,12 +490,12 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	private Station findStationForRange(final IpRange range) {
-		return stationRepository.findStationForRange(range);
+		return stationRepository.findStationLoopbackForRange(range);
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -490,7 +527,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -511,7 +548,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -521,7 +558,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
