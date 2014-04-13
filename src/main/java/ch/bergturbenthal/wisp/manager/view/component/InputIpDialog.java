@@ -1,4 +1,4 @@
-package ch.bergturbenthal.wisp.manager.view;
+package ch.bergturbenthal.wisp.manager.view.component;
 
 import java.net.InetAddress;
 

@@ -17,7 +17,9 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
-import ch.bergturbenthal.wisp.manager.view.InputIpDialog.DialogResultHandler;
+import ch.bergturbenthal.wisp.manager.view.component.InetAddressConverter;
+import ch.bergturbenthal.wisp.manager.view.component.InputIpDialog;
+import ch.bergturbenthal.wisp.manager.view.component.InputIpDialog.DialogResultHandler;
 
 import com.vaadin.data.Property;
 import com.vaadin.data.Property.ValueChangeEvent;

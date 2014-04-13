@@ -1,9 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view;
 
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,21 +11,15 @@ import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
-import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
+import ch.bergturbenthal.wisp.manager.view.component.StationEditor;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
 
-import com.vaadin.data.Property;
-import com.vaadin.data.fieldgroup.DefaultFieldGroupFieldFactory;
 import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
-import com.vaadin.data.util.BeanItem;
-import com.vaadin.data.util.converter.Converter;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
 import com.vaadin.tapio.googlemaps.client.LatLon;
@@ -40,10 +31,7 @@ import com.vaadin.tapio.googlemaps.client.overlays.GoogleMapPolyline;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
-import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.CustomComponent;
-import com.vaadin.ui.Field;
-import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.Notification.Type;
@@ -56,37 +44,10 @@ public class MapView extends CustomComponent implements View {
 	@Autowired
 	private ConnectionService connectionService;
 	private CrudRepositoryContainer<NetworkDevice, Long> devicesContainer;
-	private FormLayout editStationForm;
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
 	@Autowired
 	private StationService stationService;
-
-	private void activateStation(final FieldGroup fieldGroup, final CrudItem<Station> crudItem) {
-		fieldGroup.setItemDataSource(crudItem);
-		devicesContainer.removeAllFilters();
-		final Long stationId = crudItem.getPojo().getId();
-		final Set<NetworkDeviceModel> stationModels = new HashSet<NetworkDeviceModel>(Arrays.asList(NetworkDeviceModel.stationModels));
-		devicesContainer.addFilter(new PojoFilter<NetworkDevice>() {
-
-			@Override
-			public boolean accept(final NetworkDevice candidate) {
-				if (!stationModels.contains(candidate.getDeviceModel())) {
-					return false;
-				}
-				return candidate.getStation() == null || candidate.getStation().getId().equals(stationId);
-			}
-		});
-		// devicesContainer.removeAllContainerFilters();
-		// devicesContainer.addContainerFilter(Filters.or(Filters.isNull("station"), Filters.joinFilter("station", Filters.eq("id",
-		// crudItem.getPojo().getId()))));
-		// final Filter[] modelFilters = new Filter[NetworkDeviceModel.stationModels.length];
-		// for (int i = 0; i < modelFilters.length; i++) {
-		// modelFilters[i] = Filters.eq("deviceModel", NetworkDeviceModel.stationModels[i]);
-		// }
-		// devicesContainer.addContainerFilter(Filters.or(modelFilters));
-		editStationForm.setEnabled(true);
-	}
 
 	private void doIfDiscardOk(final FieldGroup fieldGroup, final Runnable runnable) {
 		try {
@@ -111,27 +72,19 @@ public class MapView extends CustomComponent implements View {
 
 		final CrudRepositoryContainer<Station, Long> stationContainer = stationService.createContainerRepository();
 		devicesContainer = networkDeviceManagementService.createContainerRepository();
-
-		editStationForm = new FormLayout();
+		final StationEditor stationEditor = new StationEditor(devicesContainer);
 
 		final Station emptyStation = new Station();
 		emptyStation.setDevice(new NetworkDevice());
-		final FieldGroup fieldGroup = new FieldGroup(new BeanItem<Station>(emptyStation));
 		final LatLon pos = new LatLon();
 		final GoogleMap googleMap = new GoogleMap(pos, null);
 		googleMap.addMapClickListener(new MapClickListener() {
 
 			@Override
 			public void mapClicked(final LatLon position) {
-				doIfDiscardOk(fieldGroup, new Runnable() {
-
-					@Override
-					public void run() {
-						final Station newStation = stationService.addStation(new Position(position));
-						drawStation(googleMap, newStation);
-						activateStation(fieldGroup, stationContainer.getItem(newStation.getId()));
-					}
-				});
+				final Station newStation = stationService.addStation(new Position(position));
+				drawStation(googleMap, newStation);
+				stationEditor.setItem(stationContainer.getItem(newStation.getId()));
 			}
 		});
 		googleMap.addMarkerDragListener(new MarkerDragListener() {
@@ -146,85 +99,13 @@ public class MapView extends CustomComponent implements View {
 
 			@Override
 			public void markerClicked(final GoogleMapMarker clickedMarker) {
-				doIfDiscardOk(fieldGroup, new Runnable() {
-					@Override
-					public void run() {
-						final CrudItem<Station> stationItem = stationContainer.getItem(Long.valueOf(clickedMarker.getId()));
-						activateStation(fieldGroup, stationItem);
-					}
-				});
+				stationEditor.setItem(stationContainer.getItem(Long.valueOf(clickedMarker.getId())));
 			}
 		});
 		updateMarkers(googleMap);
 		googleMap.setSizeFull();
-		fieldGroup.setFieldFactory(new DefaultFieldGroupFieldFactory() {
 
-			@Override
-			public <T extends Field> T createField(final Class<?> dataType, final Class<T> fieldType) {
-				if (dataType.isAssignableFrom(NetworkDevice.class)) {
-					final ComboBox comboBox = new ComboBox("Device", devicesContainer);
-					comboBox.setNullSelectionAllowed(true);
-					comboBox.setItemCaptionPropertyId("title");
-					comboBox.setConverter(new Converter<Object, NetworkDevice>() {
-
-						@Override
-						public NetworkDevice convertToModel(final Object value, final Class<? extends NetworkDevice> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
-							if (value == null) {
-								return null;
-							}
-							return devicesContainer.getItem(value).getPojo();
-						}
-
-						@Override
-						public Object convertToPresentation(final NetworkDevice value, final Class<? extends Object> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
-							if (value == null) {
-								return null;
-							}
-							return value.getId();
-						}
-
-						@Override
-						public Class<NetworkDevice> getModelType() {
-							return NetworkDevice.class;
-						}
-
-						@Override
-						public Class<Object> getPresentationType() {
-							// TODO Auto-generated method stub
-							return Object.class;
-						}
-					});
-					return (T) comboBox;
-				}
-				return super.createField(dataType, fieldType);
-			}
-		});
-		editStationForm.addComponent(fieldGroup.buildAndBind("Name", "name"));
-		editStationForm.addComponent(fieldGroup.buildAndBind("Device", "device"));
-		final Field<?> addressField = fieldGroup.buildAndBind("Address", "loopbackDescription");
-		addressField.setReadOnly(true);
-		editStationForm.addComponent(addressField);
-
-		editStationForm.addComponent(new Button("Revert", new ClickListener() {
-
-			@Override
-			public void buttonClick(final ClickEvent event) {
-				fieldGroup.discard();
-			}
-		}));
-		editStationForm.addComponent(new Button("Remove", new ClickListener() {
-
-			@Override
-			public void buttonClick(final ClickEvent event) {
-				@SuppressWarnings("unchecked")
-				final Property<Long> idProperty = fieldGroup.getItemDataSource().getItemProperty("id");
-				stationContainer.removeItem(idProperty.getValue());
-				updateMarkers(googleMap);
-			}
-		}));
-		editStationForm.setEnabled(false);
-
-		final VerticalLayout editPanel = new VerticalLayout(editStationForm);
+		final VerticalLayout editPanel = new VerticalLayout(stationEditor);
 		editPanel.addComponent(new Button("zoom all", new ClickListener() {
 
 			@Override
@@ -259,7 +140,6 @@ public class MapView extends CustomComponent implements View {
 	}
 
 	private void updateMarkers(final GoogleMap googleMap) {
-		editStationForm.setEnabled(false);
 		googleMap.clearMarkers();
 		for (final Station station : stationService.listAllStations()) {
 			drawStation(googleMap, station);
