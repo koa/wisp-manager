@@ -42,6 +42,13 @@ public class Station {
 	@Setter(AccessLevel.PROTECTED)
 	private Long version;
 
+	public List<Connection> getConnections() {
+		final List<Connection> ret = new ArrayList<Connection>(beginningConnections.size() + endingConnections.size());
+		ret.addAll(beginningConnections);
+		ret.addAll(endingConnections);
+		return ret;
+	}
+
 	public String getLoopbackDescription() {
 		if (loopback == null) {
 			return null;
@@ -55,7 +62,6 @@ public class Station {
 			stringBuilder.append(loopback.getInet6Address().getHostAddress());
 		}
 		return stringBuilder.toString();
-
 	}
 
 }

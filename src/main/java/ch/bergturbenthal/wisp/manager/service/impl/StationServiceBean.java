@@ -1,8 +1,6 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -53,11 +51,7 @@ public class StationServiceBean implements StationService {
 
 	@Override
 	public Iterable<Connection> findConnectionsOfStation(final long station) {
-		final Station stationEntity = findStation(station);
-		final List<Connection> ret = new ArrayList<>();
-		ret.addAll(stationEntity.getBeginningConnections());
-		ret.addAll(stationEntity.getEndingConnections());
-		return ret;
+		return findStation(station).getConnections();
 	}
 
 	@Override
@@ -89,10 +83,7 @@ public class StationServiceBean implements StationService {
 
 	@Override
 	public boolean removeStation(final Station bean) {
-		if (bean.getBeginningConnections() != null && !bean.getBeginningConnections().isEmpty()) {
-			return false;
-		}
-		if (bean.getEndingConnections() != null && !bean.getEndingConnections().isEmpty()) {
+		if (!bean.getConnections().isEmpty()) {
 			return false;
 		}
 		repository.delete(bean);
