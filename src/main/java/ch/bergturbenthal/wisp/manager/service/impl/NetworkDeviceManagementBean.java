@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -69,6 +70,13 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	 */
 	@Override
 	public NetworkDevice detectNetworkDevice(final InetAddress host) {
+		try {
+			if (!host.isReachable(150)) {
+				return null;
+			}
+		} catch (final IOException e) {
+			throw new RuntimeException("Cannot ping host " + host, e);
+		}
 		final DetectedDevice identifiedDevice = provision.identify(host);
 		if (identifiedDevice == null) {
 			return null;
@@ -122,18 +130,25 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
 	 */
 	@Override
-	public void loadConfig(final InetAddress host) {
-		final NetworkDevice detectNetworkDevice = detectNetworkDevice(host);
-		if (detectNetworkDevice == null) {
-			return;
+	public boolean loadConfig(final InetAddress... hosts) {
+		for (final InetAddress host : hosts) {
+			if (host == null) {
+				continue;
+			}
+			final NetworkDevice detectNetworkDevice = detectNetworkDevice(host);
+			if (detectNetworkDevice == null) {
+				continue;
+			}
+			log.info("Detected: " + detectNetworkDevice);
+			if (detectNetworkDevice.getStation() != null) {
+				final Station station = addressManagementBean.fillStation(detectNetworkDevice.getStation());
+				provision.loadConfig(station.getDevice(), host);
+			} else {
+				provision.loadConfig(detectNetworkDevice, host);
+			}
+			return true;
 		}
-		log.info("Detected: " + detectNetworkDevice);
-		if (detectNetworkDevice.getStation() != null) {
-			final Station station = addressManagementBean.fillStation(detectNetworkDevice.getStation());
-			provision.loadConfig(station.getDevice(), host);
-		} else {
-			provision.loadConfig(detectNetworkDevice, host);
-		}
+		return false;
 	}
 
 	private void setKnownIp(final NetworkDevice device, final InetAddress host) {

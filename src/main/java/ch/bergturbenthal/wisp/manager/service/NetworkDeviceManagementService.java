@@ -12,7 +12,7 @@ public interface NetworkDeviceManagementService {
 
 	String generateConfig(final NetworkDevice device);
 
-	void loadConfig(final InetAddress host);
+	boolean loadConfig(final InetAddress... host);
 
 	CrudRepositoryContainer<NetworkDevice, Long> createContainerRepository();
 

@@ -48,6 +48,8 @@ public class MapView extends CustomComponent implements View {
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
 	@Autowired
+	private StationEditor stationEditor;
+	@Autowired
 	private StationService stationService;
 
 	private void doIfDiscardOk(final FieldGroup fieldGroup, final Runnable runnable) {
@@ -73,7 +75,6 @@ public class MapView extends CustomComponent implements View {
 
 		final CrudRepositoryContainer<Station, Long> stationContainer = stationService.createContainerRepository();
 		devicesContainer = networkDeviceManagementService.createContainerRepository();
-		final StationEditor stationEditor = new StationEditor(devicesContainer);
 
 		final Station emptyStation = new Station();
 		emptyStation.setDevice(new NetworkDevice());
