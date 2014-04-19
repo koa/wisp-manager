@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -23,12 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import ch.bergturbenthal.wisp.manager.service.CurrentEntityManagerHolder;
-
 @Component
-public class TransactionFilterBean implements Filter, CurrentEntityManagerHolder {
+public class TransactionFilterBean implements Filter {
 	private static final Set<String> TRANSACTIONAL_PATH = new HashSet<String>(Arrays.asList("/UIDL/", "/"));
-	private final ThreadLocal<EntityManager> currentEntityManager = new ThreadLocal<EntityManager>();
 	@Autowired
 	private EntityManagerFactory entityManagerFactory;
 
@@ -42,50 +38,34 @@ public class TransactionFilterBean implements Filter, CurrentEntityManagerHolder
 	@Override
 	@Transactional
 	public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
-		try {
-			currentEntityManager.set(null);
-			final String pathInfo = ((HttpServletRequest) request).getPathInfo();
-			if (TRANSACTIONAL_PATH.contains(pathInfo)) {
-				try {
-					new TransactionTemplate(transactionManager).execute(new TransactionCallback<Void>() {
+		final String pathInfo = ((HttpServletRequest) request).getPathInfo();
+		if (TRANSACTIONAL_PATH.contains(pathInfo)) {
+			try {
+				new TransactionTemplate(transactionManager).execute(new TransactionCallback<Void>() {
 
-						@Override
-						public Void doInTransaction(final TransactionStatus status) {
-							try {
-								chain.doFilter(request, response);
-							} catch (IOException | ServletException e) {
-								throw new RuntimeException("exception on server", e);
-							}
-							return null;
+					@Override
+					public Void doInTransaction(final TransactionStatus status) {
+						try {
+							chain.doFilter(request, response);
+						} catch (IOException | ServletException e) {
+							throw new RuntimeException("exception on server", e);
 						}
-					});
-				} catch (final RuntimeException e) {
-					final Throwable cause = e.getCause();
-					if (cause instanceof IOException) {
-						throw (IOException) cause;
+						return null;
 					}
-					if (cause instanceof ServletException) {
-						throw (ServletException) cause;
-					}
-					throw e;
+				});
+			} catch (final RuntimeException e) {
+				final Throwable cause = e.getCause();
+				if (cause instanceof IOException) {
+					throw (IOException) cause;
 				}
-			} else {
-				chain.doFilter(request, response);
+				if (cause instanceof ServletException) {
+					throw (ServletException) cause;
+				}
+				throw e;
 			}
-		} finally {
-			currentEntityManager.set(null);
+		} else {
+			chain.doFilter(request, response);
 		}
-	}
-
-	@Override
-	public EntityManager getCurrentEntityManager() {
-		final EntityManager savedEntityManager = currentEntityManager.get();
-		if (savedEntityManager != null) {
-			return savedEntityManager;
-		}
-		final EntityManager newEntityManager = entityManagerFactory.createEntityManager();
-		currentEntityManager.set(newEntityManager);
-		return newEntityManager;
 	}
 
 	@Override
