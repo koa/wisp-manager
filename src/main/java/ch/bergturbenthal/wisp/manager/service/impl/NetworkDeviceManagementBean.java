@@ -7,12 +7,10 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,11 +37,12 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 @Transactional
 public class NetworkDeviceManagementBean implements NetworkDeviceManagementService {
 	@Autowired
-	private AddressManagementService addressManagementBean;
-	@PersistenceContext
-	private EntityManager entityManager;
+	private AddressManagementService addressManagementService;
+	@Autowired
+	private ExecutorService executorService;
 	@Autowired
 	private ProvisionRouterOs provision;
+
 	@Autowired
 	private NetworkDeviceRepository repository;
 
@@ -63,11 +62,6 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		repository.save(NetworkDevice.createDevice(model));
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#detectNetworkDevice(java.net.InetAddress)
-	 */
 	@Override
 	public NetworkDevice detectNetworkDevice(final InetAddress host) {
 		try {
@@ -81,11 +75,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		if (identifiedDevice == null) {
 			return null;
 		}
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<NetworkDevice> query = criteriaBuilder.createQuery(NetworkDevice.class);
-		final Root<NetworkDevice> devicePath = query.from(NetworkDevice.class);
-		query.where(criteriaBuilder.equal(devicePath.get("serialNumber"), identifiedDevice.getSerialNumber()));
-		final List<NetworkDevice> resultList = entityManager.createQuery(query).getResultList();
+		final List<NetworkDevice> resultList = repository.findBySerialNumber(identifiedDevice.getSerialNumber());
 		if (resultList.size() > 0) {
 			final NetworkDevice foundDevice = resultList.get(0);
 			updateDevice(foundDevice, identifiedDevice);
@@ -96,14 +86,14 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 			updateDevice(newDevice, identifiedDevice);
 			newDevice.setSerialNumber(identifiedDevice.getSerialNumber());
 			setKnownIp(newDevice, host);
-			entityManager.persist(newDevice);
+			repository.save(newDevice);
 			return newDevice;
 		}
 	}
 
 	private Collection<InetAddress> findDnsServers() {
 		final ArrayList<InetAddress> ret = new ArrayList<>();
-		for (final IpAddress entry : addressManagementBean.listGlobalDnsServers()) {
+		for (final IpAddress entry : addressManagementService.listGlobalDnsServers()) {
 			ret.add(entry.getInetAddress());
 		}
 		return ret;
@@ -111,22 +101,21 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override
 	public String generateConfig(final NetworkDevice device) {
-		final NetworkDevice mergedDevice = entityManager.merge(device);
-		if (mergedDevice.getStation() != null) {
-			final Station station = addressManagementBean.fillStation(mergedDevice.getStation());
+		if (device.getStation() != null) {
+			final Station station = addressManagementService.fillStation(device.getStation());
 			return provision.generateConfig(station.getDevice());
 		}
-		return provision.generateConfig(mergedDevice);
+		return provision.generateConfig(device);
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
 	 */
 	@Override
@@ -141,7 +130,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 			}
 			log.info("Detected: " + detectNetworkDevice);
 			if (detectNetworkDevice.getStation() != null) {
-				final Station station = addressManagementBean.fillStation(detectNetworkDevice.getStation());
+				final Station station = addressManagementService.fillStation(detectNetworkDevice.getStation());
 				provision.loadConfig(station.getDevice(), host);
 			} else {
 				provision.loadConfig(detectNetworkDevice, host);
@@ -149,6 +138,32 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 			return true;
 		}
 		return false;
+	}
+
+	@Override
+	public Collection<NetworkDevice> scanForDevices() {
+		final Collection<Future<NetworkDevice>> futures = new ArrayList<Future<NetworkDevice>>();
+		for (final InetAddress ip : addressManagementService.listPossibleNetworkDevices()) {
+			futures.add(executorService.submit(new Callable<NetworkDevice>() {
+
+				@Override
+				public NetworkDevice call() throws Exception {
+					return detectNetworkDevice(ip);
+				}
+			}));
+		}
+		final ArrayList<NetworkDevice> ret = new ArrayList<NetworkDevice>();
+		for (final Future<NetworkDevice> future : futures) {
+			try {
+				final NetworkDevice networkDevice = future.get();
+				if (networkDevice != null) {
+					ret.add(networkDevice);
+				}
+			} catch (ExecutionException | InterruptedException e) {
+				log.warn("Cannot detect a Network-Device", e);
+			}
+		}
+		return ret;
 	}
 
 	private void setKnownIp(final NetworkDevice device, final InetAddress host) {

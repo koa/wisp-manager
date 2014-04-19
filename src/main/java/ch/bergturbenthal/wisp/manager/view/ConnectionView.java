@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
@@ -38,6 +39,7 @@ import com.vaadin.ui.TableFieldFactory;
 import com.vaadin.ui.VerticalLayout;
 
 @VaadinView(name = ConnectionView.VIEW_ID)
+@UIScope
 public class ConnectionView extends CustomComponent implements View {
 	public static final String VIEW_ID = "Connections";
 	@Autowired

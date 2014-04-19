@@ -1,7 +1,11 @@
 package ch.bergturbenthal.wisp.manager;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,11 +17,8 @@ public class WispManager {
 		SpringApplication.run(WispManager.class, args);
 	}
 
-	// @Bean
-	// public FilterRegistrationBean HibernateTransactionFilter() {
-	// final FilterRegistrationBean filterRegistrationBean = new FilterRegistrationBean();
-	// filterRegistrationBean.setUrlPatterns(Arrays.asList("/UIDL"));
-	// filterRegistrationBean.setFilter(new TransactionFilterBean());
-	// return filterRegistrationBean;
-	// }
+	@Bean
+	public ScheduledExecutorService executorService() {
+		return Executors.newScheduledThreadPool(10);
+	}
 }

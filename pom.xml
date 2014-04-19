@@ -68,6 +68,7 @@
   </scm>
 
   <dependencies>
+    <!-- Spring boot modules -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -76,9 +77,10 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
-    <!-- Compile dependencies -->
-
-    <!-- vaadin core -->
+    <!-- <dependency> <groupId>org.springframework.security</groupId> <artifactId>spring-security-config</artifactId> 
+      </dependency> <dependency> <groupId>org.springframework.security</groupId> 
+      <artifactId>spring-security-web</artifactId> </dependency> -->
+    <!-- vaadin -->
     <dependency>
       <groupId>com.vaadin</groupId>
       <artifactId>vaadin-server</artifactId>
@@ -94,19 +96,13 @@
       <artifactId>vaadin-themes</artifactId>
       <version>${vaadin.version}</version>
     </dependency>
-    <!-- Vaadin CDI -->
     <dependency>
       <groupId>org.vaadin.spring</groupId>
       <artifactId>spring-boot-vaadin</artifactId>
       <version>0.0.2-SNAPSHOT</version>
     </dependency>
-    <!-- Java EE 6 API -->
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <version>1.12.6</version>
-      <scope>provided</scope>
-    </dependency>
+    <!-- <dependency> <groupId>org.vaadin.spring</groupId> <artifactId>spring-vaadin-security</artifactId> 
+      <version>0.0.2-SNAPSHOT</version> </dependency> -->
     <dependency>
       <groupId>com.vaadin.tapio</groupId>
       <artifactId>googlemaps</artifactId>
@@ -118,9 +114,10 @@
       <version>2.0.5</version>
     </dependency>
     <dependency>
-      <groupId>com.vaadin.addon</groupId>
-      <artifactId>jpacontainer</artifactId>
-      <version>3.1.1</version>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.12.6</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

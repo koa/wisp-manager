@@ -43,4 +43,6 @@ public interface AddressManagementService {
 
 	String describeRangeUser(final IpRange range);
 
+	Iterable<InetAddress> listPossibleNetworkDevices();
+
 }

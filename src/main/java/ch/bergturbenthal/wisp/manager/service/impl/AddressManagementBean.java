@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CompositeIterator;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
@@ -536,6 +538,46 @@ public class AddressManagementBean implements AddressManagementService {
 			ret.add(server.getAddress());
 		}
 		return ret;
+	}
+
+	@Override
+	public Iterable<InetAddress> listPossibleNetworkDevices() {
+		return new Iterable<InetAddress>() {
+
+			@Override
+			public Iterator<InetAddress> iterator() {
+				final CompositeIterator<InetAddress> compositeIterator = new CompositeIterator<InetAddress>();
+				try {
+					compositeIterator.add(Collections.singletonList(InetAddress.getByName("192.168.88.1")).iterator());
+				} catch (final UnknownHostException e) {
+					log.warn("Cannot resolve address", e);
+				}
+				for (final IpRange loopbackRange : ipRangeRepository.findV4LoopbackRanges()) {
+					final IpNetwork range = loopbackRange.getRange();
+					final long lastAddressIndex = (1l << (32 - range.getNetmask())) - 1;
+					final IpAddress address = range.getAddress();
+					compositeIterator.add(new Iterator<InetAddress>() {
+						long index = 1;
+
+						@Override
+						public boolean hasNext() {
+							return index < lastAddressIndex;
+						}
+
+						@Override
+						public InetAddress next() {
+							return address.getAddressOfNetwork(index++);
+						}
+
+						@Override
+						public void remove() {
+							throw new UnsupportedOperationException("cannot remove a possible address");
+						}
+					});
+				}
+				return compositeIterator;
+			}
+		};
 	}
 
 	private boolean overlap(final IpNetwork checkNetwork, final IpNetwork reserveNetwork) {

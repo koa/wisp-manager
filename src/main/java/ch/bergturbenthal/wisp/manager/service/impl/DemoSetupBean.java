@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
@@ -37,6 +38,12 @@ public class DemoSetupBean implements DemoSetupService {
 		vlan.setStation(station);
 	}
 
+	private Station createStation(final String name, final Position position) {
+		final Station station = stationService.addStation(position);
+		station.setName(name);
+		return station;
+	}
+
 	private NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name, final Position position) {
 		final Station station = stationService.addStation(position);
 		final NetworkDevice device = NetworkDevice.createDevice(NetworkDeviceModel.RB750GL, macAddress);
@@ -56,14 +63,10 @@ public class DemoSetupBean implements DemoSetupService {
 	public void initDemoData() {
 		addressManagementBean.initAddressRanges();
 		if (stationService.listAllStations().isEmpty()) {
-			final NetworkDevice d1 = createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", new Position(47.4196598, 8.8859171));
-			final NetworkDevice d2 = createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", new Position(47.4113853, 8.9027828));
-			final NetworkDevice d3 = createStationWithDevice("3B05027CF738", "d4ca6db5e9f7", "Susanne", new Position(47.4186617, 8.8852251));
-			final NetworkDevice d4 = createStationWithDevice("3B05027CF739", "d4ca6db5e9d7", "Fäsigrund", new Position(47.4273742, 8.9079165));
-			final Station stationBerg = d1.getStation();
-			final Station stationChalchegg = d2.getStation();
-			final Station stationSusanne = d3.getStation();
-			final Station stationFaesigrund = d4.getStation();
+			final Station stationBerg = createStation("Berg", new Position(47.4196598, 8.8859171));
+			final Station stationChalchegg = createStation("Chalchegg", new Position(47.4113853, 8.9027828));
+			final Station stationSusanne = createStation("Susanne", new Position(47.4186617, 8.8852251));
+			final Station stationFaesigrund = createStation("Fäsigrund", new Position(47.4273742, 8.9079165));
 
 			// final IpRange bergRootRange = addressManagementBean.addRootRange(InetAddress.getByName("10.14.0.0"), 16, 16, "Reservation König Berg");
 			// final IpRange bergUserRange = addressManagementBean.reserveRange(bergRootRange, AddressRangeType.USER, 32, "Internal Berg");
@@ -76,18 +79,21 @@ public class DemoSetupBean implements DemoSetupService {
 			// bergNetworks.add(vlan1Berg);
 			// vlan1Berg.setStation(stationBerg);
 
+			final Connection connection1 = connectionService.connectStations(stationBerg, stationChalchegg);
+			final Connection connection2 = connectionService.connectStations(stationSusanne, stationFaesigrund);
+			final Connection connection3 = connectionService.connectStations(stationBerg, stationSusanne);
+
 			appendVlan(stationChalchegg, 1);
 			appendVlan(stationChalchegg, 2);
 			appendVlan(stationChalchegg, 10);
 
 			addressManagementBean.fillStation(stationBerg);
-			addressManagementBean.fillStation(stationChalchegg);
-			addressManagementBean.fillStation(stationSusanne);
-			addressManagementBean.fillStation(stationFaesigrund);
-			addressManagementBean.fillConnection(connectionService.connectStations(stationBerg, stationChalchegg));
-			addressManagementBean.fillConnection(connectionService.connectStations(stationSusanne, stationFaesigrund));
-			addressManagementBean.fillConnection(connectionService.connectStations(stationBerg, stationSusanne));
+			// addressManagementBean.fillStation(stationChalchegg);
+			// addressManagementBean.fillStation(stationSusanne);
+			// addressManagementBean.fillStation(stationFaesigrund);
+			// addressManagementBean.fillConnection(connection1);
+			// addressManagementBean.fillConnection(connection2);
+			// addressManagementBean.fillConnection(connection3);
 		}
 	}
-
 }

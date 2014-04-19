@@ -2,12 +2,14 @@ package ch.bergturbenthal.wisp.manager.view;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
@@ -45,6 +47,7 @@ import com.vaadin.ui.VerticalLayout;
 
 @Slf4j
 @VaadinView(name = NetworkDeviceView.VIEW_ID)
+@UIScope
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@Autowired
@@ -83,7 +86,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				}
 			}
 		}));
-		selectDeviceLayout.addComponent(new Button("identify 192.168.88.1", new ClickListener() {
+		selectDeviceLayout.addComponent(new Button("identify by address", new ClickListener() {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
@@ -100,6 +103,18 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 				} catch (final Throwable e) {
 					e.printStackTrace();
+				}
+			}
+		}));
+		selectDeviceLayout.addComponent(new Button("scan for devices", new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				final Collection<NetworkDevice> foundDevices = networkDeviceManagementBean.scanForDevices();
+				devicesContainer.notifyDataChanged();
+				final Iterator<NetworkDevice> iterator = foundDevices.iterator();
+				if (iterator.hasNext()) {
+					deviceSelect.select(iterator.next().getId());
 				}
 			}
 		}));

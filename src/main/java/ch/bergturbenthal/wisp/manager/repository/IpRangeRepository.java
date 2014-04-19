@@ -15,4 +15,7 @@ public interface IpRangeRepository extends CrudRepository<IpRange, Long> {
 
 	@Query("select r from IpRange r where type='ROOT'")
 	List<IpRange> findAllRootRanges();
+
+	@Query("from IpRange where type='LOOPBACK' and range.address.addressType='V4'")
+	List<IpRange> findV4LoopbackRanges();
 }

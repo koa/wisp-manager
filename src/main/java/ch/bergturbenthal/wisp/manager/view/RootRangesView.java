@@ -3,6 +3,7 @@ package ch.bergturbenthal.wisp.manager.view;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.IpRange;
@@ -25,6 +26,7 @@ import com.vaadin.ui.VerticalLayout;
 
 @Slf4j
 @VaadinView(name = RootRangesView.VIEW_ID)
+@UIScope
 public class RootRangesView extends CustomComponent implements View {
 	public static final String VIEW_ID = "RootRanges";
 	@Autowired
