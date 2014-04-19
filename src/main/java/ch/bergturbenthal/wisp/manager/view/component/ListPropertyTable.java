@@ -25,8 +25,8 @@ public class ListPropertyTable<T> extends Table {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public Class<? extends Collection<?>> getType() {
-		return (Class<? extends Collection<?>>) Collection.class;
+	public Class<Collection<?>> getType() {
+		return (Class<Collection<?>>) (Class<?>) Collection.class;
 	}
 
 	private void initType(final Class<T> type) {
