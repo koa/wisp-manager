@@ -7,7 +7,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -33,6 +32,7 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
@@ -547,11 +547,11 @@ public class AddressManagementBean implements AddressManagementService {
 			@Override
 			public Iterator<InetAddress> iterator() {
 				final CompositeIterator<InetAddress> compositeIterator = new CompositeIterator<InetAddress>();
-				try {
-					compositeIterator.add(Collections.singletonList(InetAddress.getByName("192.168.88.1")).iterator());
-				} catch (final UnknownHostException e) {
-					log.warn("Cannot resolve address", e);
+				final Collection<InetAddress> defaultAddresses = new HashSet<InetAddress>();
+				for (final NetworkDeviceModel model : NetworkDeviceModel.values()) {
+					defaultAddresses.add(model.getFactoryDefaultAddress());
 				}
+				compositeIterator.add(defaultAddresses.iterator());
 				for (final IpRange loopbackRange : ipRangeRepository.findV4LoopbackRanges()) {
 					final IpNetwork range = loopbackRange.getRange();
 					final long lastAddressIndex = (1l << (32 - range.getNetmask())) - 1;
