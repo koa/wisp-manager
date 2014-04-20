@@ -61,6 +61,9 @@ public class NetworkDevice {
 		return networkDevice;
 	}
 
+	@OneToOne(mappedBy = "device")
+	private Antenna antenna;
+	private String currentPassword;
 	@Enumerated(EnumType.STRING)
 	@Column(updatable = false, nullable = false)
 	private NetworkDeviceModel deviceModel;

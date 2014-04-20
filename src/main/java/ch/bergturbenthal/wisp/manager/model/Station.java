@@ -24,6 +24,7 @@ import lombok.ToString;
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = { "beginningConnections", "endingConnections" })
 public class Station {
+	private String adminPassword;
 	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
 	private List<Connection> beginningConnections = new ArrayList<>();
 	@OneToOne(cascade = CascadeType.ALL)

@@ -11,4 +11,7 @@ public interface ConnectionService {
 
 	CrudRepositoryContainer<Connection, Long> makeContainer();
 
+	void setBridgeCount(final Connection connection, final int count);
+
+	void fillConnection(final Connection connection);
 }

@@ -2,8 +2,12 @@ package ch.bergturbenthal.wisp.manager.service.provision.airos;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 
+import org.apache.commons.codec.digest.Crypt;
+import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
@@ -32,6 +36,13 @@ public class AirOsTest {
 	}
 
 	@Test
+	public void testCrypt() throws NoSuchAlgorithmException {
+		final String crypt = Crypt.crypt("ubnt", "Vv");
+		Assert.assertEquals("VvpvCwhccFv6Q", crypt);
+	}
+
+	@Test
+	@Ignore
 	public void testIdentify() throws UnknownHostException {
 		final ProvisionAirOs provisionAirOs = new ProvisionAirOs();
 		provisionAirOs.setFwCache(new FirmwareCache());

@@ -7,6 +7,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.OrderColumn;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,6 +19,7 @@ import lombok.EqualsAndHashCode;
 public class Connection {
 	private RangePair addresses;
 	@OneToMany(mappedBy = "connection", orphanRemoval = true)
+	@OrderColumn
 	private List<Bridge> bridges;
 	@ManyToOne
 	private Station endStation;

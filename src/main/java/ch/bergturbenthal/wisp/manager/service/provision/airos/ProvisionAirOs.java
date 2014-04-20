@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
@@ -23,6 +24,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
@@ -89,6 +91,13 @@ public class ProvisionAirOs implements ProvisionBackend {
 
 	@Override
 	public String generateConfig(final NetworkDevice device) {
+		final Properties settings = new Properties();
+		try {
+			settings.load(new ClassPathResource("templates/airos.properties").getInputStream());
+		} catch (final IOException e) {
+			throw new RuntimeException("Cannot load airos template", e);
+		}
+
 		// TODO Auto-generated method stub
 		return null;
 	}

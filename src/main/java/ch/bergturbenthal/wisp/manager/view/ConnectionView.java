@@ -1,6 +1,7 @@
 package ch.bergturbenthal.wisp.manager.view;
 
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -18,6 +19,8 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
+import com.vaadin.data.Property.ValueChangeEvent;
+import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.util.AbstractBeanContainer.BeanIdResolver;
 import com.vaadin.data.util.BeanContainer;
 import com.vaadin.data.util.converter.Converter;
@@ -32,7 +35,6 @@ import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.DefaultFieldFactory;
 import com.vaadin.ui.Field;
 import com.vaadin.ui.HorizontalLayout;
-import com.vaadin.ui.Label;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.TableFieldFactory;
@@ -109,21 +111,40 @@ public class ConnectionView extends CustomComponent implements View {
 			}
 		});
 
-		table.addGeneratedColumn("distance", new ColumnGenerator() {
+		table.addGeneratedColumn("antenna pairs", new ColumnGenerator() {
 
 			@Override
 			public Component generateCell(final Table source, final Object itemId, final Object columnId) {
 				final Connection connection = connectionContainer.getItem(itemId).getPojo();
+				final ComboBox comboBox = new ComboBox("pair count", Arrays.asList(0, 1, 2));
+				comboBox.setValue(Integer.valueOf(connection.getBridges().size()));
+				comboBox.setInvalidAllowed(false);
+				comboBox.addValueChangeListener(new ValueChangeListener() {
+
+					@Override
+					public void valueChange(final ValueChangeEvent event) {
+						final Connection connection = connectionContainer.getItem(itemId).getPojo();
+						connectionService.setBridgeCount(connection, ((Integer) event.getProperty().getValue()).intValue());
+					}
+				});
+				return comboBox;
+			}
+		});
+		table.addGeneratedColumn("distance", new ColumnGenerator() {
+
+			@Override
+			public String generateCell(final Table source, final Object itemId, final Object columnId) {
+				final Connection connection = connectionContainer.getItem(itemId).getPojo();
 				final Station startStation = connection.getStartStation();
 				final Station endStation = connection.getEndStation();
 				if (startStation == null || endStation == null) {
-					return new Label("");
+					return "";
 				}
 				if (startStation.getPosition() == null || endStation.getPosition() == null) {
-					return new Label("");
+					return "";
 				}
 				final double distance = geoService.distance(startStation.getPosition(), endStation.getPosition());
-				return new Label(NumberFormat.getIntegerInstance().format(distance) + " m");
+				return NumberFormat.getIntegerInstance().format(distance) + " m";
 			}
 		});
 		table.addGeneratedColumn("remove", new ColumnGenerator() {
