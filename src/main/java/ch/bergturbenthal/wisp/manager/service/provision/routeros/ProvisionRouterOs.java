@@ -2,12 +2,9 @@ package ch.bergturbenthal.wisp.manager.service.provision.routeros;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URL;
@@ -27,13 +24,11 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lombok.Cleanup;
 import lombok.Data;
 import lombok.Setter;
 import lombok.experimental.Builder;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
@@ -52,7 +47,10 @@ import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
+import ch.bergturbenthal.wisp.manager.service.provision.ProvisionBackend;
+import ch.bergturbenthal.wisp.manager.service.provision.SSHUtil;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs.ProvisionNetworkInterface.ProvisionNetworkInterfaceBuilder;
 
 import com.jcraft.jsch.ChannelExec;
@@ -62,7 +60,7 @@ import com.jcraft.jsch.Session;
 
 @Slf4j
 @Component
-public class ProvisionRouterOs {
+public class ProvisionRouterOs implements ProvisionBackend {
 	@Data
 	@Builder
 	public static class ProvisionNetworkInterface {
@@ -93,74 +91,13 @@ public class ProvisionRouterOs {
 		Velocity.init();
 	}
 
-	private static int checkAck(final InputStream in) throws IOException {
-		final int b = in.read();
-		// b may be 0 for success,
-		// 1 for error,
-		// 2 for fatal error,
-		// -1
-		if (b == 0) {
-			return b;
-		}
-		if (b == -1) {
-			return b;
-		}
-
-		if (b == 1 || b == 2) {
-			final StringBuffer sb = new StringBuffer();
-			int c;
-			do {
-				c = in.read();
-				sb.append((char) c);
-			} while (c != '\n');
-			if (b == 1) { // error
-				log.error(sb.toString());
-			}
-			if (b == 2) { // fatal error
-				log.error(sb.toString());
-			}
-		}
-		return b;
-	}
-
 	@Setter
 	@Autowired
 	private FirmwareCache fwCache;
 	private final JSch jSch = new JSch();
 
-	private void copyToDevice(final Session session, final File fromFile, final String toFile) throws JSchException, IOException {
-		final ChannelExec channelExec = createChannelWithCmd(session, "scp -t " + toFile);
-		try {
-			@Cleanup
-			final OutputStream outputStream = channelExec.getOutputStream();
-			@Cleanup
-			final InputStream inputStream = channelExec.getInputStream();
-			channelExec.connect();
-			outputStream.write(("C0644 " + fromFile.length() + " " + toFile + "\n").getBytes());
-			outputStream.flush();
-			if (checkAck(inputStream) != 0) {
-				throw new RuntimeException("Unexpected Error from device while transferring " + fromFile);
-			}
-			@Cleanup
-			final FileInputStream fis = new FileInputStream(fromFile);
-			IOUtils.copy(fis, outputStream);
-			if (checkAck(inputStream) != 0) {
-				throw new RuntimeException("Unexpected Error from device while transferring " + fromFile);
-			}
-		} finally {
-			channelExec.disconnect();
-		}
-	}
-
-	private ChannelExec createChannelWithCmd(final Session session, final String cmd) throws JSchException {
-		final ChannelExec cmdChannel = (ChannelExec) session.openChannel("exec");
-		cmdChannel.setCommand(cmd);
-		cmdChannel.setErrStream(System.err);
-		return cmdChannel;
-	}
-
 	private List<PrintLine> executeListCmd(final Session session, final String cmd, final int numberLength, final int flagLength) throws JSchException, IOException {
-		final ChannelExec cmdChannel = sendCmd(session, cmd);
+		final ChannelExec cmdChannel = SSHUtil.sendCmd(session, cmd);
 
 		try {
 			final BufferedReader reader = new BufferedReader(new InputStreamReader(cmdChannel.getInputStream()));
@@ -186,6 +123,12 @@ public class ProvisionRouterOs {
 
 	}
 
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see ch.bergturbenthal.wisp.manager.service.provision.routeros.Provision#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
+	 */
+	@Override
 	public String generateConfig(final NetworkDevice device) {
 		final Station station = device.getStation();
 		final ArrayList<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
@@ -255,6 +198,7 @@ public class ProvisionRouterOs {
 		return stringWriter.toString();
 	}
 
+	@Override
 	public DetectedDevice identify(final InetAddress host) {
 		try {
 
@@ -291,7 +235,7 @@ public class ProvisionRouterOs {
 						log.info("Upgrading fw from " + osVersion + " to " + CURRENT_OS_VERSION);
 						final URL downloadUrl = new URL(OS_DOWNLOAD_URL.format(new String[] { CURRENT_OS_VERSION, osVariant }));
 						final File cacheEntry = fwCache.getCacheEntry(downloadUrl);
-						copyToDevice(session, cacheEntry, cacheEntry.getName());
+						SSHUtil.copyToDevice(session, cacheEntry, new File(cacheEntry.getName()));
 						log.info("fw upload completed, reboot for update ");
 						rebootAndWait(host, session);
 						log.info("host rebooted");
@@ -307,7 +251,7 @@ public class ProvisionRouterOs {
 							throw new RuntimeException("Old version of package " + pkg + ": " + version);
 						}
 						if (disabledPackages.contains(pkg)) {
-							sendCmdWithoutAnswer(session, "system package enable " + pkg);
+							SSHUtil.sendCmdWithoutAnswer(session, "system package enable " + pkg);
 							needReboot = true;
 						}
 					}
@@ -321,7 +265,7 @@ public class ProvisionRouterOs {
 						macs.put(values.get("default-name"), new MacAddress(values.get("mac-address")));
 					}
 					final DetectedDeviceBuilder resultBuilder = DetectedDevice.builder();
-					final ChannelExec routerBoardResult = sendCmd(session, "system routerboard print");
+					final ChannelExec routerBoardResult = SSHUtil.sendCmd(session, "system routerboard print");
 					try {
 						final BufferedReader reader = new BufferedReader(new InputStreamReader(routerBoardResult.getInputStream()));
 						final Map<String, String> values = new HashMap<String, String>();
@@ -357,6 +301,7 @@ public class ProvisionRouterOs {
 
 	}
 
+	@Override
 	public void loadConfig(final NetworkDevice device, final InetAddress host) {
 		final DetectedDevice detectedDevice = identify(host);
 		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
@@ -375,8 +320,8 @@ public class ProvisionRouterOs {
 			session.setConfig("StrictHostKeyChecking", "no");
 			session.connect();
 			try {
-				copyToDevice(session, tempFile, "manager.auto.rsc");
-				sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
+				SSHUtil.copyToDevice(session, tempFile, new File("manager.auto.rsc"));
+				SSHUtil.sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
 			} finally {
 				session.disconnect();
 			}
@@ -392,20 +337,8 @@ public class ProvisionRouterOs {
 	}
 
 	private void rebootAndWait(final InetAddress host, final Session session) throws JSchException, IOException {
-		sendCmdWithoutAnswer(session, "system reboot");
+		SSHUtil.sendCmdWithoutAnswer(session, "system reboot");
 		waitForReboot(host);
-	}
-
-	private ChannelExec sendCmd(final Session session, final String cmd) throws JSchException {
-		final ChannelExec cmdChannel = createChannelWithCmd(session, cmd);
-		cmdChannel.setInputStream(null);
-		cmdChannel.connect();
-		return cmdChannel;
-	}
-
-	private void sendCmdWithoutAnswer(final Session session, final String cmd) throws JSchException {
-		final ChannelExec channel = sendCmd(session, cmd);
-		channel.disconnect();
 	}
 
 	private String stripInterfaceName(final String interfaceName) {
@@ -426,6 +359,11 @@ public class ProvisionRouterOs {
 			sb.append(matcher.group());
 		}
 		return sb.toString().toLowerCase();
+	}
+
+	@Override
+	public NetworkOperatingSystem supportedOs() {
+		return NetworkOperatingSystem.MIKROTIK_ROUTER_OS;
 	}
 
 	private String uniqifyName(final Collection<String> existingNames, final String ifName) {

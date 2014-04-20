@@ -29,7 +29,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
-import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs;
+import ch.bergturbenthal.wisp.manager.service.provision.Provision;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 @Slf4j
@@ -41,7 +41,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	@Autowired
 	private ExecutorService executorService;
 	@Autowired
-	private ProvisionRouterOs provision;
+	private Provision provision;
 
 	@Autowired
 	private NetworkDeviceRepository repository;

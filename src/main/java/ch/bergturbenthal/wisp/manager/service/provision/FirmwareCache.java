@@ -9,15 +9,32 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import lombok.Cleanup;
+
 import org.apache.commons.io.IOUtils;
 import org.springframework.stereotype.Component;
 
 @Component
 public class FirmwareCache {
+
+	public static interface UrlStreamProducer {
+		InputStream createInputStream(final URL url) throws IOException;
+	}
+
 	private final File cacheBaseDir = new File(System.getProperty("java.io.tmpdir") + File.separator + "fw-cache");
 	private final ConcurrentMap<URL, Object> downloadLock = new ConcurrentHashMap<>();
 
 	public File getCacheEntry(final URL downloadUrl) throws IOException {
+		return getCacheEntry(downloadUrl, new UrlStreamProducer() {
+
+			@Override
+			public InputStream createInputStream(final URL url) throws IOException {
+				return url.openStream();
+			}
+		});
+	}
+
+	public File getCacheEntry(final URL downloadUrl, final UrlStreamProducer streamProducer) throws IOException {
 		downloadLock.putIfAbsent(downloadUrl, new Object());
 		final Object lock = downloadLock.get(downloadUrl);
 		synchronized (lock) {
@@ -29,13 +46,11 @@ public class FirmwareCache {
 				resolvedFile.getParentFile().mkdirs();
 			}
 			final File tempFile = new File(cacheBaseDir, UUID.randomUUID().toString());
-			final InputStream inputStream = downloadUrl.openStream();
+			@Cleanup
+			final InputStream inputStream = streamProducer.createInputStream(downloadUrl);
+			@Cleanup
 			final FileOutputStream outputStream = new FileOutputStream(tempFile);
-			try {
-				IOUtils.copyLarge(inputStream, outputStream);
-			} finally {
-				outputStream.close();
-			}
+			IOUtils.copyLarge(inputStream, outputStream);
 			tempFile.renameTo(resolvedFile);
 			return resolvedFile;
 		}

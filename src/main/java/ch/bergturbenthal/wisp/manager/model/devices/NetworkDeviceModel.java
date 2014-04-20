@@ -8,6 +8,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,7 @@ public enum NetworkDeviceModel {
 	NANO_BRIDGE_M5(	new MacAddressIncrementorFactory(2, 0x10000),
 									NetworkOperatingSystem.UBIQUITY_AIR_OS,
 									NetworkDeviceType.WLAN,
-									createAddress("192.168.1.1"),
+									createAddress("192.168.1.20"),
 									Arrays.asList(NetworkInterfaceType.WLAN, NetworkInterfaceType.LAN)),
 	RB750GL(new MacAddressIncrementorFactory(5, 1),
 					NetworkOperatingSystem.MIKROTIK_ROUTER_OS,
@@ -54,4 +56,17 @@ public enum NetworkDeviceModel {
 	private final InetAddress factoryDefaultAddress;
 	@Getter
 	private final List<NetworkInterfaceType> interfaces;
+
+	public Map<NetworkInterfaceType, Queue<Integer>> findIndicesOfTypes() {
+		final Map<NetworkInterfaceType, Queue<Integer>> ret = new HashMap<NetworkInterfaceType, Queue<Integer>>();
+		for (int i = 0; i < interfaces.size(); i++) {
+			final NetworkInterfaceType type = interfaces.get(i);
+			if (!ret.containsKey(type)) {
+				ret.put(type, new LinkedBlockingQueue<Integer>());
+			}
+			ret.get(type).add(Integer.valueOf(i));
+		}
+		return ret;
+
+	}
 }
