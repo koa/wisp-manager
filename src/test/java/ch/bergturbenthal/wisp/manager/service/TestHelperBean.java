@@ -4,47 +4,54 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.UnknownHostException;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.repository.AntennaRepository;
+import ch.bergturbenthal.wisp.manager.repository.BridgeRepository;
+import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
+import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
+import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
+import ch.bergturbenthal.wisp.manager.repository.StationRepository;
+import ch.bergturbenthal.wisp.manager.repository.VLanRepository;
 
 @Component
-@Transactional
 public class TestHelperBean {
 	@Autowired
 	private AddressManagementService addressManagementBean;
-	@PersistenceContext
-	private EntityManager entityManager;
+	@Autowired
+	private AntennaRepository antennaRepository;
+	@Autowired
+	private BridgeRepository bridgeRepository;
+	@Autowired
+	private ConnectionRepository connectionRepository;
+	@Autowired
+	private DnsServerRepository dnsServerRepository;
+	@Autowired
+	private IpRangeRepository ipRangeRepository;
+	@Autowired
+	private StationRepository stationRepository;
 	@Autowired
 	private StationService stationService;
+	@Autowired
+	private VLanRepository vLanRepository;
 
+	@javax.transaction.Transactional
 	public void clearData() {
-		clearTable(Station.class);
-		clearTable(Connection.class);
-		clearTable(IpRange.class);
-		clearTable(NetworkDevice.class);
-	}
-
-	public <T> void clearTable(final Class<T> type) {
-		final CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-		final CriteriaQuery<T> query = criteriaBuilder.createQuery(type);
-		query.from(type);
-		for (final T entry : entityManager.createQuery(query).getResultList()) {
-			entityManager.remove(entry);
-		}
+		stationRepository.deleteAll();
+		connectionRepository.deleteAll();
+		antennaRepository.deleteAll();
+		bridgeRepository.deleteAll();
+		// ipRangeRepository.deleteAll();
+		dnsServerRepository.deleteAll();
+		vLanRepository.deleteAll();
+		ipRangeRepository.delete(ipRangeRepository.findAllRootRanges());
 	}
 
 	public NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name) {
@@ -59,6 +66,7 @@ public class TestHelperBean {
 	}
 
 	public void initAddressRanges() {
+
 		try {
 			final IpRange rootV4 = addressManagementBean.addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
 			final IpRange smallV4Ranges = addressManagementBean.reserveRange(rootV4, AddressRangeType.ADMINISTRATIVE, 24, null);

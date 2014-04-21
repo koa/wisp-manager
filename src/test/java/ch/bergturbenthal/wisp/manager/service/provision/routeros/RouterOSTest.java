@@ -27,7 +27,7 @@ public class RouterOSTest {
 	public void testCheckStatus() {
 		final ProvisionRouterOs routerOs = new ProvisionRouterOs();
 		routerOs.setFwCache(new FirmwareCache());
-		final DetectedDevice macList = routerOs.identify(NetworkDeviceModel.RB750GL.getFactoryDefaultAddress());
+		final DetectedDevice macList = routerOs.identify(NetworkDeviceModel.RB750GL.getFactoryDefaultAddress(), null);
 		log.info(macList.toString());
 	}
 

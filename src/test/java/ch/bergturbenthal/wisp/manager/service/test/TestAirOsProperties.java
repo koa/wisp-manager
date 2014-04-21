@@ -14,8 +14,10 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.model.Antenna;
+import ch.bergturbenthal.wisp.manager.model.Bridge;
 import ch.bergturbenthal.wisp.manager.model.Connection;
-import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
@@ -27,10 +29,11 @@ import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = WispManager.class)
 @Transactional
-public class TestRouterOsVelocity {
-
+public class TestAirOsProperties {
 	@Autowired
 	private AddressManagementService addressManagementBean;
+	@Autowired
+	private ConnectionRepository connectionRepository;
 	@Autowired
 	private ConnectionService connectionService;
 	@Autowired
@@ -46,16 +49,21 @@ public class TestRouterOsVelocity {
 	public void initData() throws UnknownHostException {
 		testHelperBean.clearData();
 		demoSetupService.initDemoData();
+		for (final Connection connection : connectionService.listAllConnections()) {
+			connectionService.setBridgeCount(connection, 1);
+			for (final Bridge bridge : connection.getBridges()) {
+				demoSetupService.fillDummyDevice(bridge.getApAntenna());
+				demoSetupService.fillDummyDevice(bridge.getClientAntenna());
+			}
+		}
 	}
 
 	@Test
-	public void testGenerateRbConfig() throws UnknownHostException {
-		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg");
-		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg");
-		final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
-		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
-		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
-		// networkDeviceManagementBean.loadConfig(device, InetAddress.getByName("192.168.88.1"));
+	public void testCreateAirOsConfig() {
+		final Connection connection = connectionRepository.findAll().iterator().next();
+		final Antenna apAntenna = connection.getBridges().get(0).getApAntenna();
+		final String generatedConfig = networkDeviceManagementBean.generateConfig(apAntenna.getDevice());
+		System.out.println(generatedConfig);
 	}
 
 }

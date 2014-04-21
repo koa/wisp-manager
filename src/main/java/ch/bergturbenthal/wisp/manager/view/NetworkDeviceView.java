@@ -12,13 +12,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
+import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
+import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
+import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import ch.bergturbenthal.wisp.manager.view.component.InetAddressConverter;
 import ch.bergturbenthal.wisp.manager.view.component.InputIpDialog;
 import ch.bergturbenthal.wisp.manager.view.component.InputIpDialog.DialogResultHandler;
@@ -35,6 +41,7 @@ import com.vaadin.ui.AbstractTextField;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
+import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.FormLayout;
@@ -51,13 +58,88 @@ import com.vaadin.ui.VerticalLayout;
 public class NetworkDeviceView extends CustomComponent implements View {
 	public static final String VIEW_ID = "NetworkDevices";
 	@Autowired
+	private ConnectionService connectionService;
+	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementBean;
+	@Autowired
+	private StationService stationService;
+
+	private ComboBox createAntennaComboBox(final CrudItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Antenna, Long> antennaContainer) {
+		final NetworkDevice networkDevice = deviceItem.getPojo();
+		antennaContainer.removeAllFilters();
+		antennaContainer.addFilter(new PojoFilter<Antenna>() {
+			@Override
+			public boolean accept(final Antenna candidate) {
+				return candidate.getDevice() == null || candidate.getDevice().getId() == networkDevice.getId();
+			}
+		});
+		final ComboBox antennaComboBox = new ComboBox("Station", antennaContainer);
+		antennaComboBox.setInvalidAllowed(false);
+		if (networkDevice.getAntenna() != null) {
+			antennaComboBox.setValue(networkDevice.getAntenna().getId());
+		} else {
+			antennaComboBox.setValue(null);
+		}
+		antennaComboBox.setItemCaptionPropertyId("title");
+		antennaComboBox.addValueChangeListener(new ValueChangeListener() {
+			@Override
+			public void valueChange(final ValueChangeEvent event) {
+				final Object selectedIndex = event.getProperty().getValue();
+				final NetworkDevice networkDevice = deviceItem.getPojo();
+				final Antenna oldAntenna = networkDevice.getAntenna();
+				if (oldAntenna != null) {
+					oldAntenna.setDevice(null);
+				}
+				if (selectedIndex != null) {
+					final Antenna selectedAntenna = antennaContainer.getItem(selectedIndex).getPojo();
+					selectedAntenna.setDevice(networkDevice);
+				}
+			}
+		});
+		return antennaComboBox;
+	}
+
+	private ComboBox createStationComboBox(final CrudItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Station, Long> stationContainer) {
+		final NetworkDevice networkDevice = deviceItem.getPojo();
+		stationContainer.removeAllFilters();
+		stationContainer.addFilter(new PojoFilter<Station>() {
+			@Override
+			public boolean accept(final Station candidate) {
+				return candidate.getDevice() == null || candidate.getDevice().getId() == networkDevice.getId();
+			}
+		});
+		final ComboBox stationComboBox = new ComboBox("Station", stationContainer);
+		stationComboBox.setInvalidAllowed(false);
+		if (networkDevice.getStation() != null) {
+			stationComboBox.setValue(networkDevice.getStation().getId());
+		} else {
+			stationComboBox.setValue(null);
+		}
+		stationComboBox.setItemCaptionPropertyId("name");
+		stationComboBox.addValueChangeListener(new ValueChangeListener() {
+			@Override
+			public void valueChange(final ValueChangeEvent event) {
+				final Object selectedIndex = event.getProperty().getValue();
+				final NetworkDevice networkDevice = deviceItem.getPojo();
+				final Station oldStation = networkDevice.getStation();
+				if (oldStation != null) {
+					oldStation.setDevice(null);
+				}
+				if (selectedIndex != null) {
+					final Station selectedStation = stationContainer.getItem(selectedIndex).getPojo();
+					selectedStation.setDevice(networkDevice);
+				}
+			}
+		});
+		return stationComboBox;
+	}
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
 
 		final CrudRepositoryContainer<NetworkDevice, Long> devicesContainer = networkDeviceManagementBean.createContainerRepository();
-		// devicesContainer.setAutoCommit(true);
+		final CrudRepositoryContainer<Station, Long> stationContainer = stationService.createContainerRepository();
+		final CrudRepositoryContainer<Antenna, Long> antennaContainer = connectionService.createAntennaContainer();
 
 		final HorizontalLayout horizontalLayout = new HorizontalLayout();
 		final ListSelect deviceSelect = new ListSelect("Select a Network Device", devicesContainer);
@@ -146,9 +228,11 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 				final Long deviceId = (Long) event.getProperty().getValue();
 				final CrudItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
+				final NetworkDevice networkDevice = deviceItem.getPojo();
 				editDeviceForm.removeAllComponents();
 				editDeviceForm.addComponent(new Label(deviceItem.getItemProperty("title")));
-				final Property itemProperty = deviceItem.getItemProperty("interfaces");
+				@SuppressWarnings("unchecked")
+				final Property<List<NetworkInterface>> itemProperty = deviceItem.getItemProperty("interfaces");
 				final Property<String> macAddressDataSource = new Property<String>() {
 
 					@Override
@@ -158,7 +242,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 
 					@Override
 					public String getValue() {
-						return ((List<NetworkInterface>) itemProperty.getValue()).get(0).getMacAddress().getAddress();
+						return itemProperty.getValue().get(0).getMacAddress().getAddress();
 					}
 
 					@Override
@@ -187,6 +271,14 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				};
 				editDeviceForm.addComponent(new TextField("Serial Number", deviceItem.getItemProperty("serialNumber")));
 				editDeviceForm.addComponent(new TextField("Base-Address", macAddressDataSource));
+				final TextField passwordTextField = new TextField("Admin Password", deviceItem.getItemProperty("currentPassword"));
+				passwordTextField.setReadOnly(true);
+				editDeviceForm.addComponent(passwordTextField);
+				if (networkDevice.getDeviceModel().getDeviceType() == NetworkDeviceType.STATION) {
+					editDeviceForm.addComponent(createStationComboBox(deviceItem, stationContainer));
+				} else if (networkDevice.getDeviceModel().getDeviceType() == NetworkDeviceType.ANTENNA) {
+					editDeviceForm.addComponent(createAntennaComboBox(deviceItem, antennaContainer));
+				}
 				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v4Address"));
 				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v6Address"));
 
@@ -225,7 +317,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						editDeviceForm.setEnabled(false);
 					}
 				});
-				provisionDeviceButton.setEnabled(!deviceItem.getPojo().isProvisioned());
+				provisionDeviceButton.setEnabled(!networkDevice.isProvisioned());
 				editDeviceForm.addComponent(provisionDeviceButton);
 
 				editDeviceForm.setEnabled(true);

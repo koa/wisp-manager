@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 public enum NetworkDeviceModel {
 	NANO_BRIDGE_M5(	new MacAddressIncrementorFactory(2, 0x10000),
 									NetworkOperatingSystem.UBIQUITY_AIR_OS,
-									NetworkDeviceType.WLAN,
+									NetworkDeviceType.ANTENNA,
 									createAddress("192.168.1.20"),
 									Arrays.asList(NetworkInterfaceType.WLAN, NetworkInterfaceType.LAN)),
 	RB750GL(new MacAddressIncrementorFactory(5, 1),

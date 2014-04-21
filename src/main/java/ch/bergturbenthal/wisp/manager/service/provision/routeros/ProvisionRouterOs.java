@@ -47,6 +47,7 @@ import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
 import ch.bergturbenthal.wisp.manager.service.provision.ProvisionBackend;
@@ -125,7 +126,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.provision.routeros.Provision#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override
@@ -182,11 +183,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		}
 
 		final StringBuilder dnsServerList = new StringBuilder();
-		for (final IpAddress ipAddress : device.getDnsServers()) {
-			if (dnsServerList.length() > 0) {
-				dnsServerList.append(",");
+		if (device.getDnsServers() != null) {
+			for (final IpAddress ipAddress : device.getDnsServers()) {
+				if (dnsServerList.length() > 0) {
+					dnsServerList.append(",");
+				}
+				dnsServerList.append(ipAddress.getInetAddress().getHostAddress());
 			}
-			dnsServerList.append(ipAddress.getInetAddress().getHostAddress());
 		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
@@ -199,9 +202,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	@Override
-	public DetectedDevice identify(final InetAddress host) {
+	public DetectedDevice identify(final InetAddress host, final Map<NetworkDeviceType, Set<String>> pwCandidates) {
 		try {
-
 			while (true) {
 				final Session session = jSch.getSession("admin", host.getHostAddress());
 				session.setConfig("StrictHostKeyChecking", "no");
@@ -295,7 +297,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				}
 			}
 		} catch (final JSchException | IOException e) {
-			log.error("Cannot identify " + host.getHostAddress(), e);
+			log.warn("Cannot identify " + host.getHostAddress(), e);
 			return null;
 		}
 
@@ -303,7 +305,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	@Override
 	public void loadConfig(final NetworkDevice device, final InetAddress host) {
-		final DetectedDevice detectedDevice = identify(host);
+		final DetectedDevice detectedDevice = identify(host, null);
 		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
 			throw new IllegalArgumentException("Wrong device. Expected: " + device.getSerialNumber() + ", detected: " + detectedDevice.getSerialNumber());
 		}

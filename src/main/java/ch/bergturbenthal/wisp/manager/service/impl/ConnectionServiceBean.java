@@ -65,7 +65,18 @@ public class ConnectionServiceBean implements ConnectionService {
 	}
 
 	@Override
-	public CrudRepositoryContainer<Connection, Long> makeContainer() {
+	public CrudRepositoryContainer<Antenna, Long> createAntennaContainer() {
+		return new CrudRepositoryContainer<Antenna, Long>(antennaRepository, Antenna.class) {
+
+			@Override
+			protected Long idFromValue(final Antenna entry) {
+				return entry.getId();
+			}
+		};
+	}
+
+	@Override
+	public CrudRepositoryContainer<Connection, Long> createConnectionContainer() {
 		return new CrudRepositoryContainer<Connection, Long>(connectionRepository, Connection.class) {
 
 			@Override
@@ -85,8 +96,12 @@ public class ConnectionServiceBean implements ConnectionService {
 			final Bridge bridge = new Bridge();
 			bridge.setConnection(connection);
 			final Bridge savedBridge = bridgeRepository.save(bridge);
-			savedBridge.setApAntenna(antennaRepository.save(new Antenna()));
-			savedBridge.setClientAntenna(antennaRepository.save(new Antenna()));
+			final Antenna apAntenna = antennaRepository.save(new Antenna());
+			apAntenna.setApBridge(savedBridge);
+			savedBridge.setApAntenna(apAntenna);
+			final Antenna clientAntenna = antennaRepository.save(new Antenna());
+			clientAntenna.setClientBridge(savedBridge);
+			savedBridge.setClientAntenna(clientAntenna);
 			bridges.add(savedBridge);
 		}
 		while (bridges.size() > count) {

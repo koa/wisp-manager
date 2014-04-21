@@ -3,6 +3,8 @@ package ch.bergturbenthal.wisp.manager.model.test;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import javax.transaction.Transactional;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,12 +36,14 @@ public class StationManagementTest {
 	private TestHelperBean testHelperBean;
 
 	@Before
+	@Transactional
 	public void initData() throws UnknownHostException {
 		testHelperBean.clearData();
 		testHelperBean.initAddressRanges();
 	}
 
 	@Test
+	@Transactional
 	public void testCreateStation() throws UnknownHostException {
 		final NetworkDevice device = testHelperBean.createStationWithDevice("serial", "80:ee:73:67:df:16", "name");
 		final Station station = addressManagementBean.fillStation(device.getStation());

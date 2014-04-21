@@ -20,4 +20,6 @@ public interface NetworkDeviceManagementService {
 	CrudRepositoryContainer<NetworkDevice, Long> createContainerRepository();
 
 	void createDevice(final NetworkDeviceModel model);
+
+	void fillNetworkDevice(final NetworkDevice device);
 }

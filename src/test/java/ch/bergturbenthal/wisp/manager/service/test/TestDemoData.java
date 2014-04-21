@@ -2,6 +2,8 @@ package ch.bergturbenthal.wisp.manager.service.test;
 
 import java.net.UnknownHostException;
 
+import javax.transaction.Transactional;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.junit.Before;
@@ -21,6 +23,7 @@ import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 @Slf4j
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = WispManager.class)
+@Transactional
 public class TestDemoData {
 	@Autowired
 	private DemoSetupService demoSetupBean;
@@ -40,6 +43,7 @@ public class TestDemoData {
 	public void testDemoSetup() {
 		demoSetupBean.initDemoData();
 		for (final Station station : stationService.listAllStations()) {
+			demoSetupBean.fillDummyDevice(station);
 			log.info("--------------------------");
 			log.info(station.getName());
 			log.info(networkDeviceManagementBean.generateConfig(station.getDevice()));

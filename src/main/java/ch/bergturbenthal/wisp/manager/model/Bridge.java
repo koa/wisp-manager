@@ -26,8 +26,13 @@ public class Bridge {
 	private Long id;
 	private String wpa2Key;
 
-	public String getTitle() {
+	public int getBridgeIndex() {
 		final int bridgeIndex = connection.getBridges().indexOf(this);
+		return bridgeIndex;
+	}
+
+	public String getTitle() {
+		final int bridgeIndex = getBridgeIndex();
 		return connection.getTitle() + "[" + bridgeIndex + "]";
 	}
 

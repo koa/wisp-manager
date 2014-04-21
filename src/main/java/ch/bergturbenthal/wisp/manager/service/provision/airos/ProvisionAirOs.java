@@ -2,9 +2,11 @@ package ch.bergturbenthal.wisp.manager.service.provision.airos;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -17,20 +19,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lombok.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.codec.digest.Crypt;
+import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import ch.bergturbenthal.wisp.manager.model.Antenna;
+import ch.bergturbenthal.wisp.manager.model.Bridge;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
@@ -47,18 +57,26 @@ import com.jcraft.jsch.Session;
 @Component
 public class ProvisionAirOs implements ProvisionBackend {
 	@Data
+	private static class LoginData {
+		private final String password;
+		private final String username;
+	}
+
+	@Data
 	private static class ModelSettings {
 		private final URL downloadUrl;
 		private final String lastVersion;
 		private final String systemCfgVersion;
 	}
 
+	private static final Pattern VALID_CHARS_PATTERNS = Pattern.compile("[A-Za-z0-9]+");
 	@Setter
 	@Autowired
 	private FirmwareCache fwCache;
 	private final JSch jSch = new JSch();
 	private final Map<NetworkDeviceModel, ModelSettings> modelSettings = new HashMap<NetworkDeviceModel, ProvisionAirOs.ModelSettings>();
 	private final Map<String, NetworkDeviceModel> platformModel = new HashMap<String, NetworkDeviceModel>();
+
 	{
 		try {
 			modelSettings.put(NetworkDeviceModel.NANO_BRIDGE_M5, new ModelSettings(new URL("http://www.ubnt.com/downloads/XM-v5.5.8.build20991.bin"), "v5.5.8", "65545"));
@@ -66,6 +84,28 @@ public class ProvisionAirOs implements ProvisionBackend {
 		} catch (final MalformedURLException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private Session connect(final InetAddress host, final String username, final String password) throws JSchException {
+		final Session session = jSch.getSession(username, host.getHostAddress());
+		session.setConfig("StrictHostKeyChecking", "no");
+		session.setPassword(password);
+		session.connect();
+		return session;
+	}
+
+	private Session connectHost(final InetAddress host, final List<LoginData> availableLogins) {
+		for (final LoginData loginData : availableLogins) {
+			try {
+				final String username = loginData.getUsername();
+				final String password = loginData.getPassword();
+				final Session session = connect(host, username, password);
+				return session;
+			} catch (final JSchException e) {
+				log.info("Login failed, try next password", e);
+			}
+		}
+		return null;
 	}
 
 	private List<String> executeCommand(final Session session, final String command) throws JSchException {
@@ -91,25 +131,56 @@ public class ProvisionAirOs implements ProvisionBackend {
 
 	@Override
 	public String generateConfig(final NetworkDevice device) {
-		final Properties settings = new Properties();
 		try {
-			settings.load(new ClassPathResource("templates/airos.properties").getInputStream());
+			final Properties settings = generateProperties(device);
+			final StringWriter writer = new StringWriter();
+			settings.store(writer, "");
+			return writer.toString();
 		} catch (final IOException e) {
-			throw new RuntimeException("Cannot load airos template", e);
+			throw new RuntimeException("Cannot provision airos device " + device.getTitle(), e);
 		}
-
-		// TODO Auto-generated method stub
-		return null;
 	}
 
-	@Override
-	public DetectedDevice identify(final InetAddress host) {
+	private Properties generateProperties(final NetworkDevice device) throws IOException {
+		final Properties settings = new Properties();
+		settings.load(new ClassPathResource("templates/airos.properties").getInputStream());
+		final Antenna antenna = device.getAntenna();
+		settings.setProperty("users.1.password", Crypt.crypt(antenna.getAdminPassword(), RandomStringUtils.randomAlphanumeric(2)));
+		settings.setProperty("users.1.name", "admin");
+		settings.setProperty("users.1.status", "enabled");
+		final Bridge bridge = antenna.getBridge();
+		final boolean isAp = antenna.getApBridge() != null;
+		if (isAp) {
+			settings.setProperty("aaa.1.status", "enabled");
+			settings.setProperty("aaa.status", "enabled");
+			settings.setProperty("radio.1.cwm.mode", "2");
+			settings.setProperty("radio.1.mode", "master");
+			settings.setProperty("wpasupplicant.device.1.status", "enabled");
+			settings.setProperty("wpasupplicant.status", "enabled");
+		} else {
+			settings.setProperty("aaa.1.status", "disabled");
+			settings.setProperty("aaa.status", "disabled");
+			settings.setProperty("radio.1.cwm.mode", "1");
+			settings.setProperty("radio.1.mode", "managed");
+			settings.setProperty("wpasupplicant.device.1.status", "disabled");
+			settings.setProperty("wpasupplicant.status", "disabled");
+		}
+		final String wpa2Key = bridge.getWpa2Key();
+		final String ssid = stripSsid(bridge.getConnection().getTitle() + "_" + bridge.getBridgeIndex());
+		settings.setProperty("wpasupplicant.profile.1.network.1.psk", wpa2Key);
+		settings.setProperty("aaa.1.wpa.psk", wpa2Key);
+		settings.setProperty("aaa.1.ssid", ssid);
+		settings.setProperty("wpasupplicant.profile.1.network.1.ssid", ssid);
+		return settings;
+	}
+
+	private DetectedDevice identify(final InetAddress host, final List<LoginData> availableLogins) {
 		while (true) {
 			try {
-				final Session session = jSch.getSession("ubnt", host.getHostAddress());
-				session.setConfig("StrictHostKeyChecking", "no");
-				session.setPassword("ubnt");
-				session.connect();
+				final Session session = connectHost(host, availableLogins);
+				if (session == null) {
+					return null;
+				}
 				try {
 					final Map<String, String> status = readMcaStatus(session);
 
@@ -155,9 +226,59 @@ public class ProvisionAirOs implements ProvisionBackend {
 	}
 
 	@Override
-	public void loadConfig(final NetworkDevice device, final InetAddress host) {
-		// TODO Auto-generated method stub
+	public DetectedDevice identify(final InetAddress host, final Map<NetworkDeviceType, Set<String>> pwCandidates) {
+		final List<LoginData> availableLogins = new ArrayList<LoginData>();
+		availableLogins.add(new LoginData("ubnt", "ubnt"));
+		if (pwCandidates != null) {
+			for (final String password : pwCandidates.get(NetworkDeviceType.ANTENNA)) {
+				availableLogins.add(new LoginData(password, "admin"));
+			}
+		}
+		return identify(host, availableLogins);
+	}
 
+	@Override
+	public void loadConfig(final NetworkDevice device, final InetAddress host) {
+		final List<LoginData> logins = possibleLoginsOfDevice(device);
+		final DetectedDevice detectedDevice = identify(host, logins);
+		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
+			throw new IllegalArgumentException("Wrong device. Expected: " + device.getSerialNumber() + ", detected: " + detectedDevice.getSerialNumber());
+		}
+		final Session session = connectHost(host, logins);
+		try {
+			final File tempFile = File.createTempFile(device.getTitle(), ".cfg");
+			final Properties properties = generateProperties(device);
+			final FileOutputStream os = new FileOutputStream(tempFile);
+			try {
+				properties.store(os, device.getTitle());
+			} finally {
+				os.close();
+			}
+			SSHUtil.copyToDevice(session, tempFile, new File("/tmp/system.cfg"));
+			SSHUtil.sendCmdWithoutAnswer(session, "cfgmtd -w");
+			SSHUtil.sendCmdWithoutAnswer(session, "ubntconf");
+			tempFile.delete();
+			device.setCurrentPassword(device.getAntenna().getAdminPassword());
+			device.setProvisioned();
+
+		} catch (final IOException e) {
+			throw new RuntimeException("Cannot load config to " + host, e);
+		} catch (final JSchException e) {
+			throw new RuntimeException("Cannot load config to " + host, e);
+		}
+
+	}
+
+	private List<LoginData> possibleLoginsOfDevice(final NetworkDevice device) {
+		final List<LoginData> logins = new ArrayList<ProvisionAirOs.LoginData>();
+		final String currentPassword = device.getCurrentPassword();
+		if (currentPassword != null) {
+			logins.add(new LoginData(currentPassword, "admin"));
+		}
+		logins.add(new LoginData("ubnt", "ubnt"));
+		final String adminPassword = device.getAntenna().getAdminPassword();
+		logins.add(new LoginData(adminPassword, "admin"));
+		return logins;
 	}
 
 	private List<MacAddress> readMacs(final Session session, final NetworkDeviceModel deviceModel) throws JSchException {
@@ -229,8 +350,21 @@ public class ProvisionAirOs implements ProvisionBackend {
 		return status;
 	}
 
+	private String stripSsid(final String string) {
+		final Matcher matcher = VALID_CHARS_PATTERNS.matcher(string);
+		final StringBuilder sb = new StringBuilder();
+		while (matcher.find()) {
+			if (sb.length() > 0) {
+				sb.append("-");
+			}
+			sb.append(matcher.group());
+		}
+		return sb.toString();
+	}
+
 	@Override
 	public NetworkOperatingSystem supportedOs() {
 		return NetworkOperatingSystem.UBIQUITY_AIR_OS;
 	}
+
 }

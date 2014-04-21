@@ -23,7 +23,6 @@ public class AirOsTest {
 
 			@Override
 			public boolean isEnabled(final int level) {
-				// TODO Auto-generated method stub
 				return true;
 			}
 
@@ -46,7 +45,7 @@ public class AirOsTest {
 	public void testIdentify() throws UnknownHostException {
 		final ProvisionAirOs provisionAirOs = new ProvisionAirOs();
 		provisionAirOs.setFwCache(new FirmwareCache());
-		final DetectedDevice detectedDevice = provisionAirOs.identify(InetAddress.getByName("192.168.1.20"));
+		final DetectedDevice detectedDevice = provisionAirOs.identify(InetAddress.getByName("192.168.1.20"), null);
 		System.out.println(detectedDevice);
 	}
 }

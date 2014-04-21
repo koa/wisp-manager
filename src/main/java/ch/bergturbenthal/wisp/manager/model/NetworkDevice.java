@@ -34,8 +34,8 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 
 @Data
 @Entity
-@EqualsAndHashCode(of = "id")
-@ToString(exclude = "station")
+@EqualsAndHashCode(exclude = { "station", "antenna" })
+@ToString(exclude = { "station", "antenna" })
 public class NetworkDevice {
 	public static NetworkDevice createDevice(final NetworkDeviceModel model) {
 		return createDevice(model, null);
@@ -76,6 +76,8 @@ public class NetworkDevice {
 	@OrderColumn()
 	@OneToMany(mappedBy = "networkDevice", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	private List<NetworkInterface> interfaces;
+	@Setter(AccessLevel.PROTECTED)
+	private Long lastProvisionedAntennaVersion;
 	@Setter(AccessLevel.PROTECTED)
 	private Long lastProvisionedStationVersion;
 	@Setter(AccessLevel.PROTECTED)
@@ -131,6 +133,17 @@ public class NetworkDevice {
 				return false;
 			}
 		}
+		if (antenna != null) {
+			if (lastProvisionedAntennaVersion == null) {
+				return false;
+			}
+			if (antenna.getVersion() == null) {
+				return false;
+			}
+			if (antenna.getVersion().longValue() != lastProvisionedAntennaVersion.longValue()) {
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -138,6 +151,9 @@ public class NetworkDevice {
 		lastProvisionedVersion = version;
 		if (station != null) {
 			lastProvisionedStationVersion = station.getVersion();
+		}
+		if (antenna != null) {
+			lastProvisionedAntennaVersion = antenna.getVersion();
 		}
 	}
 

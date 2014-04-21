@@ -11,6 +11,7 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
 
@@ -20,6 +21,8 @@ public class AddressManagementTest {
 
 	@Autowired
 	private AddressManagementService addressManagementBean;
+	@Autowired
+	private IpRangeRepository ipRangeRepository;
 	@Autowired
 	private TestHelperBean testHelperBean;
 

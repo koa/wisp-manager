@@ -18,16 +18,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
-import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
+import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.provision.Provision;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
@@ -38,6 +39,8 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 public class NetworkDeviceManagementBean implements NetworkDeviceManagementService {
 	@Autowired
 	private AddressManagementService addressManagementService;
+	@Autowired
+	private ConnectionService connectionService;
 	@Autowired
 	private ExecutorService executorService;
 	@Autowired
@@ -91,6 +94,18 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		}
 	}
 
+	@Override
+	public void fillNetworkDevice(final NetworkDevice device) {
+		if (device.getStation() != null) {
+			addressManagementService.fillStation(device.getStation());
+		}
+		if (device.getAntenna() != null) {
+			final Connection connection = device.getAntenna().getBridge().getConnection();
+			connectionService.fillConnection(connection);
+		}
+
+	}
+
 	private Collection<InetAddress> findDnsServers() {
 		final ArrayList<InetAddress> ret = new ArrayList<>();
 		for (final IpAddress entry : addressManagementService.listGlobalDnsServers()) {
@@ -101,21 +116,18 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override
 	public String generateConfig(final NetworkDevice device) {
-		if (device.getStation() != null) {
-			final Station station = addressManagementService.fillStation(device.getStation());
-			return provision.generateConfig(station.getDevice());
-		}
+		fillNetworkDevice(device);
 		return provision.generateConfig(device);
 	}
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
 	 */
 	@Override
@@ -129,12 +141,8 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 				continue;
 			}
 			log.info("Detected: " + detectNetworkDevice);
-			if (detectNetworkDevice.getStation() != null) {
-				final Station station = addressManagementService.fillStation(detectNetworkDevice.getStation());
-				provision.loadConfig(station.getDevice(), host);
-			} else {
-				provision.loadConfig(detectNetworkDevice, host);
-			}
+			fillNetworkDevice(detectNetworkDevice);
+			provision.loadConfig(detectNetworkDevice, host);
 			return true;
 		}
 		return false;
@@ -199,5 +207,4 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		}
 		deviceEntity.setInterfaces(interfaces);
 	}
-
 }

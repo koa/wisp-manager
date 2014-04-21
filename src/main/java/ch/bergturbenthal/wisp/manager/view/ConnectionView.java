@@ -53,7 +53,7 @@ public class ConnectionView extends CustomComponent implements View {
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
-		final CrudRepositoryContainer<Connection, Long> connectionContainer = connectionService.makeContainer();
+		final CrudRepositoryContainer<Connection, Long> connectionContainer = connectionService.createConnectionContainer();
 		final BeanContainer<String, Station> beanContainer = new BeanContainer<>(Station.class);
 		beanContainer.setBeanIdResolver(new BeanIdResolver<String, Station>() {
 			@Override
