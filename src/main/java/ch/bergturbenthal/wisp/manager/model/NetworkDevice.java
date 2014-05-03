@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.persistence.CascadeType;
@@ -82,6 +83,8 @@ public class NetworkDevice {
 	private Long lastProvisionedStationVersion;
 	@Setter(AccessLevel.PROTECTED)
 	private Long lastProvisionedVersion;
+	@ElementCollection
+	private Map<String, String> properties;
 	@Column(unique = true, nullable = true)
 	private String serialNumber;
 	@OneToOne(mappedBy = "device")

@@ -73,7 +73,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 				return candidate.getDevice() == null || candidate.getDevice().getId() == networkDevice.getId();
 			}
 		});
-		final ComboBox antennaComboBox = new ComboBox("Station", antennaContainer);
+		final ComboBox antennaComboBox = new ComboBox("Antenna", antennaContainer);
 		antennaComboBox.setInvalidAllowed(false);
 		if (networkDevice.getAntenna() != null) {
 			antennaComboBox.setValue(networkDevice.getAntenna().getId());
@@ -298,7 +298,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					@Override
 					public void buttonClick(final ClickEvent event) {
 						table.commit();
-						editDeviceForm.setEnabled(false);
+						// editDeviceForm.setEnabled(false);
 					}
 				}));
 				final Button provisionDeviceButton = new Button("Provision", new ClickListener() {
@@ -314,10 +314,10 @@ public class NetworkDeviceView extends CustomComponent implements View {
 							networkDeviceManagementBean.loadConfig(networkDevice.getV6Address());
 						}
 
-						editDeviceForm.setEnabled(false);
+						// editDeviceForm.setEnabled(false);
 					}
 				});
-				provisionDeviceButton.setEnabled(!networkDevice.isProvisioned());
+				// provisionDeviceButton.setEnabled(!networkDevice.isProvisioned());
 				editDeviceForm.addComponent(provisionDeviceButton);
 
 				editDeviceForm.setEnabled(true);

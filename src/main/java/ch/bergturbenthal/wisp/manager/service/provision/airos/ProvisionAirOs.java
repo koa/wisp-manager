@@ -80,7 +80,9 @@ public class ProvisionAirOs implements ProvisionBackend {
 	{
 		try {
 			modelSettings.put(NetworkDeviceModel.NANO_BRIDGE_M5, new ModelSettings(new URL("http://www.ubnt.com/downloads/XM-v5.5.8.build20991.bin"), "v5.5.8", "65545"));
+			modelSettings.put(NetworkDeviceModel.NANO_BEAM_M5, new ModelSettings(new URL("http://www.ubnt.com/downloads/XW-v5.5.9.build21734.bin"), "v5.5.9", "65545"));
 			platformModel.put("NanoBridge M5", NetworkDeviceModel.NANO_BRIDGE_M5);
+			platformModel.put("NanoBeamM5", NetworkDeviceModel.NANO_BEAM_M5);
 		} catch (final MalformedURLException e) {
 			throw new RuntimeException(e);
 		}
@@ -155,22 +157,24 @@ public class ProvisionAirOs implements ProvisionBackend {
 			settings.setProperty("aaa.status", "enabled");
 			settings.setProperty("radio.1.cwm.mode", "2");
 			settings.setProperty("radio.1.mode", "master");
-			settings.setProperty("wpasupplicant.device.1.status", "enabled");
-			settings.setProperty("wpasupplicant.status", "enabled");
+			settings.setProperty("wpasupplicant.device.1.status", "disabled");
+			settings.setProperty("wpasupplicant.status", "disabled");
 		} else {
 			settings.setProperty("aaa.1.status", "disabled");
 			settings.setProperty("aaa.status", "disabled");
 			settings.setProperty("radio.1.cwm.mode", "1");
 			settings.setProperty("radio.1.mode", "managed");
-			settings.setProperty("wpasupplicant.device.1.status", "disabled");
-			settings.setProperty("wpasupplicant.status", "disabled");
+			settings.setProperty("wpasupplicant.device.1.status", "enabled");
+			settings.setProperty("wpasupplicant.status", "enabled");
 		}
+		settings.setProperty("radio.1.subsystemid", device.getProperties().get("radio.1.subsystemid"));
 		final String wpa2Key = bridge.getWpa2Key();
 		final String ssid = stripSsid(bridge.getConnection().getTitle() + "_" + bridge.getBridgeIndex());
 		settings.setProperty("wpasupplicant.profile.1.network.1.psk", wpa2Key);
 		settings.setProperty("aaa.1.wpa.psk", wpa2Key);
 		settings.setProperty("aaa.1.ssid", ssid);
 		settings.setProperty("wpasupplicant.profile.1.network.1.ssid", ssid);
+		settings.setProperty("wireless.1.ssid", ssid);
 		return settings;
 	}
 
@@ -184,10 +188,18 @@ public class ProvisionAirOs implements ProvisionBackend {
 				try {
 					final Map<String, String> status = readMcaStatus(session);
 
+					if (status.isEmpty()) {
+						return null;
+					}
+
+					final Map<String, String> boardInfo = readBoardInfo(session);
 					final String platform = status.get("platform");
 					final String firmwareVersion = status.get("firmwareVersion");
 					final String softwareVersion = firmwareVersion.split("\\.", 3)[2];
 					final NetworkDeviceModel deviceModel = platformModel.get(platform);
+					if (deviceModel == null) {
+						throw new RuntimeException("Unknown Platform: " + platform);
+					}
 					final ModelSettings settings = modelSettings.get(deviceModel);
 					if (!softwareVersion.startsWith(settings.getLastVersion())) {
 						final File fwFile = fwCache.getCacheEntry(settings.getDownloadUrl(), new UrlStreamProducer() {
@@ -210,7 +222,9 @@ public class ProvisionAirOs implements ProvisionBackend {
 						}
 					}
 					final List<MacAddress> interfaces = readMacs(session, deviceModel);
-					return DetectedDevice.builder().interfaces(interfaces).model(deviceModel).serialNumber(status.get("deviceId")).build();
+					final Map<String, String> deviceProperties = new HashMap<String, String>(status);
+					deviceProperties.putAll(boardInfo);
+					return DetectedDevice.builder().interfaces(interfaces).model(deviceModel).serialNumber(status.get("deviceId")).properties(boardInfo).build();
 				} finally {
 					session.disconnect();
 				}
@@ -257,6 +271,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 			SSHUtil.copyToDevice(session, tempFile, new File("/tmp/system.cfg"));
 			SSHUtil.sendCmdWithoutAnswer(session, "cfgmtd -w");
 			SSHUtil.sendCmdWithoutAnswer(session, "ubntconf");
+			SSHUtil.sendCmdWithoutAnswer(session, "reboot");
 			tempFile.delete();
 			device.setCurrentPassword(device.getAntenna().getAdminPassword());
 			device.setProvisioned();
@@ -269,6 +284,24 @@ public class ProvisionAirOs implements ProvisionBackend {
 
 	}
 
+	private void parseLines(final Iterator<String> linesIterator, final Map<String, String> resultMap) {
+		while (linesIterator.hasNext()) {
+			final String line = linesIterator.next();
+			if (line == null) {
+				continue;
+			}
+			final String trimmedLine = line.trim();
+			if (trimmedLine.isEmpty()) {
+				continue;
+			}
+			final String[] parts = trimmedLine.split("=", 2);
+			if (parts.length != 2) {
+				continue;
+			}
+			resultMap.put(parts[0], parts[1]);
+		}
+	}
+
 	private List<LoginData> possibleLoginsOfDevice(final NetworkDevice device) {
 		final List<LoginData> logins = new ArrayList<ProvisionAirOs.LoginData>();
 		final String currentPassword = device.getCurrentPassword();
@@ -279,6 +312,13 @@ public class ProvisionAirOs implements ProvisionBackend {
 		final String adminPassword = device.getAntenna().getAdminPassword();
 		logins.add(new LoginData(adminPassword, "admin"));
 		return logins;
+	}
+
+	private Map<String, String> readBoardInfo(final Session session) throws JSchException {
+		final List<String> statusLines = executeCommand(session, "cat /etc/board.info");
+		final Map<String, String> ret = new HashMap<String, String>();
+		parseLines(statusLines.iterator(), ret);
+		return ret;
 	}
 
 	private List<MacAddress> readMacs(final Session session, final NetworkDeviceModel deviceModel) throws JSchException {
@@ -332,21 +372,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 			}
 			break;
 		}
-		while (linesIterator.hasNext()) {
-			final String line = linesIterator.next();
-			if (line == null) {
-				continue;
-			}
-			final String trimmedLine = line.trim();
-			if (trimmedLine.isEmpty()) {
-				continue;
-			}
-			final String[] parts = trimmedLine.split("=", 2);
-			if (parts.length != 2) {
-				continue;
-			}
-			status.put(parts[0], parts[1]);
-		}
+		parseLines(linesIterator, status);
 		return status;
 	}
 

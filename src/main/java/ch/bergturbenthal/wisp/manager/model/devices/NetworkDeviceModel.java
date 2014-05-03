@@ -16,6 +16,11 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum NetworkDeviceModel {
+	NANO_BEAM_M5(	new MacAddressIncrementorFactory(2, 0x10000),
+								NetworkOperatingSystem.UBIQUITY_AIR_OS,
+								NetworkDeviceType.ANTENNA,
+								createAddress("192.168.1.20"),
+								Arrays.asList(NetworkInterfaceType.WLAN, NetworkInterfaceType.LAN)),
 	NANO_BRIDGE_M5(	new MacAddressIncrementorFactory(2, 0x10000),
 									NetworkOperatingSystem.UBIQUITY_AIR_OS,
 									NetworkDeviceType.ANTENNA,

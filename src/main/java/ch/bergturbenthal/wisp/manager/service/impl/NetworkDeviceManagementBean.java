@@ -16,7 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -45,9 +49,10 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	private ExecutorService executorService;
 	@Autowired
 	private Provision provision;
-
 	@Autowired
 	private NetworkDeviceRepository repository;
+	@Autowired
+	private PlatformTransactionManager transactionManager;
 
 	@Override
 	public CrudRepositoryContainer<NetworkDevice, Long> createContainerRepository() {
@@ -156,7 +161,13 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 				@Override
 				public NetworkDevice call() throws Exception {
-					return detectNetworkDevice(ip);
+					return new TransactionTemplate(transactionManager).execute(new TransactionCallback<NetworkDevice>() {
+
+						@Override
+						public NetworkDevice doInTransaction(final TransactionStatus status) {
+							return detectNetworkDevice(ip);
+						}
+					});
 				}
 			}));
 		}
@@ -204,6 +215,12 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		}
 		while (interfaces.size() > identifiedInterfaces.size()) {
 			interfaces.remove(interfaces.size() - 1);
+		}
+		if (deviceEntity.getProperties() == null) {
+			deviceEntity.setProperties(identifiedDevice.getProperties());
+		} else {
+			deviceEntity.getProperties().clear();
+			deviceEntity.getProperties().putAll(identifiedDevice.getProperties());
 		}
 		deviceEntity.setInterfaces(interfaces);
 	}
