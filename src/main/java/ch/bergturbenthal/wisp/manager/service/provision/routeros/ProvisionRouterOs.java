@@ -78,10 +78,11 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		private final int vlanId;
 	}
 
-	private static String CURRENT_OS_VERSION = "6.10";
+	private static String CURRENT_OS_VERSION = "6.12";
 
-	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp"));
+	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp", "openflow"));
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
+	private static Format PKG_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/{2}-{0}-{1}.npk");
 	private static final String ROUTEROS_PACKAGE_PREFIX = "routeros-";
 
 	private static final Pattern VALID_CHARS_PATTERNS = Pattern.compile("[A-Za-z0-9]+");
@@ -235,8 +236,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					final String osVersion = packageByVersion.get(ROUTEROS_PACKAGE_PREFIX + osVariant);
 					if (!osVersion.equals(CURRENT_OS_VERSION)) {
 						log.info("Upgrading fw from " + osVersion + " to " + CURRENT_OS_VERSION);
-						final URL downloadUrl = new URL(OS_DOWNLOAD_URL.format(new String[] { CURRENT_OS_VERSION, osVariant }));
-						final File cacheEntry = fwCache.getCacheEntry(downloadUrl);
+						final File cacheEntry = fwCache.getCacheEntry(new URL(OS_DOWNLOAD_URL.format(new String[] { CURRENT_OS_VERSION, osVariant })));
 						SSHUtil.copyToDevice(session, cacheEntry, new File(cacheEntry.getName()));
 						log.info("fw upload completed, reboot for update ");
 						rebootAndWait(host, session);
@@ -246,11 +246,11 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					boolean needReboot = hasScheduledPackage;
 					for (final String pkg : neededPackages) {
 						final String version = packageByVersion.get(pkg);
-						if (version == null) {
-							throw new RuntimeException("Missing package " + pkg);
-						}
-						if (!CURRENT_OS_VERSION.equals(version)) {
-							throw new RuntimeException("Old version of package " + pkg + ": " + version);
+						if (version == null || !CURRENT_OS_VERSION.equals(version)) {
+							log.info("installing package " + pkg);
+							final File cacheEntry = fwCache.getCacheEntry(new URL(PKG_DOWNLOAD_URL.format(new String[] { CURRENT_OS_VERSION, osVariant, pkg })));
+							SSHUtil.copyToDevice(session, cacheEntry, new File(cacheEntry.getName()));
+							needReboot = true;
 						}
 						if (disabledPackages.contains(pkg)) {
 							SSHUtil.sendCmdWithoutAnswer(session, "system package enable " + pkg);

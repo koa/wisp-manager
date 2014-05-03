@@ -50,7 +50,7 @@ public class SSHUtil {
 	}
 
 	public static void copyToDevice(final Session session, final File fromFile, final File toFile) throws JSchException, IOException {
-		final ChannelExec channelExec = SSHUtil.createChannelWithCmd(session, "scp -v -t " + toFile.getParent());
+		final ChannelExec channelExec = SSHUtil.createChannelWithCmd(session, "scp -v -t " + toFile.getPath());
 		try {
 			@Cleanup
 			final OutputStream outputStream = channelExec.getOutputStream();
