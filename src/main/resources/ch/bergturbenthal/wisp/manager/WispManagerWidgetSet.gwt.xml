@@ -6,6 +6,7 @@
 
   <!-- Inherit add-on widgetset -->
   <inherits name="com.vaadin.tapio.googlemaps.WidgetSet" />
+  <inherits name="org.vaadin.risto.formsender.widgetset.FormSenderWidgetset"/>
 
   <!-- Uncomment the following to compile the widgetset for one browser only. 
     Multiple browsers can be specified as a comma separated list. The supported 

@@ -9,6 +9,8 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.risto.formsender.FormSenderBuilder;
+import org.vaadin.risto.formsender.widgetset.client.shared.Method;
 import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
@@ -279,6 +281,22 @@ public class NetworkDeviceView extends CustomComponent implements View {
 					editDeviceForm.addComponent(createStationComboBox(deviceItem, stationContainer));
 				} else if (networkDevice.getDeviceModel().getDeviceType() == NetworkDeviceType.ANTENNA) {
 					editDeviceForm.addComponent(createAntennaComboBox(deviceItem, antennaContainer));
+					editDeviceForm.addComponent(new Button("Open Admin interface", new ClickListener() {
+
+						@Override
+						public void buttonClick(final ClickEvent event) {
+							final NetworkDevice device = deviceItem.getPojo();
+							FormSenderBuilder.create()
+																.withUI(getUI())
+																.withAction("https://" + device.getV4Address().getHostAddress() + "/login.cgi")
+																.withTarget("_parent")
+																.withMethod(Method.POST)
+																.withValue("username", "admin")
+																.withValue("password", device.getCurrentPassword())
+																.submit();
+							;
+						}
+					}));
 				}
 				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v4Address"));
 				editDeviceForm.addComponent(createInetAddressField(deviceItem, "v6Address"));
