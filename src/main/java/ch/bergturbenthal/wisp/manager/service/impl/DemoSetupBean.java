@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
+import java.util.Collections;
 import java.util.Set;
 
 import org.apache.commons.lang.RandomStringUtils;
@@ -71,6 +72,7 @@ public class DemoSetupBean implements DemoSetupService {
 			return;
 		}
 		final NetworkDevice device = createRandomDevice(NetworkDeviceModel.NANO_BRIDGE_M5);
+		device.setProperties(Collections.singletonMap("radio.1.subsystemid", "dummy-id"));
 		device.setAntenna(antenna);
 		antenna.setDevice(networkDeviceRepository.save(device));
 	}
@@ -87,7 +89,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
 	 */
 	@Override

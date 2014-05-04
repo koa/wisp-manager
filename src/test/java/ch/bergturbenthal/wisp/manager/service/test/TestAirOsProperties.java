@@ -50,6 +50,8 @@ public class TestAirOsProperties {
 		testHelperBean.clearData();
 		demoSetupService.initDemoData();
 		for (final Connection connection : connectionService.listAllConnections()) {
+			demoSetupService.fillDummyDevice(connection.getStartStation());
+			demoSetupService.fillDummyDevice(connection.getEndStation());
 			connectionService.setBridgeCount(connection, 1);
 			for (final Bridge bridge : connection.getBridges()) {
 				demoSetupService.fillDummyDevice(bridge.getApAntenna());
