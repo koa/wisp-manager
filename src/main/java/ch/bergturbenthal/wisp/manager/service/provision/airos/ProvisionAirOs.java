@@ -36,8 +36,13 @@ import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Bridge;
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.RangePair;
+import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
@@ -152,6 +157,8 @@ public class ProvisionAirOs implements ProvisionBackend {
 		settings.setProperty("users.1.status", "enabled");
 		final Bridge bridge = antenna.getBridge();
 		final boolean isAp = antenna.getApBridge() != null;
+		final Station gwStation;
+		final Connection connection = bridge.getConnection();
 		if (isAp) {
 			settings.setProperty("aaa.1.status", "enabled");
 			settings.setProperty("aaa.status", "enabled");
@@ -159,6 +166,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 			settings.setProperty("radio.1.mode", "master");
 			settings.setProperty("wpasupplicant.device.1.status", "disabled");
 			settings.setProperty("wpasupplicant.status", "disabled");
+			gwStation = connection.getStartStation();
 		} else {
 			settings.setProperty("aaa.1.status", "disabled");
 			settings.setProperty("aaa.status", "disabled");
@@ -166,10 +174,23 @@ public class ProvisionAirOs implements ProvisionBackend {
 			settings.setProperty("radio.1.mode", "managed");
 			settings.setProperty("wpasupplicant.device.1.status", "enabled");
 			settings.setProperty("wpasupplicant.status", "enabled");
+			gwStation = connection.getEndStation();
+		}
+		final RangePair antennaAddress = antenna.getAddresses();
+
+		settings.setProperty("netconf.3.ip", antennaAddress.getInet4Address().getHostAddress());
+		settings.setProperty("netconf.3.netmask", antennaAddress.getV4Address().getParentRange().getRange().getNetmaskAsAddress().getHostAddress());
+
+		for (final NetworkInterface connInter : gwStation.getDevice().getInterfaces()) {
+			for (final VLan vlan : connInter.getNetworks()) {
+				if (vlan.getAddress().getV4Address().getParentRange() == connection.getAddresses().getV4Address()) {
+					settings.put("route.1.gateway", vlan.getAddress().getInet4Address().getHostAddress());
+				}
+			}
 		}
 		settings.setProperty("radio.1.subsystemid", device.getProperties().get("radio.1.subsystemid"));
 		final String wpa2Key = bridge.getWpa2Key();
-		final String ssid = stripSsid(bridge.getConnection().getTitle() + "_" + bridge.getBridgeIndex());
+		final String ssid = stripSsid(connection.getTitle() + "_" + bridge.getBridgeIndex());
 		settings.setProperty("wpasupplicant.profile.1.network.1.psk", wpa2Key);
 		settings.setProperty("aaa.1.wpa.psk", wpa2Key);
 		settings.setProperty("aaa.1.ssid", ssid);
@@ -274,6 +295,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 			SSHUtil.sendCmdWithoutAnswer(session, "reboot");
 			tempFile.delete();
 			device.setCurrentPassword(device.getAntenna().getAdminPassword());
+			device.setV4Address(device.getAntenna().getAddresses().getInet4Address());
 			device.setProvisioned();
 
 		} catch (final IOException e) {

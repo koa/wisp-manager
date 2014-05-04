@@ -107,6 +107,8 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		if (device.getAntenna() != null) {
 			final Connection connection = device.getAntenna().getBridge().getConnection();
 			connectionService.fillConnection(connection);
+			addressManagementService.fillStation(connection.getStartStation());
+			addressManagementService.fillStation(connection.getEndStation());
 		}
 
 	}
@@ -121,7 +123,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override
@@ -132,7 +134,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
 	 */
 	@Override
@@ -220,7 +222,9 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 			deviceEntity.setProperties(identifiedDevice.getProperties());
 		} else {
 			deviceEntity.getProperties().clear();
-			deviceEntity.getProperties().putAll(identifiedDevice.getProperties());
+			if (identifiedDevice.getProperties() != null) {
+				deviceEntity.getProperties().putAll(identifiedDevice.getProperties());
+			}
 		}
 		deviceEntity.setInterfaces(interfaces);
 	}

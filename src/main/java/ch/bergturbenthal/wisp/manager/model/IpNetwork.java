@@ -1,6 +1,8 @@
 package ch.bergturbenthal.wisp.manager.model;
 
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.persistence.Embeddable;
 
@@ -20,6 +22,11 @@ public class IpNetwork {
 		if (address.getAddressType() != otherAddress.getAddressType()) {
 			return false;
 		}
+		final BigInteger maskInteger = new BigInteger(getByteMask());
+		return address.getRawValue().and(maskInteger).equals(otherAddress.getRawValue().and(maskInteger));
+	}
+
+	private byte[] getByteMask() {
 		final byte[] mask;
 		switch (address.getAddressType()) {
 		case V4:
@@ -41,8 +48,15 @@ public class IpNetwork {
 				mask[i] = (byte) (0xff << (8 - byteMask));
 			}
 		}
-		final BigInteger maskInteger = new BigInteger(mask);
-		return address.getRawValue().and(maskInteger).equals(otherAddress.getRawValue().and(maskInteger));
+		return mask;
+	}
+
+	public InetAddress getNetmaskAsAddress() {
+		try {
+			return InetAddress.getByAddress(getByteMask());
+		} catch (final UnknownHostException e) {
+			throw new RuntimeException("Cannot generate bitwise mask for /" + netmask, e);
+		}
 	}
 
 	@Override

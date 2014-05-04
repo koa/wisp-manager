@@ -13,6 +13,7 @@ import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.Antenna;
+import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -317,7 +318,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 						// editDeviceForm.setEnabled(false);
 					}
 				});
-				// provisionDeviceButton.setEnabled(!networkDevice.isProvisioned());
+				provisionDeviceButton.setEnabled(isProvisionable(networkDevice));
 				editDeviceForm.addComponent(provisionDeviceButton);
 
 				editDeviceForm.setEnabled(true);
@@ -332,6 +333,28 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		horizontalLayout.setSizeFull();
 		setSizeFull();
 
+	}
+
+	private boolean isProvisionable(final NetworkDevice networkDevice) {
+		final Antenna antenna = networkDevice.getAntenna();
+		if (antenna != null) {
+			final Connection connection = antenna.getBridge().getConnection();
+			final Station startStation = connection.getStartStation();
+			if (startStation == null || startStation.getDevice() == null) {
+				return false;
+			}
+			final Station endStation = connection.getEndStation();
+			if (endStation == null || endStation.getDevice() == null) {
+				return false;
+			}
+			return true;
+		}
+		final Station station = networkDevice.getStation();
+		if (station != null) {
+			return station.getDevice() != null;
+		}
+		return false;
+		// return !networkDevice.isProvisioned();
 	}
 
 	private boolean isReachable(final InetAddress address) {
