@@ -25,4 +25,5 @@ public interface StationService {
 
 	CrudRepositoryContainer<Station, Long> createContainerRepository();
 
+	Station fillStation(final Station station);
 }

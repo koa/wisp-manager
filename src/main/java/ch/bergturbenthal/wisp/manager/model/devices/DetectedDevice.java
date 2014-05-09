@@ -10,6 +10,7 @@ import ch.bergturbenthal.wisp.manager.model.MacAddress;
 @Data
 @Builder
 public class DetectedDevice {
+	private final String currentPassword;
 	private final List<MacAddress> interfaces;
 	private final NetworkDeviceModel model;
 	private final Map<String, String> properties;

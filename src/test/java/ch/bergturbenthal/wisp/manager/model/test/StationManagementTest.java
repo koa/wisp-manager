@@ -46,7 +46,7 @@ public class StationManagementTest {
 	@Transactional
 	public void testCreateStation() throws UnknownHostException {
 		final NetworkDevice device = testHelperBean.createStationWithDevice("serial", "80:ee:73:67:df:16", "name");
-		final Station station = addressManagementBean.fillStation(device.getStation());
+		final Station station = stationService.fillStation(device.getStation());
 
 		Assert.assertEquals(InetAddress.getByName("172.16.0.1"), station.getLoopback().getV4Address().getRange().getAddress().getInetAddress());
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab::"), station.getLoopback().getV6Address().getRange().getAddress().getInetAddress());

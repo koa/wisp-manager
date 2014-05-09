@@ -101,20 +101,6 @@ public class ProvisionAirOs implements ProvisionBackend {
 		return session;
 	}
 
-	private Session connectHost(final InetAddress host, final List<LoginData> availableLogins) {
-		for (final LoginData loginData : availableLogins) {
-			try {
-				final String username = loginData.getUsername();
-				final String password = loginData.getPassword();
-				final Session session = connect(host, username, password);
-				return session;
-			} catch (final JSchException e) {
-				log.info("Login failed, try next password", e);
-			}
-		}
-		return null;
-	}
-
 	private List<String> executeCommand(final Session session, final String command) throws JSchException {
 		final ChannelExec cmdChannel = SSHUtil.sendCmd(session, command);
 		try {
@@ -202,7 +188,20 @@ public class ProvisionAirOs implements ProvisionBackend {
 	private DetectedDevice identify(final InetAddress host, final List<LoginData> availableLogins) {
 		while (true) {
 			try {
-				final Session session = connectHost(host, availableLogins);
+				Session session = null;
+				String successfulPassword = null;
+				for (final LoginData loginData : availableLogins) {
+					try {
+						final String username = loginData.getUsername();
+						final String password = loginData.getPassword();
+						session = connect(host, username, password);
+						if (username.equals("admin")) {
+							successfulPassword = password;
+						}
+					} catch (final JSchException e) {
+						log.info("Login failed, try next password", e);
+					}
+				}
 				if (session == null) {
 					return null;
 				}
@@ -245,7 +244,13 @@ public class ProvisionAirOs implements ProvisionBackend {
 					final List<MacAddress> interfaces = readMacs(session, deviceModel);
 					final Map<String, String> deviceProperties = new HashMap<String, String>(status);
 					deviceProperties.putAll(boardInfo);
-					return DetectedDevice.builder().interfaces(interfaces).model(deviceModel).serialNumber(status.get("deviceId")).properties(boardInfo).build();
+					return DetectedDevice.builder()
+																.interfaces(interfaces)
+																.model(deviceModel)
+																.serialNumber(status.get("deviceId"))
+																.properties(boardInfo)
+																.currentPassword(successfulPassword)
+																.build();
 				} finally {
 					session.disconnect();
 				}
@@ -279,8 +284,17 @@ public class ProvisionAirOs implements ProvisionBackend {
 		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
 			throw new IllegalArgumentException("Wrong device. Expected: " + device.getSerialNumber() + ", detected: " + detectedDevice.getSerialNumber());
 		}
-		final Session session = connectHost(host, logins);
+		final String username;
+		final String password;
+		if (detectedDevice.getCurrentPassword() == null) {
+			username = "ubnt";
+			password = "ubnt";
+		} else {
+			username = "admin";
+			password = detectedDevice.getCurrentPassword();
+		}
 		try {
+			final Session session = connect(host, username, password);
 			final File tempFile = File.createTempFile(device.getTitle(), ".cfg");
 			final Properties properties = generateProperties(device);
 			final FileOutputStream os = new FileOutputStream(tempFile);

@@ -13,6 +13,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -206,9 +207,27 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	public DetectedDevice identify(final InetAddress host, final Map<NetworkDeviceType, Set<String>> pwCandidates) {
 		try {
 			while (true) {
-				final Session session = jSch.getSession("admin", host.getHostAddress());
-				session.setConfig("StrictHostKeyChecking", "no");
-				session.connect();
+				Session session = null;
+				String connectedPw = null;
+				final Set<String> stationCandidates = new HashSet<String>(Collections.<String> singleton(null));
+				stationCandidates.addAll(pwCandidates.get(NetworkDeviceType.STATION));
+				for (final String pwCandidate : stationCandidates) {
+					try {
+						session = jSch.getSession("admin", host.getHostAddress());
+						session.setConfig("StrictHostKeyChecking", "no");
+						if (pwCandidate != null) {
+							session.setPassword(pwCandidate);
+						}
+						session.connect();
+						connectedPw = pwCandidate;
+					} catch (final JSchException e) {
+						log.trace("wrong password, try next", e);
+					}
+				}
+				if (session == null) {
+					log.debug("Cannot login into " + host);
+					return null;
+				}
 				try {
 					final Map<String, String> packageByVersion = new LinkedHashMap<>();
 					final Set<String> disabledPackages = new HashSet<>();
@@ -291,6 +310,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						routerBoardResult.disconnect();
 					}
 					resultBuilder.interfaces(new ArrayList<>(macs.values()));
+					resultBuilder.currentPassword(connectedPw);
 					return resultBuilder.build();
 				} finally {
 					session.disconnect();
@@ -305,7 +325,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	@Override
 	public void loadConfig(final NetworkDevice device, final InetAddress host) {
-		final DetectedDevice detectedDevice = identify(host, null);
+		final HashMap<NetworkDeviceType, Set<String>> pwCandidates = new HashMap<NetworkDeviceType, Set<String>>();
+		pwCandidates.put(	NetworkDeviceType.STATION,
+											device.getCurrentPassword() == null ? Collections.<String> emptySet() : Collections.singleton(device.getCurrentPassword()));
+		final DetectedDevice detectedDevice = identify(host, pwCandidates);
 		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
 			throw new IllegalArgumentException("Wrong device. Expected: " + device.getSerialNumber() + ", detected: " + detectedDevice.getSerialNumber());
 		}
@@ -327,11 +350,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			} finally {
 				session.disconnect();
 			}
-			final RangePair loopback = device.getStation().getLoopback();
+			final Station station = device.getStation();
+			final RangePair loopback = station.getLoopback();
 			final IpAddress newAddress = loopback.getV4Address().getRange().getAddress();
-			waitForReboot(newAddress.getInetAddress());
+			// waitForReboot(newAddress.getInetAddress());
 			device.setV4Address(newAddress.getInetAddress());
 			device.setV6Address(loopback.getV6Address().getRange().getAddress().getInetAddress());
+			device.setCurrentPassword(station.getAdminPassword());
 			device.setProvisioned();
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);

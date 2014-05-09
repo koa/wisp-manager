@@ -31,7 +31,7 @@ public class NetworkInterface {
 	@ManyToOne(optional = false)
 	private NetworkDevice networkDevice;
 	@OneToMany(mappedBy = "networkInterface", orphanRemoval = true, cascade = CascadeType.ALL)
-	private Set<VLan> networks = new HashSet();
+	private Set<VLan> networks = new HashSet<VLan>();
 	@Enumerated(EnumType.STRING)
 	private NetworkInterfaceRole role;
 	@Enumerated(EnumType.STRING)

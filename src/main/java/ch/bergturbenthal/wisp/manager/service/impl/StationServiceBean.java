@@ -6,6 +6,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaQuery;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +48,14 @@ public class StationServiceBean implements StationService {
 				return entry.getId();
 			}
 		};
+	}
+
+	@Override
+	public Station fillStation(final Station station) {
+		if (station.getAdminPassword() == null) {
+			station.setAdminPassword(RandomStringUtils.randomAlphanumeric(10));
+		}
+		return addressManagementBean.fillStation(station);
 	}
 
 	@Override

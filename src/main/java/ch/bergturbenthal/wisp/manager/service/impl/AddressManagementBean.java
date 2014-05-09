@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
@@ -142,7 +144,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -152,7 +154,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -263,7 +265,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillConnection(ch.bergturbenthal.wisp.manager.model.Connection)
 	 */
 	@Override
@@ -408,8 +410,17 @@ public class AddressManagementBean implements AddressManagementService {
 			final Set<VLan> ownNetworks = station.getOwnNetworks();
 			if (ownNetworks != null && !ownNetworks.isEmpty()) {
 				final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
-				networks.clear();
+				final Map<Integer, VLan> networksByVlan = orderNetworksByVlan(networks);
 				for (final VLan vlan : ownNetworks) {
+					final VLan deviceVlan = networksByVlan.get(vlan.getVlanId());
+					if (deviceVlan != null) {
+						final RangePair deviceAddressPair = deviceVlan.getAddress();
+						final RangePair stationAddressPair = vlan.getAddress();
+						if (deviceAddressPair.getV4Address().getParentRange() == stationAddressPair.getV4Address() && deviceAddressPair.getV6Address().getParentRange() == stationAddressPair.getV6Address()) {
+							continue;
+						}
+						networks.remove(deviceVlan);
+					}
 					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
 					networks.add(ifaceVlan);
 					ifaceVlan.setNetworkInterface(networkInterface);
@@ -457,7 +468,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -470,7 +481,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -480,7 +491,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -522,7 +533,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -554,7 +565,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -579,31 +590,50 @@ public class AddressManagementBean implements AddressManagementService {
 				}
 				compositeIterator.add(defaultAddresses.iterator());
 				for (final IpRange loopbackRange : ipRangeRepository.findV4LoopbackRanges()) {
-					final IpNetwork range = loopbackRange.getRange();
-					final long lastAddressIndex = (1l << (32 - range.getNetmask())) - 1;
-					final IpAddress address = range.getAddress();
-					compositeIterator.add(new Iterator<InetAddress>() {
-						long index = 1;
-
-						@Override
-						public boolean hasNext() {
-							return index < lastAddressIndex;
-						}
-
-						@Override
-						public InetAddress next() {
-							return address.getAddressOfNetwork(index++);
-						}
-
-						@Override
-						public void remove() {
-							throw new UnsupportedOperationException("cannot remove a possible address");
-						}
-					});
+					compositeIterator.add(iteratorForRange(loopbackRange));
+				}
+				for (final IpRange range : ipRangeRepository.findMatchingRange(AddressRangeType.CONNECTION, IpAddressType.V4, 32)) {
+					compositeIterator.add(iteratorForRange(range));
 				}
 				return compositeIterator;
 			}
+
+			private Iterator<InetAddress> iteratorForRange(final IpRange loopbackRange) {
+				return new Iterator<InetAddress>() {
+					final IpAddress address;
+					long index = 1;
+					final long lastAddressIndex;
+					{
+						final IpNetwork range = loopbackRange.getRange();
+						lastAddressIndex = (1l << (32 - range.getNetmask())) - 1;
+						address = range.getAddress();
+					}
+
+					@Override
+					public boolean hasNext() {
+						return index < lastAddressIndex;
+					}
+
+					@Override
+					public InetAddress next() {
+						return address.getAddressOfNetwork(index++);
+					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException("cannot remove a possible address");
+					}
+				};
+			}
 		};
+	}
+
+	private Map<Integer, VLan> orderNetworksByVlan(final Set<VLan> networks) {
+		final Map<Integer, VLan> ret = new LinkedHashMap<Integer, VLan>();
+		for (final VLan vLan : networks) {
+			ret.put(vLan.getVlanId(), vLan);
+		}
+		return ret;
 	}
 
 	private boolean overlap(final IpNetwork checkNetwork, final IpNetwork reserveNetwork) {
@@ -615,7 +645,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -625,7 +655,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */

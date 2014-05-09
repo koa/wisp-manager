@@ -3,6 +3,8 @@
 
 /system identity set name="Station $station.name"
 
+/user set admin password="$station.adminPassword"
+
 # all interfaces in routing mode
 /interface ethernet
 #foreach($interface in $networkInterfaces)
@@ -88,7 +90,6 @@
 #end
 #end	
 #end
-
 
 /ip dns
 set servers=$dnsServers

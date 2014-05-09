@@ -34,6 +34,7 @@ import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
+import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.service.provision.Provision;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
@@ -51,6 +52,8 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	private Provision provision;
 	@Autowired
 	private NetworkDeviceRepository repository;
+	@Autowired
+	private StationService stationService;
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
@@ -102,13 +105,13 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 	@Override
 	public void fillNetworkDevice(final NetworkDevice device) {
 		if (device.getStation() != null) {
-			addressManagementService.fillStation(device.getStation());
+			stationService.fillStation(device.getStation());
 		}
 		if (device.getAntenna() != null) {
 			final Connection connection = device.getAntenna().getBridge().getConnection();
 			connectionService.fillConnection(connection);
-			addressManagementService.fillStation(connection.getStartStation());
-			addressManagementService.fillStation(connection.getEndStation());
+			stationService.fillStation(connection.getStartStation());
+			stationService.fillStation(connection.getEndStation());
 		}
 
 	}
@@ -167,6 +170,8 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 						@Override
 						public NetworkDevice doInTransaction(final TransactionStatus status) {
+							String hostAddress = ip.getHostAddress();
+							log.info("Check device: " + hostAddress);
 							return detectNetworkDevice(ip);
 						}
 					});
