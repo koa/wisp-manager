@@ -19,7 +19,7 @@
 #end
 #end
 
-/interface bridge add name=loopback
+/interface bridge add name=loopback auto-mac=no admin-mac=01:00:00:00:01:00
 
 /ip address	
 # Loopback IP

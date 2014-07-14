@@ -3,10 +3,13 @@ package ch.bergturbenthal.wisp.manager.service;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.HashSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
@@ -59,6 +62,7 @@ public class TestHelperBean {
 		final NetworkDevice device = NetworkDevice.createDevice(NetworkDeviceModel.RB750GL, macAddress);
 		station.setDevice(device);
 		station.setName(name);
+		station.setCustomerConnections(new HashSet<CustomerConnection>(Collections.singleton(new CustomerConnection())));
 		device.setSerialNumber(serial);
 		device.setStation(station);
 		stationService.updateStation(station);

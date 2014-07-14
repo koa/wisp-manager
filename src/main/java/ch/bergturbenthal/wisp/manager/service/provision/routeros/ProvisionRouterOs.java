@@ -38,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -140,9 +141,9 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			final String interfaceName = netIf.getInterfaceName();
 			final String ifName;
 			if (interfaceName == null) {
-				ifName = uniqifyName(existingNames, "unassigned" + (networkInterfaces.size() + 1));
+				ifName = uniqifyName(existingNames, "unassigned", 1);
 			} else {
-				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName));
+				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName), 0);
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
 			boolean hasAddressWithoutVlan = false;
@@ -156,21 +157,39 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						builder.macAddress(macAddress);
 					} else {
 						// additional vlan
-						builder.ifName(uniqifyName(existingNames, ifName + "-" + network.getVlanId()));
+						builder.ifName(uniqifyName(existingNames, ifName + "-" + network.getVlanId(), 0));
 						builder.vlanId(network.getVlanId());
 						builder.parentIfName(ifName);
 					}
 					final InetAddress inet4Address = network.getAddress().getInet4Address();
 					if (inet4Address != null) {
-						builder.v4Address(inet4Address.getHostAddress());
-						builder.v4Mask(network.getAddress().getInet4ParentMask());
-						builder.v4NetAddress(network.getAddress().getV4Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+						final IpRange v4Address = network.getAddress().getV4Address();
+						if (v4Address.getRange().getNetmask() == 32) {
+							// address is host-address
+							builder.v4Address(inet4Address.getHostAddress());
+							builder.v4Mask(network.getAddress().getInet4ParentMask());
+							builder.v4NetAddress(v4Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+						} else {
+							// address is net-address -> select first host-address
+							builder.v4Address(v4Address.getRange().getAddress().getAddressOfNetwork(1).getHostAddress());
+							builder.v4Mask(v4Address.getRange().getNetmask());
+							builder.v4NetAddress(inet4Address.getHostAddress());
+						}
 					}
 					final InetAddress inet6Address = network.getAddress().getInet6Address();
 					if (inet6Address != null) {
-						builder.v6Address(inet6Address.getHostAddress());
-						builder.v6Mask(network.getAddress().getInet6ParentMask());
-						builder.v6NetAddress(network.getAddress().getV6Address().getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+						final IpRange v6Address = network.getAddress().getV6Address();
+						if (v6Address.getRange().getNetmask() == 128) {
+							// address is host-address
+							builder.v6Address(inet6Address.getHostAddress());
+							builder.v6Mask(network.getAddress().getInet6ParentMask());
+							builder.v6NetAddress(v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+						} else {
+							// address is net-address -> select first host-address
+							builder.v6Address(inet6Address.getHostAddress());
+							builder.v6Mask(v6Address.getRange().getNetmask());
+							builder.v6NetAddress(inet6Address.getHostAddress());
+						}
 					}
 					builder.role(netIf.getRole());
 					networkInterfaces.add(builder.build());
@@ -393,8 +412,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		return NetworkOperatingSystem.MIKROTIK_ROUTER_OS;
 	}
 
-	private String uniqifyName(final Collection<String> existingNames, final String ifName) {
-		int index = 0;
+	private String uniqifyName(final Collection<String> existingNames, final String ifName, final int startIndex) {
+		int index = startIndex;
 		while (true) {
 			final String candidate = index == 0 ? ifName : ifName + index;
 			if (!existingNames.contains(candidate)) {

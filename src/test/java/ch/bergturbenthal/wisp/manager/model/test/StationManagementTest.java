@@ -14,6 +14,7 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
@@ -50,7 +51,8 @@ public class StationManagementTest {
 
 		Assert.assertEquals(InetAddress.getByName("172.16.0.1"), station.getLoopback().getV4Address().getRange().getAddress().getInetAddress());
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab::"), station.getLoopback().getV6Address().getRange().getAddress().getInetAddress());
-		final VLan vlan = station.getOwnNetworks().iterator().next();
+		final CustomerConnection customerConnection = station.getCustomerConnections().iterator().next();
+		final VLan vlan = customerConnection.getOwnNetworks().iterator().next();
 		Assert.assertEquals(0, vlan.getVlanId());
 		final RangePair networkAddress = vlan.getAddress();
 		Assert.assertEquals(InetAddress.getByName("172.17.0.0"), networkAddress.getInet4Address());

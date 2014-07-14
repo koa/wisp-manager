@@ -17,7 +17,6 @@ import lombok.EqualsAndHashCode;
 // @Table(uniqueConstraints = @UniqueConstraint(columnNames = { "endStation", "startStation" }))
 @EqualsAndHashCode(of = "id")
 public class Connection {
-	private RangePair addresses;
 	@OneToMany(mappedBy = "connection", orphanRemoval = true)
 	@OrderColumn
 	private List<Bridge> bridges;

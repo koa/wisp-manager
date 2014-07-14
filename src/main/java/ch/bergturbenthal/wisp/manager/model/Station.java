@@ -27,6 +27,8 @@ public class Station {
 	private String adminPassword;
 	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
 	private List<Connection> beginningConnections = new ArrayList<>();
+	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
+	private Set<CustomerConnection> customerConnections = new HashSet<CustomerConnection>();
 	@OneToOne(cascade = CascadeType.ALL)
 	private NetworkDevice device;
 	@OneToMany(mappedBy = "endStation", orphanRemoval = true)
@@ -36,8 +38,6 @@ public class Station {
 	private Long id;
 	private RangePair loopback;
 	private String name;
-	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
-	private Set<VLan> ownNetworks = new HashSet<>();
 	private Position position;
 	@Version
 	@Setter(AccessLevel.PROTECTED)

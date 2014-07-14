@@ -170,7 +170,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 						@Override
 						public NetworkDevice doInTransaction(final TransactionStatus status) {
-							String hostAddress = ip.getHostAddress();
+							final String hostAddress = ip.getHostAddress();
 							log.info("Check device: " + hostAddress);
 							return detectNetworkDevice(ip);
 						}

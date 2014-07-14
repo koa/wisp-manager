@@ -17,4 +17,5 @@ public interface ConnectionService {
 	void setBridgeCount(final Connection connection, final int count);
 
 	void fillConnection(final Connection connection);
+
 }

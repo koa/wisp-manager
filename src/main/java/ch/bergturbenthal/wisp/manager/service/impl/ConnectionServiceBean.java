@@ -41,29 +41,6 @@ public class ConnectionServiceBean implements ConnectionService {
 		return connectionRepository.save(connection);
 	}
 
-	private void fillAntenna(final Antenna antenna) {
-		if (antenna.getAdminPassword() == null) {
-			antenna.setAdminPassword(RandomStringUtils.randomAlphanumeric(10));
-		}
-	}
-
-	@Override
-	public void fillConnection(final Connection connection) {
-		addressManagementService.fillConnection(connection);
-		for (final Bridge bridge : connection.getBridges()) {
-			if (bridge.getWpa2Key() == null) {
-				bridge.setWpa2Key(RandomStringUtils.randomAlphanumeric(63));
-			}
-			fillAntenna(bridge.getApAntenna());
-			fillAntenna(bridge.getClientAntenna());
-		}
-	}
-
-	@Override
-	public Iterable<Connection> listAllConnections() {
-		return connectionRepository.findAll();
-	}
-
 	@Override
 	public CrudRepositoryContainer<Antenna, Long> createAntennaContainer() {
 		return new CrudRepositoryContainer<Antenna, Long>(antennaRepository, Antenna.class) {
@@ -84,6 +61,28 @@ public class ConnectionServiceBean implements ConnectionService {
 				return entry.getId();
 			}
 		};
+	}
+
+	private void fillAntenna(final Antenna antenna) {
+		if (antenna.getAdminPassword() == null) {
+			antenna.setAdminPassword(RandomStringUtils.randomAlphanumeric(10));
+		}
+	}
+
+	@Override
+	public void fillConnection(final Connection connection) {
+		for (final Bridge brigde : connection.getBridges()) {
+			if (brigde.getWpa2Key() == null) {
+				brigde.setWpa2Key(RandomStringUtils.randomAlphanumeric(60));
+			}
+			fillAntenna(brigde.getApAntenna());
+			fillAntenna(brigde.getClientAntenna());
+		}
+	}
+
+	@Override
+	public Iterable<Connection> listAllConnections() {
+		return connectionRepository.findAll();
 	}
 
 	@Override
@@ -108,7 +107,6 @@ public class ConnectionServiceBean implements ConnectionService {
 			final Bridge removed = bridges.remove(bridges.size() - 1);
 			bridgeRepository.delete(removed);
 		}
-		fillConnection(connection);
 	}
 
 }

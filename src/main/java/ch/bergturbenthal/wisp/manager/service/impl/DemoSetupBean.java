@@ -1,6 +1,7 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.lang.RandomStringUtils;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
@@ -37,11 +39,23 @@ public class DemoSetupBean implements DemoSetupService {
 	private StationService stationService;
 
 	private void appendVlan(final Station station, final int vlanId) {
-		final Set<VLan> networks = station.getOwnNetworks();
+		final Set<CustomerConnection> customerConnections;
+		if (station.getCustomerConnections() == null) {
+			customerConnections = new HashSet<CustomerConnection>();
+		} else {
+			customerConnections = station.getCustomerConnections();
+		}
+		if (customerConnections.isEmpty()) {
+			final CustomerConnection newConnection = new CustomerConnection();
+			newConnection.setStation(station);
+			customerConnections.add(newConnection);
+		}
+		final CustomerConnection customerConnection = customerConnections.iterator().next();
+		final Set<VLan> networks = customerConnection.getOwnNetworks();
 		final VLan vlan = new VLan();
 		vlan.setVlanId(vlanId);
 		networks.add(vlan);
-		vlan.setStation(station);
+		vlan.setCustomerConnection(customerConnection);
 	}
 
 	private NetworkDevice createRandomDevice(final NetworkDeviceModel type) {
@@ -89,7 +103,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
 	 */
 	@Override

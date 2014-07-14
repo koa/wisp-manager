@@ -42,7 +42,6 @@ import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
-import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
@@ -164,15 +163,16 @@ public class ProvisionAirOs implements ProvisionBackend {
 		}
 		final RangePair antennaAddress = antenna.getAddresses();
 
-		settings.setProperty("netconf.3.ip", antennaAddress.getInet4Address().getHostAddress());
-		settings.setProperty("netconf.3.netmask", antennaAddress.getV4Address().getParentRange().getRange().getNetmaskAsAddress().getHostAddress());
+		// settings.setProperty("netconf.3.ip", antennaAddress.getInet4Address().getHostAddress());
+		// settings.setProperty("netconf.3.netmask", antennaAddress.getV4Address().getParentRange().getRange().getNetmaskAsAddress().getHostAddress());
 
+		// TODO setup dhcp client
 		for (final NetworkInterface connInter : gwStation.getDevice().getInterfaces()) {
-			for (final VLan vlan : connInter.getNetworks()) {
-				if (vlan.getAddress().getV4Address().getParentRange() == connection.getAddresses().getV4Address()) {
-					settings.put("route.1.gateway", vlan.getAddress().getInet4Address().getHostAddress());
-				}
-			}
+			// for (final VLan vlan : connInter.getNetworks()) {
+			// if (vlan.getAddress().getV4Address().getParentRange() == connection.getAddresses().getV4Address()) {
+			// settings.put("route.1.gateway", vlan.getAddress().getInet4Address().getHostAddress());
+			// }
+			// }
 		}
 		settings.setProperty("radio.1.subsystemid", device.getProperties().get("radio.1.subsystemid"));
 		final String wpa2Key = bridge.getWpa2Key();

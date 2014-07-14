@@ -17,11 +17,13 @@ import lombok.ToString;
 
 @Data
 @Entity
-@ToString(exclude = { "networkInterface", "station" })
-@EqualsAndHashCode(of = { "id", "station", "networkInterface", "vlanId" })
+@ToString(exclude = { "networkInterface", "customerConnection" })
+@EqualsAndHashCode(of = { "id", "networkInterface", "vlanId" })
 public class VLan {
 	@Embedded
 	private RangePair address;
+	@ManyToOne
+	private CustomerConnection customerConnection;
 	@Id
 	@GeneratedValue
 	private Long id;
@@ -30,7 +32,5 @@ public class VLan {
 	@ElementCollection
 	@CollectionTable(name = "vlan_dns", joinColumns = @JoinColumn(name = "vlan"))
 	private Set<IpAddress> privateDnsServers;
-	@ManyToOne
-	private Station station;
 	private int vlanId;
 }
