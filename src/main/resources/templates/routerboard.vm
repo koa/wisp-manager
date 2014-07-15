@@ -56,6 +56,8 @@
 /ipv6 address
 # Loopback IP
 	add address=$v6Loopback/128 interface=loopback advertise=no
+
+# Connection IPs
 #foreach($interface in $networkInterfaces)
 #if($interface.v6Address)
 	add address=$interface.v6Address/$interface.v6Mask interface=$interface.ifName
@@ -66,6 +68,10 @@
  
 /routing ospf-v3 instance set [ find default=yes ] router-id=$v4Loopback
 /routing ospf-v3 interface
+# Loopback
+	add area=backbone interface=loopback passive=yes
+	
+# Physically Connections
 #foreach($interface in $networkInterfaces)
 #if($interface.v6Address)
 #if($interface.role == "NETWORK")
@@ -80,13 +86,11 @@
 #set($first=1)
 #foreach($interface in $networkInterfaces)
 #if($interface.v6Address)
-#if($interface.role == "NETWORK")
 #if ($first==1)
 	set [ find default=yes ] advertise-dns=yes interface=$interface.ifName
 #set($first=0)
 #else
 	add interface=$interface.ifName advertise-dns=yes
-#end
 #end
 #end	
 #end

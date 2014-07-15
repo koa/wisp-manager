@@ -80,7 +80,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		private final int vlanId;
 	}
 
-	private static String CURRENT_OS_VERSION = "6.12";
+	private static String CURRENT_OS_VERSION = "6.15";
 
 	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp", "openflow"));
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
@@ -129,7 +129,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.provision.routeros.Provision#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override

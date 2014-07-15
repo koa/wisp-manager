@@ -66,6 +66,9 @@ public class DemoSetupBean implements DemoSetupService {
 
 	private Station createStation(final String name, final Position position) {
 		final Station station = stationService.addStation(position);
+		final CustomerConnection customerConnection = new CustomerConnection();
+		customerConnection.setStation(station);
+		station.setCustomerConnections(new HashSet<CustomerConnection>(Collections.singleton(customerConnection)));
 		station.setName(name);
 		return station;
 	}
