@@ -50,9 +50,11 @@ public class TestRouterOsVelocity {
 
 	@Test
 	public void testGenerateRbConfig() throws UnknownHostException {
-		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg");
-		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg");
+		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", true);
+		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", false);
 		final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
+		addressManagementBean.fillStation(d2.getStation());
+		addressManagementBean.fillStation(d1.getStation());
 		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
 		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
 		// networkDeviceManagementBean.loadConfig(device, InetAddress.getByName("192.168.88.1"));

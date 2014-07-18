@@ -19,6 +19,12 @@
 #end
 #end
 
+/interface ipipv6
+#foreach($interface in $tunnelEndpoints)
+	add local-address=$v6Loopback mtu=1500 name=$interface.ifName remote-address=$interface.remoteAddress
+#end
+
+
 /interface bridge add name=loopback auto-mac=no admin-mac=01:00:00:00:01:00
 
 /ip address	
@@ -32,15 +38,35 @@
 #end	
 #end
 
+# Tunnel Endpoints
+#foreach($interface in $tunnelEndpoints)
+	add address=$interface.v4Address/$interface.v4Mask interface=$interface.ifName
+#end
+
 # ipv4 ospf Routing
 /routing ospf instance set [ find default=yes ] router-id=$v4Loopback
 
 /routing ospf interface
+#foreach($interface in $tunnelEndpoints)
+	add interface=$interface.ifName network-type=point-to-point
+#end
 #foreach($interface in $networkInterfaces)
-#if($interface.v4Address && $interface.role == "NETWORK")
+#if($interface.v4Address)
 	add interface=$interface.ifName passive=yes
 #end	
 #end
+
+/routing ospf network
+	add area=backbone network=$v4Loopback/32
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address)
+	add area=backbone network=$interface.v4NetAddress/$interface.v4Mask
+#end	
+#end
+#foreach($interface in $tunnelEndpoints)
+	add area=backbone network=$interface.v4NetAddress/$interface.v4Mask
+#end
+
 
 # ipv4 dhcp
 
@@ -60,14 +86,6 @@
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address && $interface.dhcpRange)
 	add address=$interface.v4NetAddress/$interface.v4Mask gateway=$interface.v4Address
-#end	
-#end
-
-/routing ospf network
-	add area=backbone network=$v4Loopback/32
-#foreach($interface in $networkInterfaces)
-#if($interface.v4Address)
-	add area=backbone network=$interface.v4NetAddress/$interface.v4Mask
 #end	
 #end
 

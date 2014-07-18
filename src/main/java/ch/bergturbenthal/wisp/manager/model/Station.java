@@ -39,6 +39,7 @@ public class Station {
 	private RangePair loopback;
 	private String name;
 	private Position position;
+	private boolean tunnelConnection;
 	@Version
 	@Setter(AccessLevel.PROTECTED)
 	private Long version;

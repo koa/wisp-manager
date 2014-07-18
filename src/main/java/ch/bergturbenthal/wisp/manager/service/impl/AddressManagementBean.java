@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -28,6 +29,7 @@ import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -43,6 +45,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 import ch.bergturbenthal.wisp.manager.repository.AntennaRepository;
 import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
+import ch.bergturbenthal.wisp.manager.repository.IpIpv6TunnelRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
@@ -136,6 +139,8 @@ public class AddressManagementBean implements AddressManagementService {
 	@Autowired
 	private DnsServerRepository dnsServerRepository;
 	@Autowired
+	private IpIpv6TunnelRepository ipIpv6TunnelRepository;
+	@Autowired
 	private IpRangeRepository ipRangeRepository;
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
@@ -146,7 +151,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -156,7 +161,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -213,8 +218,10 @@ public class AddressManagementBean implements AddressManagementService {
 				return "Network-Device: " + networkDevice.getTitle() + "; " + networkInterface.getInterfaceName() + ";" + foundVlan.getVlanId();
 			}
 			final CustomerConnection customerConnection = foundVlan.getCustomerConnection();
-			final Station station = customerConnection.getStation();
-			return "Station Network: " + station.getName() + ";" + customerConnection.getName() + ";" + foundVlan.getVlanId();
+			if (customerConnection != null) {
+				final Station station = customerConnection.getStation();
+				return "Station Network: " + station.getName() + ";" + customerConnection.getName() + ";" + foundVlan.getVlanId();
+			}
 		}
 		final Antenna foundAntenna = antennaRepository.findAntennaForRange(ipRange);
 		if (foundAntenna != null) {
@@ -458,6 +465,8 @@ public class AddressManagementBean implements AddressManagementService {
 			networkInterface.setRole(NetworkInterfaceRole.ROUTER_LINK);
 			networkInterface.setInterfaceName("Station-Connection-" + (ifNumber++));
 		}
+
+		fillTunnels(station, networkDevice);
 	}
 
 	private void fillRangePair(	final RangePair pair,
@@ -477,7 +486,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -488,9 +497,59 @@ public class AddressManagementBean implements AddressManagementService {
 		return station;
 	}
 
+	private void fillTunnels(final Station station, final NetworkDevice networkDevice) {
+		// setup available tunnel connections
+		final HashSet<Station> foreignTunnelStations;
+		if (station.isTunnelConnection()) {
+			foreignTunnelStations = new HashSet<Station>();
+			for (final Station tunnelStation : stationRepository.findAll()) {
+				foreignTunnelStations.add(tunnelStation);
+			}
+		} else {
+			foreignTunnelStations = new HashSet<Station>(stationRepository.findTunnelConnectionStations());
+		}
+		foreignTunnelStations.remove(station);
+		final Map<Station, IpIpv6Tunnel> configuredTunnels = new HashMap<Station, IpIpv6Tunnel>();
+		for (final IpIpv6Tunnel tunnel : networkDevice.getTunnelBegins()) {
+			final Station partnerStation = tunnel.getEndDevice().getStation();
+			if (partnerStation == null) {
+				ipIpv6TunnelRepository.delete(tunnel);
+			} else {
+				configuredTunnels.put(partnerStation, tunnel);
+			}
+		}
+		for (final IpIpv6Tunnel tunnel : networkDevice.getTunnelEnds()) {
+			final Station partnerStation = tunnel.getStartDevice().getStation();
+			if (partnerStation == null) {
+				ipIpv6TunnelRepository.delete(tunnel);
+			} else {
+				configuredTunnels.put(partnerStation, tunnel);
+			}
+		}
+		for (final Station tunnelPartnerStation : foreignTunnelStations) {
+			final NetworkDevice partnerDevice = tunnelPartnerStation.getDevice();
+			if (partnerDevice == null) {
+				continue;
+			}
+			final IpIpv6Tunnel existingTunnel = configuredTunnels.remove(tunnelPartnerStation);
+			if (existingTunnel == null) {
+				final IpIpv6Tunnel tunnel = new IpIpv6Tunnel();
+				tunnel.setStartDevice(networkDevice);
+				tunnel.setEndDevice(partnerDevice);
+				tunnel.setV4Address(findAndReserveAddressRange(AddressRangeType.TUNNEL, IpAddressType.V4, 30, 32, AddressRangeType.ASSIGNED, null));
+				networkDevice.getTunnelBegins().add(tunnel);
+				partnerDevice.getTunnelEnds().add(tunnel);
+				ipIpv6TunnelRepository.save(tunnel);
+			}
+		}
+		for (final IpIpv6Tunnel tunnel : configuredTunnels.values()) {
+			ipIpv6TunnelRepository.delete(tunnel);
+		}
+	}
+
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -500,7 +559,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -534,7 +593,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -549,7 +608,10 @@ public class AddressManagementBean implements AddressManagementService {
 				final IpRange ipV4ReservationRange = addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
 				final IpRange smallV4Ranges = reserveRange(ipV4ReservationRange, AddressRangeType.ADMINISTRATIVE, 24, "Some small Ranges");
 				reserveRange(smallV4Ranges, AddressRangeType.LOOPBACK, 32, null);
-				reserveRange(smallV4Ranges, AddressRangeType.CONNECTION, 29, null);
+				for (int i = 0; i < 3; i++) {
+					reserveRange(smallV4Ranges, AddressRangeType.CONNECTION, 29, null);
+				}
+				reserveRange(smallV4Ranges, AddressRangeType.TUNNEL, 30, "IpIpv6-Tunnels");
 				reserveRange(ipV4ReservationRange, AddressRangeType.USER, 24, null);
 				final IpRange ipV6SiteLocalReservationRange = addRootRange(Inet6Address.getByName("fd7e:907d:34ab::"), 48, 56, "Internal v6 Range");
 				final IpRange singleRanges = reserveRange(ipV6SiteLocalReservationRange, AddressRangeType.ADMINISTRATIVE, 64, "Ranges for single addresses");
@@ -568,7 +630,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -655,7 +717,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -665,7 +727,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */

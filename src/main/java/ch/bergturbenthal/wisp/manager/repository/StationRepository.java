@@ -1,5 +1,7 @@
 package ch.bergturbenthal.wisp.manager.repository;
 
+import java.util.Collection;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
@@ -13,4 +15,7 @@ public interface StationRepository extends CrudRepository<Station, Long> {
 
 	@Query("select s from CustomerConnection s inner join s.ownNetworks n where n.address.v4Address=?1 or n.address.v6Address=?1")
 	CustomerConnection findStationNetworkForRange(final IpRange range);
+
+	@Query("select s from Station s where tunnelConnection=true")
+	Collection<Station> findTunnelConnectionStations();
 }

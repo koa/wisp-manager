@@ -57,12 +57,13 @@ public class TestHelperBean {
 		ipRangeRepository.delete(ipRangeRepository.findAllRootRanges());
 	}
 
-	public NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name) {
+	public NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name, final boolean tunnelConnection) {
 		final Station station = stationService.addStation(new Position(47.4212786, 8.8859975));
 		final NetworkDevice device = NetworkDevice.createDevice(NetworkDeviceModel.RB750GL, macAddress);
 		station.setDevice(device);
 		station.setName(name);
 		station.setCustomerConnections(new HashSet<CustomerConnection>(Collections.singleton(new CustomerConnection())));
+		station.setTunnelConnection(tunnelConnection);
 		device.setSerialNumber(serial);
 		device.setStation(station);
 		stationService.updateStation(station);

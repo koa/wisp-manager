@@ -42,6 +42,8 @@ import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -59,6 +61,7 @@ import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
 import ch.bergturbenthal.wisp.manager.service.provision.ProvisionBackend;
 import ch.bergturbenthal.wisp.manager.service.provision.SSHUtil;
 import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs.ProvisionNetworkInterface.ProvisionNetworkInterfaceBuilder;
+import ch.bergturbenthal.wisp.manager.service.provision.routeros.ProvisionRouterOs.TunnelEndpoint.TunnelEndpointBuilder;
 
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
@@ -84,6 +87,16 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		private final int v6Mask;
 		private final String v6NetAddress;
 		private final int vlanId;
+	}
+
+	@Data
+	@Builder
+	public static class TunnelEndpoint {
+		private final String ifName;
+		private final String remoteAddress;
+		private final String v4Address;
+		private final int v4Mask;
+		private final String v4NetAddress;
 	}
 
 	private static String CURRENT_OS_VERSION = "6.15";
@@ -115,6 +128,19 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Autowired
 	private FirmwareCache fwCache;
 	private final JSch jSch = new JSch();
+
+	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final NetworkDevice tunnelPartnerDevice, final long addressIndex, final Collection<String> existingNames) {
+		final Station tunnelPartnerStation = tunnelPartnerDevice.getStation();
+		final TunnelEndpointBuilder builder = TunnelEndpoint.builder();
+		builder.ifName(uniqifyName(existingNames, "tunnel-" + tunnelPartnerStation.getName(), 0));
+		builder.remoteAddress(tunnelPartnerStation.getLoopback().getInet6Address().getHostAddress());
+		final IpNetwork localRangeInTunnel = tunnel.getV4Address().getRange();
+		builder.v4Address(localRangeInTunnel.getAddress().getAddressOfNetwork(addressIndex).getHostAddress());
+		builder.v4Mask(localRangeInTunnel.getNetmask());
+		builder.v4NetAddress(localRangeInTunnel.getAddress().getInetAddress().getHostAddress());
+		final TunnelEndpoint endpoint = builder.build();
+		return endpoint;
+	}
 
 	private List<PrintLine> executeListCmd(final Session session, final String cmd, final int numberLength, final int flagLength) throws JSchException, IOException {
 		final ChannelExec cmdChannel = SSHUtil.sendCmd(session, cmd);
@@ -223,6 +249,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				networkInterfaces.add(builder.build());
 			}
 		}
+		final Collection<TunnelEndpoint> tunnelEndpoints = new ArrayList<ProvisionRouterOs.TunnelEndpoint>();
+		for (final IpIpv6Tunnel tunnel : device.getTunnelBegins()) {
+			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getEndDevice(), 1, existingNames));
+		}
+		for (final IpIpv6Tunnel tunnel : device.getTunnelEnds()) {
+			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getStartDevice(), 2, existingNames));
+		}
 
 		final StringBuilder dnsServerList = new StringBuilder();
 		if (device.getDnsServers() != null) {
@@ -236,6 +269,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
 		context.put("networkInterfaces", networkInterfaces);
+		context.put("tunnelEndpoints", tunnelEndpoints);
 		context.put("dnsServers", dnsServerList.toString());
 		final Template template = Velocity.getTemplate("templates/routerboard.vm");
 		final StringWriter stringWriter = new StringWriter();

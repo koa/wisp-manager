@@ -36,7 +36,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 @Data
 @Entity
 @EqualsAndHashCode(exclude = { "station", "antenna" })
-@ToString(exclude = { "station", "antenna" })
+@ToString(exclude = { "station", "antenna", "tunnelBegins", "tunnelEnds" })
 public class NetworkDevice {
 	public static NetworkDevice createDevice(final NetworkDeviceModel model) {
 		return createDevice(model, null);
@@ -64,6 +64,7 @@ public class NetworkDevice {
 
 	@OneToOne(mappedBy = "device")
 	private Antenna antenna;
+
 	private String currentPassword;
 	@Enumerated(EnumType.STRING)
 	@Column(updatable = false, nullable = false)
@@ -89,6 +90,10 @@ public class NetworkDevice {
 	private String serialNumber;
 	@OneToOne(mappedBy = "device")
 	private Station station;
+	@OneToMany(mappedBy = "startDevice", orphanRemoval = true)
+	private List<IpIpv6Tunnel> tunnelBegins = new ArrayList<>();
+	@OneToMany(mappedBy = "endDevice", orphanRemoval = true)
+	private List<IpIpv6Tunnel> tunnelEnds = new ArrayList<>();
 	@Column(columnDefinition = "numeric")
 	private BigInteger v4AddressRaw;
 	@Column(columnDefinition = "numeric")

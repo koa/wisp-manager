@@ -106,7 +106,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
 	 */
 	@Override
@@ -136,6 +136,7 @@ public class DemoSetupBean implements DemoSetupService {
 			appendVlan(stationChalchegg, 1);
 			appendVlan(stationChalchegg, 2);
 			appendVlan(stationChalchegg, 10);
+			stationBerg.setTunnelConnection(true);
 
 			stationService.fillStation(stationBerg);
 			// addressManagementBean.fillStation(stationChalchegg);
