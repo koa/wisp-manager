@@ -42,6 +42,26 @@
 #end	
 #end
 
+# ipv4 dhcp
+
+/ip pool
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address && $interface.dhcpRange)
+	add name=${interface.ifName}_pool ranges=$interface.dhcpRange
+#end	
+#end	
+/ip dhcp-server
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address && $interface.dhcpRange)
+	add address-pool=${interface.ifName}_pool disabled=no interface=${interface.ifName} lease-time=10m name=dhcp_${interface.ifName}
+#end
+#end	
+/ip dhcp-server network	
+#foreach($interface in $networkInterfaces)
+#if($interface.v4Address && $interface.dhcpRange)
+	add address=$interface.dhcpNetwork gateway=$interface.v4Address
+#end	
+#end
 
 /routing ospf network
 	add area=backbone network=$v4Loopback/32

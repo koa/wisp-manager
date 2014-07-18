@@ -67,6 +67,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Data
 	@Builder
 	public static class ProvisionNetworkInterface {
+		private final String dhcpNetwork;
+		private final String dhcpRange;
 		private final String ifName;
 		private final String macAddress;
 		private final String parentIfName;
@@ -127,11 +129,6 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 *
-	 * @see ch.bergturbenthal.wisp.manager.service.provision.routeros.Provision#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
-	 */
 	@Override
 	public String generateConfig(final NetworkDevice device) {
 		final Station station = device.getStation();
@@ -171,9 +168,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							builder.v4NetAddress(v4Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
 						} else {
 							// address is net-address -> select first host-address
-							builder.v4Address(v4Address.getRange().getAddress().getAddressOfNetwork(1).getHostAddress());
+							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
+							builder.v4Address(v4RangeAddress.getAddressOfNetwork(1).getHostAddress());
 							builder.v4Mask(v4Address.getRange().getNetmask());
 							builder.v4NetAddress(inet4Address.getHostAddress());
+							builder.dhcpNetwork(inet4Address.getHostAddress() + "/" + v4Address.getRange().getNetmask());
+							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(2).getHostAddress() + "-"
+																+ v4RangeAddress.getAddressOfNetwork(v4Address.getAvailableReservations() - 2).getHostAddress());
 						}
 					}
 					final InetAddress inet6Address = network.getAddress().getInet6Address();
@@ -362,6 +363,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			}
 			final Session session = jSch.getSession("admin", host.getHostAddress());
 			session.setConfig("StrictHostKeyChecking", "no");
+			session.setPassword(detectedDevice.getCurrentPassword());
 			session.connect();
 			try {
 				SSHUtil.copyToDevice(session, tempFile, new File("manager.auto.rsc"));
