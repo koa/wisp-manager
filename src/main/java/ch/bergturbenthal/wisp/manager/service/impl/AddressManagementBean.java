@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,6 +25,7 @@ import org.springframework.util.CompositeIterator;
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
@@ -292,7 +294,16 @@ public class AddressManagementBean implements AddressManagementService {
 				} else {
 					address = vLan.getAddress();
 				}
+				final boolean addDhcpSettings = address.getV4Address() == null;
 				fillRangePair(address, AddressRangeType.USER, 25, 32, 64, 128, null);
+				if (addDhcpSettings) {
+					final IpRange v4AddressRange = address.getV4Address();
+					final DHCPSettings dhcpSettings = new DHCPSettings();
+					dhcpSettings.setLeaseTime(Long.valueOf(TimeUnit.MINUTES.toMillis(30)));
+					dhcpSettings.setStartIp(new IpAddress(v4AddressRange.getRange().getAddress().getAddressOfNetwork(20)));
+					dhcpSettings.setEndIp(new IpAddress(v4AddressRange.getRange().getAddress().getAddressOfNetwork(100)));
+					vLan.setDhcpSettings(dhcpSettings);
+				}
 				vLan.setAddress(address);
 			}
 			customerConnection.setOwnNetworks(customerNetworks);
@@ -400,6 +411,9 @@ public class AddressManagementBean implements AddressManagementService {
 						final RangePair deviceAddressPair = deviceVlan.getAddress();
 						final RangePair stationAddressPair = vlan.getAddress();
 						if (deviceAddressPair.getV4Address().getParentRange() == stationAddressPair.getV4Address() && deviceAddressPair.getV6Address().getParentRange() == stationAddressPair.getV6Address()) {
+							if (vlan.getDhcpSettings() != null) {
+								deviceVlan.setDhcpSettings(vlan.getDhcpSettings());
+							}
 							// keep if settings are valid
 							continue;
 						} else {
@@ -410,6 +424,9 @@ public class AddressManagementBean implements AddressManagementService {
 					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
 					networks.add(ifaceVlan);
 					ifaceVlan.setNetworkInterface(networkInterface);
+					if (vlan.getDhcpSettings() != null) {
+						ifaceVlan.setDhcpSettings(vlan.getDhcpSettings());
+					}
 				}
 			}
 			networkInterface.setInterfaceName(makeInterfaceName(customerConnection));

@@ -34,9 +34,13 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.joda.time.Duration;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.MacAddress;
@@ -67,7 +71,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Data
 	@Builder
 	public static class ProvisionNetworkInterface {
-		private final String dhcpNetwork;
+		private final String dhcpLeaseTime;
 		private final String dhcpRange;
 		private final String ifName;
 		private final String macAddress;
@@ -83,6 +87,16 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	private static String CURRENT_OS_VERSION = "6.15";
+
+	private static final PeriodFormatter DURATION_FORMAT = new PeriodFormatterBuilder().appendDays()
+																																											.appendSuffix("d")
+																																											.appendHours()
+																																											.appendSuffix("h")
+																																											.appendMinutes()
+																																											.appendSuffix("m")
+																																											.appendSeconds()
+																																											.appendSuffix("s")
+																																											.toFormatter();
 
 	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp", "openflow"));
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
@@ -172,9 +186,15 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							builder.v4Address(v4RangeAddress.getAddressOfNetwork(1).getHostAddress());
 							builder.v4Mask(v4Address.getRange().getNetmask());
 							builder.v4NetAddress(inet4Address.getHostAddress());
-							builder.dhcpNetwork(inet4Address.getHostAddress() + "/" + v4Address.getRange().getNetmask());
+							// add default dhcp range
 							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(2).getHostAddress() + "-"
 																+ v4RangeAddress.getAddressOfNetwork(v4Address.getAvailableReservations() - 2).getHostAddress());
+							builder.dhcpLeaseTime("10m");
+						}
+						final DHCPSettings dhcpSettings = network.getDhcpSettings();
+						if (dhcpSettings != null) {
+							builder.dhcpLeaseTime(DURATION_FORMAT.print(Duration.millis(dhcpSettings.getLeaseTime().longValue()).toPeriod()));
+							builder.dhcpRange(dhcpSettings.getStartIp().getInetAddress().getHostAddress() + "-" + dhcpSettings.getEndIp().getInetAddress().getHostAddress());
 						}
 					}
 					final InetAddress inet6Address = network.getAddress().getInet6Address();

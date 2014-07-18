@@ -24,6 +24,8 @@ public class VLan {
 	private RangePair address;
 	@ManyToOne
 	private CustomerConnection customerConnection;
+	@Embedded
+	private DHCPSettings dhcpSettings;
 	@Id
 	@GeneratedValue
 	private Long id;
