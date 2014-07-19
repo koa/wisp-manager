@@ -99,7 +99,7 @@
     <dependency>
       <groupId>org.vaadin.spring</groupId>
       <artifactId>spring-boot-vaadin</artifactId>
-      <version>0.0.2-SNAPSHOT</version>
+      <version>0.0.2-KOA</version>
     </dependency>
     <!-- <dependency> <groupId>org.vaadin.spring</groupId> <artifactId>spring-vaadin-security</artifactId> 
       <version>0.0.2-SNAPSHOT</version> </dependency> -->
