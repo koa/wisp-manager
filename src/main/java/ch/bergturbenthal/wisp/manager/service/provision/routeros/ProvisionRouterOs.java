@@ -22,6 +22,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
@@ -52,11 +56,13 @@ import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
+import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
+import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
 import ch.bergturbenthal.wisp.manager.service.provision.ProvisionBackend;
 import ch.bergturbenthal.wisp.manager.service.provision.SSHUtil;
@@ -71,6 +77,49 @@ import com.jcraft.jsch.Session;
 @Slf4j
 @Component
 public class ProvisionRouterOs implements ProvisionBackend {
+	@Data
+	@Builder
+	public static class FirewallRule {
+		private final String action;
+		private final String chain;
+		private final String connectionState;
+		private final String dstAddress;
+		private final String dstPort;
+		private final String inInterface;
+		private final String outInterface;
+		private final String protocol;
+		private final String rejectWith;
+		private final String srcAddresses;
+		private final String toAddresses;
+		private final String toPorts;
+
+		public String formatRule() {
+			final StringBuilder sb = new StringBuilder("add");
+			appendField(sb, "action", action);
+			appendField(sb, "chain", chain);
+			appendField(sb, "in-interface", inInterface);
+			appendField(sb, "connection-state", connectionState);
+			appendField(sb, "reject-with", rejectWith);
+			appendField(sb, "dst-address", dstAddress);
+			appendField(sb, "dst-port", dstPort);
+			appendField(sb, "protocol", protocol);
+			appendField(sb, "to-addresses", toAddresses);
+			appendField(sb, "to-ports", toPorts);
+			appendField(sb, "out-interface", outInterface);
+			appendField(sb, "src-address", srcAddresses);
+			return sb.toString();
+		}
+	}
+
+	@Data
+	@Builder
+	public static class PPPoEClient {
+		private String ifName;
+		private String name;
+		private String password;
+		private String userName;
+	}
+
 	@Data
 	@Builder
 	public static class ProvisionNetworkInterface {
@@ -111,11 +160,14 @@ public class ProvisionRouterOs implements ProvisionBackend {
 																																											.appendSuffix("s")
 																																											.toFormatter();
 
+	private static final List<String> FORWARD_FILTER_LIST = Arrays.asList("forward", "input");
+
 	private static Set<String> neededPackages = new HashSet<>(Arrays.asList("security", "ipv6", "system", "dhcp", "routing", "ppp", "openflow"));
+
 	private static Format OS_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/routeros-{1}-{0}.npk");
+
 	private static Format PKG_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/{2}-{0}-{1}.npk");
 	private static final String ROUTEROS_PACKAGE_PREFIX = "routeros-";
-
 	private static final Pattern VALID_CHARS_PATTERNS = Pattern.compile("[A-Za-z0-9]+");
 	static {
 		Velocity.setProperty("resource.loader", "class");
@@ -124,9 +176,24 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		Velocity.init();
 	}
 
+	private static void appendField(final StringBuilder sb, final String key, final String value) {
+		if (value != null) {
+			sb.append(" ");
+			sb.append(key);
+			sb.append("=");
+			sb.append(value);
+		}
+	}
+
+	@Autowired
+	private ScheduledExecutorService executorService;
+
 	@Setter
 	@Autowired
 	private FirmwareCache fwCache;
+	@Setter
+	@Autowired
+	private IpRangeRepository ipRangeRepository;
 	private final JSch jSch = new JSch();
 
 	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final NetworkDevice tunnelPartnerDevice, final long addressIndex, final Collection<String> existingNames) {
@@ -172,7 +239,21 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Override
 	public String generateConfig(final NetworkDevice device) {
 		final Station station = device.getStation();
-		final ArrayList<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
+		final List<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
+		final List<String> dhcpClientInterfaces = new ArrayList<String>();
+		final List<FirewallRule> v4FilterRules = new ArrayList<FirewallRule>();
+		final List<FirewallRule> v4NatRules = new ArrayList<FirewallRule>();
+		final List<FirewallRule> v6FilterRules = new ArrayList<FirewallRule>();
+		for (final String chain : FORWARD_FILTER_LIST) {
+			// IPv6 enabled Rules
+			v6FilterRules.add(FirewallRule.builder().chain(chain).connectionState("established").build());
+			v6FilterRules.add(FirewallRule.builder().chain(chain).connectionState("related").build());
+			v6FilterRules.add(FirewallRule.builder().chain(chain).protocol("icmpv6").build());
+			// IPv4 enabled Rules
+			v4FilterRules.add(FirewallRule.builder().chain(chain).connectionState("established").build());
+			v4FilterRules.add(FirewallRule.builder().chain(chain).connectionState("related").build());
+			v4FilterRules.add(FirewallRule.builder().chain(chain).protocol("icmp").build());
+		}
 		final Collection<String> existingNames = new HashSet<String>();
 		for (final NetworkInterface netIf : device.getInterfaces()) {
 			final String interfaceName = netIf.getInterfaceName();
@@ -181,6 +262,40 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				ifName = uniqifyName(existingNames, "unassigned", 1);
 			} else {
 				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName), 0);
+			}
+			final GatewaySettings gatewaySettings = netIf.getGatewaySettings();
+			if (gatewaySettings != null) {
+				for (final IpRange range : ipRangeRepository.findAllRootRanges()) {
+					final IpAddress address = range.getRange().getAddress();
+					if (address.getAddressType() != IpAddressType.V4) {
+						continue;
+					}
+					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
+					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(ifName).srcAddresses(srcAddresses).build());
+				}
+				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
+				for (final String chain : FORWARD_FILTER_LIST) {
+					v6FilterRules.add(FirewallRule.builder().chain(chain).action("reject").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
+				}
+				switch (gatewaySettings.getGatewayType()) {
+				case HE:
+					break;
+				case LAN: {
+					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder()
+																																										.ifName(ifName)
+																																										.macAddress(netIf.getMacAddress().getAddress().toUpperCase());
+					if (gatewaySettings.isHasIPv4()) {
+						dhcpClientInterfaces.add(ifName);
+					}
+					builder.role(netIf.getRole());
+					networkInterfaces.add(builder.build());
+					continue;
+				}
+				case PPPOE:
+					break;
+				default:
+					break;
+				}
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
 			boolean hasAddressWithoutVlan = false;
@@ -201,41 +316,75 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					final InetAddress inet4Address = network.getAddress().getInet4Address();
 					if (inet4Address != null) {
 						final IpRange v4Address = network.getAddress().getV4Address();
+						final String v4AddressString;
+						final int v4Mask;
+						final String v4NetAddressString;
 						if (v4Address.getRange().getNetmask() == 32) {
 							// address is host-address
-							builder.v4Address(inet4Address.getHostAddress());
-							builder.v4Mask(network.getAddress().getInet4ParentMask());
-							builder.v4NetAddress(v4Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+							v4AddressString = inet4Address.getHostAddress();
+							v4Mask = network.getAddress().getInet4ParentMask();
+							v4NetAddressString = v4Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
 							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
-							builder.v4Address(v4RangeAddress.getAddressOfNetwork(1).getHostAddress());
-							builder.v4Mask(v4Address.getRange().getNetmask());
-							builder.v4NetAddress(inet4Address.getHostAddress());
+							v4AddressString = v4RangeAddress.getAddressOfNetwork(1).getHostAddress();
+							v4Mask = v4Address.getRange().getNetmask();
+							v4NetAddressString = inet4Address.getHostAddress();
 							// add default dhcp range
 							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(2).getHostAddress() + "-"
 																+ v4RangeAddress.getAddressOfNetwork(v4Address.getAvailableReservations() - 2).getHostAddress());
 							builder.dhcpLeaseTime("10m");
 						}
+						builder.v4Address(v4AddressString);
+						builder.v4Mask(v4Mask);
+						builder.v4NetAddress(v4NetAddressString);
 						final DHCPSettings dhcpSettings = network.getDhcpSettings();
 						if (dhcpSettings != null) {
 							builder.dhcpLeaseTime(DURATION_FORMAT.print(Duration.millis(dhcpSettings.getLeaseTime().longValue()).toPeriod()));
 							builder.dhcpRange(dhcpSettings.getStartIp().getInetAddress().getHostAddress() + "-" + dhcpSettings.getEndIp().getInetAddress().getHostAddress());
 						}
+						if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
+							for (final String chain : FORWARD_FILTER_LIST) {
+								v4FilterRules.add(FirewallRule.builder()
+																							.action("reject")
+																							.chain(chain)
+																							.inInterface(ifName)
+																							.rejectWith("icmp-admin-prohibited")
+																							.srcAddresses("!" + v4NetAddressString + "/" + v4Mask)
+																							.build());
+							}
+						}
 					}
 					final InetAddress inet6Address = network.getAddress().getInet6Address();
 					if (inet6Address != null) {
 						final IpRange v6Address = network.getAddress().getV6Address();
+						final String v6AddressString;
+						final int v6Mask;
+						final String v6NetAddressString;
 						if (v6Address.getRange().getNetmask() == 128) {
 							// address is host-address
-							builder.v6Address(inet6Address.getHostAddress());
-							builder.v6Mask(network.getAddress().getInet6ParentMask());
-							builder.v6NetAddress(v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress());
+							v6AddressString = inet6Address.getHostAddress();
+							v6Mask = network.getAddress().getInet6ParentMask();
+							v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
-							builder.v6Address(inet6Address.getHostAddress());
-							builder.v6Mask(v6Address.getRange().getNetmask());
-							builder.v6NetAddress(inet6Address.getHostAddress());
+							v6AddressString = inet6Address.getHostAddress();
+							v6Mask = v6Address.getRange().getNetmask();
+							v6NetAddressString = inet6Address.getHostAddress();
+						}
+						builder.v6Address(v6AddressString);
+						builder.v6Mask(v6Mask);
+						builder.v6NetAddress(v6NetAddressString);
+						if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
+							for (final String chain : FORWARD_FILTER_LIST) {
+								v6FilterRules.add(FirewallRule.builder()
+																							.action("reject")
+																							.chain(chain)
+																							.inInterface(ifName)
+																							.rejectWith("icmp-admin-prohibited")
+																							.srcAddresses("!" + v6NetAddressString + "/" + v6Mask)
+																							.build());
+							}
 						}
 					}
 					builder.role(netIf.getRole());
@@ -271,6 +420,11 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		context.put("networkInterfaces", networkInterfaces);
 		context.put("tunnelEndpoints", tunnelEndpoints);
 		context.put("dnsServers", dnsServerList.toString());
+		context.put("v4FilterRules", v4FilterRules);
+		context.put("v4NatRules", v4NatRules);
+		context.put("v6FilterRules", v6FilterRules);
+		context.put("dhcpClientInterfaces", dhcpClientInterfaces);
+		context.put("d", "$");
 		final Template template = Velocity.getTemplate("templates/routerboard.vm");
 		final StringWriter stringWriter = new StringWriter();
 		template.merge(context, stringWriter);
@@ -421,7 +575,20 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			session.connect();
 			try {
 				SSHUtil.copyToDevice(session, tempFile, new File("manager.auto.rsc"));
-				SSHUtil.sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
+				// SSHUtil.sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
+				final Thread currentThread = Thread.currentThread();
+				final ScheduledFuture<?> timeoutFuture = executorService.schedule(new Runnable() {
+
+					@Override
+					public void run() {
+						currentThread.interrupt();
+					}
+				}, 10, TimeUnit.SECONDS);
+				try {
+					SSHUtil.sendCmdWithoutAnswer(session, "import manager.auto.rsc");
+				} finally {
+					timeoutFuture.cancel(false);
+				}
 			} finally {
 				session.disconnect();
 			}

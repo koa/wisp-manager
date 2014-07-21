@@ -33,6 +33,8 @@ public class Station {
 	private NetworkDevice device;
 	@OneToMany(mappedBy = "endStation", orphanRemoval = true)
 	private List<Connection> endingConnections = new ArrayList<>();
+	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
+	private List<GatewaySettings> gatewaySettings = new ArrayList<GatewaySettings>();
 	@Id
 	@GeneratedValue
 	private Long id;

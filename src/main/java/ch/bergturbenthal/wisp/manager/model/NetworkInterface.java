@@ -11,6 +11,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -22,6 +23,8 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = "networkDevice")
 public class NetworkInterface {
+	@OneToOne
+	private GatewaySettings gatewaySettings;
 	@Id
 	@GeneratedValue
 	private Long id;

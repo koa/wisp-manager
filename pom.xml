@@ -27,15 +27,9 @@
       <url>http://nexus.berg-turbenthal.ch/content/repositories/releases/</url>
     </repository>
     <repository>
-      <id>sonatype-vaadin-snapshots</id>
-      <name>Vaadin snapshot repository</name>
-      <url>http://oss.sonatype.org/content/repositories/vaadin-snapshots/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
+      <id>berg-turbenthal-thirdparty</id>
+      <name>Neptun Third-Party</name>
+      <url>https://nexus.berg-turbenthal.ch/content/repositories/thirdparty//</url>
     </repository>
     <repository>
       <id>vaadin-addons</id>

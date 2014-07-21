@@ -95,7 +95,7 @@ public class SSHUtil {
 			if (line == null) {
 				break;
 			}
-			log.debug(line);
+			log.info(line);
 		}
 		channel.disconnect();
 	}

@@ -13,6 +13,7 @@
 #end
 #end
 /interface vlan
+	remove numbers=[find]
 #foreach($interface in $networkInterfaces)
 #if($interface.parentIfName)
 	add interface=$interface.parentIfName l2mtu=1594 name=$interface.ifName vlan-id=$interface.vlanId
@@ -20,14 +21,19 @@
 #end
 
 /interface ipipv6
+#	remove numbers=[find]
 #foreach($interface in $tunnelEndpoints)
 	add local-address=$v6Loopback mtu=1500 name=$interface.ifName remote-address=$interface.remoteAddress
 #end
 
 
-/interface bridge add name=loopback auto-mac=no admin-mac=01:00:00:00:01:00
+/interface bridge
+	print
+#	remove numbers=[find]
+	add name=loopback auto-mac=no admin-mac=01:00:00:00:01:00
 
 /ip address	
+#	remove numbers=[find]
 # Loopback IP
 	add address=$v4Loopback/32 interface=loopback network=$v4Loopback
 	
@@ -47,6 +53,7 @@
 /routing ospf instance set [ find default=yes ] router-id=$v4Loopback
 
 /routing ospf interface
+	remove numbers=[find dynamic=no]
 #foreach($interface in $tunnelEndpoints)
 	add interface=$interface.ifName network-type=point-to-point
 #end
@@ -57,6 +64,7 @@
 #end
 
 /routing ospf network
+	remove numbers=[find dynamic=no]
 	add area=backbone network=$v4Loopback/32
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address)
@@ -71,27 +79,50 @@
 # ipv4 dhcp
 
 /ip pool
+	remove numbers=[find]
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address && $interface.dhcpRange)
 	add name=${interface.ifName}_pool ranges=$interface.dhcpRange
 #end	
 #end	
 /ip dhcp-server
+	remove numbers=[find]
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address && $interface.dhcpRange)
 	add address-pool=${interface.ifName}_pool disabled=no interface=${interface.ifName} lease-time=$interface.dhcpLeaseTime name=dhcp_${interface.ifName}
 #end
 #end	
 /ip dhcp-server network	
+	remove numbers=[find]
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address && $interface.dhcpRange)
 	add address=$interface.v4NetAddress/$interface.v4Mask gateway=$interface.v4Address
 #end	
 #end
 
+/ip dhcp-client
+	remove numbers=[find]
+#foreach($interface in $dhcpClientInterfaces)
+	add default-route-distance=0 dhcp-options=hostname,clientid disabled=no interface=$interface
+#end
+
+# ipv4 firewall
+
+/ip firewall filter
+	remove numbers=[find]
+#foreach($rule in $v4FilterRules)
+	$rule.formatRule()
+#end
+/ip firewall nat
+	remove numbers=[find]
+#foreach($rule in $v4NatRules)
+	$rule.formatRule()
+#end
+
 #### IPv6 ####
 
 /ipv6 address
+	remove numbers=[find]
 # Loopback IP
 	add address=$v6Loopback/128 interface=loopback advertise=no
 
@@ -106,6 +137,7 @@
  
 /routing ospf-v3 instance set [ find default=yes ] router-id=$v4Loopback
 /routing ospf-v3 interface
+	remove numbers=[find]
 # Loopback
 	add area=backbone interface=loopback passive=yes
 	
@@ -121,6 +153,7 @@
 #end
 
 /ipv6 nd
+	remove numbers=[find default=no]
 #set($first=1)
 #foreach($interface in $networkInterfaces)
 #if($interface.v6Address)
@@ -131,6 +164,13 @@
 	add interface=$interface.ifName advertise-dns=yes
 #end
 #end	
+#end
+
+# IPv6 Firewall
+/ipv6 firewall filter
+	remove numbers=[find]
+#foreach($rule in $v6FilterRules)
+	$rule.formatRule()
 #end
 
 /ip dns

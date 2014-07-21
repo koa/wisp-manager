@@ -27,6 +27,7 @@ import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
@@ -203,6 +204,12 @@ public class AddressManagementBean implements AddressManagementService {
 		return vLan;
 	}
 
+	private void assignGateway(final NetworkInterface networkInterface, final GatewaySettings gatewaySettings) {
+		networkInterface.setGatewaySettings(gatewaySettings);
+		networkInterface.setRole(NetworkInterfaceRole.GATEWAY);
+		networkInterface.setInterfaceName("Gateway " + gatewaySettings.getGatewayName());
+	}
+
 	@Override
 	public CrudRepositoryContainer<IpRange, Long> createIpContainer() {
 		return new IpRangeCrudContainer(ipRangeRepository, IpRange.class);
@@ -341,11 +348,39 @@ public class AddressManagementBean implements AddressManagementService {
 		networkDevice.setDnsServers(dnsServersOfDevice);
 		// collect unassigned interfaces and connections at this station
 		final Set<CustomerConnection> remainingCustomerConnections = new HashSet<CustomerConnection>(station.getCustomerConnections());
+		// collect unassigned gateway settings
+		final Set<GatewaySettings> remainingGatewaySettings = new HashSet<GatewaySettings>();
+		for (final GatewaySettings gateway : station.getGatewaySettings()) {
+			switch (gateway.getGatewayType()) {
+			case LAN:
+			case PPPOE:
+				remainingGatewaySettings.add(gateway);
+				break;
+			default:
+				break;
+			}
+		}
 		final List<NetworkInterface> freeInterfaces = new ArrayList<>();
 		final Set<NetworkInterface> userAssignedInterfaces = new HashSet<>();
 		for (final NetworkInterface networkInterface : emptyIfNull(networkDevice.getInterfaces())) {
 			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
 				continue;
+			}
+			final GatewaySettings gatewaySettings = networkInterface.getGatewaySettings();
+			if (gatewaySettings != null) {
+				switch (gatewaySettings.getGatewayType()) {
+				case LAN:
+				case PPPOE:
+					remainingGatewaySettings.remove(gatewaySettings);
+					networkInterface.getNetworks().clear();
+					assignGateway(networkInterface, gatewaySettings);
+					continue;
+				case HE:
+					// remove -> HE needs no physical interface
+					networkInterface.setGatewaySettings(null);
+					break;
+				default:
+				}
 			}
 			final Set<VLan> networks = networkInterface.getNetworks();
 			if (networks == null || networks.isEmpty()) {
@@ -399,13 +434,16 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 		// assign remaining interfaces to connections
 		final Iterator<NetworkInterface> freeInterfacesIterator = freeInterfaces.iterator();
+		final Iterator<GatewaySettings> remainingGatewayIterator = remainingGatewaySettings.iterator();
+		while (freeInterfacesIterator.hasNext() && remainingGatewayIterator.hasNext()) {
+			final NetworkInterface networkInterface = freeInterfacesIterator.next();
+			final GatewaySettings gatewaySettings = remainingGatewayIterator.next();
+			assignGateway(networkInterface, gatewaySettings);
+		}
+
 		final Iterator<CustomerConnection> remainingCustomerConnectionsIterator = remainingCustomerConnections.iterator();
 		while (freeInterfacesIterator.hasNext() && remainingCustomerConnectionsIterator.hasNext()) {
 			final NetworkInterface networkInterface = freeInterfacesIterator.next();
-			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
-				// only lan interfaces
-				continue;
-			}
 			// setup customer connections
 			final CustomerConnection customerConnection = remainingCustomerConnectionsIterator.next();
 			final Set<VLan> ownNetworks = customerConnection.getOwnNetworks();
@@ -443,10 +481,6 @@ public class AddressManagementBean implements AddressManagementService {
 		int ifNumber = 1;
 		while (freeInterfacesIterator.hasNext()) {
 			final NetworkInterface networkInterface = freeInterfacesIterator.next();
-			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
-				// only lan interfaces
-				continue;
-			}
 			final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
 			if (networks.isEmpty()) {
 				final IpRange v4AddressRange = findAndReserveAddressRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29, 32, AddressRangeType.ASSIGNED, "");

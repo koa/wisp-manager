@@ -14,8 +14,7 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
-import ch.bergturbenthal.wisp.manager.model.Connection;
-import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
@@ -46,17 +45,26 @@ public class TestRouterOsVelocity {
 	public void initData() throws UnknownHostException {
 		testHelperBean.clearData();
 		demoSetupService.initDemoData();
+		for (final Station station : stationService.listAllStations()) {
+			demoSetupService.fillDummyDevice(station);
+			addressManagementBean.fillStation(station);
+			log.info(networkDeviceManagementBean.generateConfig(station.getDevice()));
+		}
 	}
 
 	@Test
 	public void testGenerateRbConfig() throws UnknownHostException {
-		final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", true);
-		final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", false);
-		final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
-		addressManagementBean.fillStation(d2.getStation());
-		addressManagementBean.fillStation(d1.getStation());
-		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
-		log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
+
+		for (final Station station : stationService.listAllStations()) {
+			log.info(networkDeviceManagementBean.generateConfig(station.getDevice()));
+		}
+		// final NetworkDevice d1 = testHelperBean.createStationWithDevice("3B050205B659", "d4ca6dd444f3", "Berg", true);
+		// final NetworkDevice d2 = testHelperBean.createStationWithDevice("3B05027CF736", "d4ca6db5e9e7", "Chalchegg", false);
+		// final Connection connection = connectionService.connectStations(d1.getStation(), d2.getStation());
+		// addressManagementBean.fillStation(d2.getStation());
+		// addressManagementBean.fillStation(d1.getStation());
+		// log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d1.getStation().getId()).getDevice()));
+		// log.info(networkDeviceManagementBean.generateConfig(stationService.findStation(d2.getStation().getId()).getDevice()));
 		// networkDeviceManagementBean.loadConfig(device, InetAddress.getByName("192.168.88.1"));
 	}
 

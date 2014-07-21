@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,12 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
+import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
+import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
@@ -35,6 +39,8 @@ public class DemoSetupBean implements DemoSetupService {
 	private NetworkDeviceManagementService networkDeviceManagementBean;
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
+	@Autowired
+	private StationRepository stationRepository;
 	@Autowired
 	private StationService stationService;
 
@@ -106,7 +112,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
 	 */
 	@Override
@@ -137,8 +143,18 @@ public class DemoSetupBean implements DemoSetupService {
 			appendVlan(stationChalchegg, 2);
 			appendVlan(stationChalchegg, 10);
 			stationBerg.setTunnelConnection(true);
+			final GatewaySettings gateway = new GatewaySettings();
+			gateway.setGatewayName("Cyberlink");
+			gateway.setHasIPv4(true);
+			gateway.setHasIPv6(true);
+			gateway.setStation(stationBerg);
+			gateway.setGatewayType(GatewayType.LAN);
+			stationBerg.getGatewaySettings().add(gateway);
 
 			stationService.fillStation(stationBerg);
+
+			stationRepository.save(Arrays.asList(stationBerg, stationChalchegg, stationFaesigrund, stationSusanne));
+
 			// addressManagementBean.fillStation(stationChalchegg);
 			// addressManagementBean.fillStation(stationSusanne);
 			// addressManagementBean.fillStation(stationFaesigrund);
