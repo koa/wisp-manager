@@ -79,6 +79,27 @@ public class IpAddress implements Serializable {
 		return bigInteger2InetAddress(rawValue);
 	}
 
+	public IpAddress mask(final int maskLength) {
+		final int length;
+		switch (addressType) {
+		case V4:
+			length = 32;
+			break;
+		case V6:
+			length = 128;
+			break;
+		default:
+			throw new IllegalStateException("Unsupported Address-Type " + addressType);
+		}
+		final int bitClearCount = length - maskLength;
+		final BigInteger mask = BigInteger.ONE.shiftLeft(maskLength).subtract(BigInteger.ONE).shiftLeft(bitClearCount);
+		final BigInteger maskedAddress = rawValue.and(mask);
+		if (maskedAddress.equals(rawValue)) {
+			return this;
+		}
+		return new IpAddress(maskedAddress);
+	}
+
 	@Override
 	public String toString() {
 		return String.valueOf(getInetAddress());
