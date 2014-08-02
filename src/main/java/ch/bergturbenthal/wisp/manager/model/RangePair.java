@@ -9,15 +9,16 @@ import javax.persistence.OneToOne;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 
 @Data
 @Embeddable
 @NoArgsConstructor
 @AllArgsConstructor
 public class RangePair {
-	@OneToOne(cascade = CascadeType.ALL)
+	@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
 	private IpRange v4Address;
-	@OneToOne(cascade = CascadeType.ALL)
+	@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
 	private IpRange v6Address;
 
 	public InetAddress getInet4Address() {
@@ -76,5 +77,26 @@ public class RangePair {
 			return -1;
 		}
 		return v6Address.getParentRange().getRange().getNetmask();
+	}
+
+	public IpRange getIpAddress(final IpAddressType type) {
+		switch (type) {
+		case V4:
+			return v4Address;
+		case V6:
+			return v6Address;
+		}
+		return null;
+	}
+
+	public void setIpAddress(final IpRange address, final IpAddressType type) {
+		switch (type) {
+		case V4:
+			v4Address = address;
+			break;
+		case V6:
+			v6Address = address;
+			break;
+		}
 	}
 }

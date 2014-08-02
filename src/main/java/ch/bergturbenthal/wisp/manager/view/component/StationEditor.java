@@ -16,7 +16,9 @@ import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
+import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
@@ -34,12 +36,15 @@ import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.Table.ColumnHeaderMode;
+import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
 @Component
 public class StationEditor extends CustomComponent implements ItemEditor<Station> {
 
+	@Autowired
+	private AddressManagementService addressManagementService;
 	private NetworkDevice currentNetworkDevice;
 	private CrudRepositoryContainer<NetworkDevice, Long> devicesContainer;
 	private FieldGroup fieldGroup;
@@ -96,7 +101,34 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				return getAddressFromVlanItem(source, itemId, false);
+				final TextField textField = new TextField(new Property<String>() {
+
+					@Override
+					public Class<? extends String> getType() {
+						return String.class;
+					}
+
+					@Override
+					public String getValue() {
+						return describeVlanAddress(readVlanValue(source, itemId), false);
+					}
+
+					@Override
+					public boolean isReadOnly() {
+						return false;
+					}
+
+					@Override
+					public void setReadOnly(final boolean newStatus) {
+					}
+
+					@Override
+					public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
+						addressManagementService.setAddressManually(readVlanValue(source, itemId).getAddress(), newValue, IpAddressType.V4);
+					}
+				});
+				textField.setBuffered(false);
+				return textField;
 			}
 		});
 		vlanTable.addGeneratedColumn("v6Address", new ColumnGenerator() {
@@ -106,15 +138,13 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 				return getAddressFromVlanItem(source, itemId, true);
 			}
 		});
-		vlanTable.setVisibleColumns("vlanId", "networkInterface", "v4Address", "v6Address");
+		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address");
 		vlanTable.setColumnCollapsingAllowed(true);
 		vlanTable.setPropertyDataSource(containerProperty);
 		return vlanTable;
 	}
 
-	private Object getAddressFromVlanItem(final Table source, final Object itemId, final boolean v6Address) {
-		final CrudItem<VLan> item = (CrudItem<VLan>) source.getContainerDataSource().getItem(itemId);
-		final VLan bean = item.getPojo();
+	private String describeVlanAddress(final VLan bean, final boolean v6Address) {
 		if (bean == null) {
 			return null;
 		}
@@ -127,6 +157,10 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 			return null;
 		}
 		return inetAddress.getHostAddress() + "/" + (v6Address ? address.getInet6Mask() : address.getInet4Mask());
+	}
+
+	private String getAddressFromVlanItem(final Table source, final Object itemId, final boolean v6Address) {
+		return describeVlanAddress(readVlanValue(source, itemId), v6Address);
 	}
 
 	@Override
@@ -189,6 +223,12 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		mainLayout.addComponent(actionButtonsLayout);
 		setCompositionRoot(mainLayout);
 		mainLayout.setVisible(false);
+	}
+
+	private VLan readVlanValue(final Table source, final Object itemId) {
+		final CrudItem<VLan> item = (CrudItem<VLan>) source.getContainerDataSource().getItem(itemId);
+		final VLan vLan = item.getPojo();
+		return vLan;
 	}
 
 	@Override

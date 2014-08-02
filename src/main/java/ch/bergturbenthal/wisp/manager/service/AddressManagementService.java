@@ -6,6 +6,7 @@ import java.util.List;
 
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
+import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
@@ -41,5 +42,7 @@ public interface AddressManagementService {
 	String describeRangeUser(final IpRange range);
 
 	Iterable<InetAddress> listPossibleNetworkDevices();
+
+	boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType);
 
 }

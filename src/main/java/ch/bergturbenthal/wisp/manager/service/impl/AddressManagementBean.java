@@ -152,7 +152,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -162,7 +162,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -178,11 +178,9 @@ public class AddressManagementBean implements AddressManagementService {
 																					+ ")");
 		}
 		final IpNetwork reserveNetwork = new IpNetwork(new IpAddress(rangeAddress), rangeMask);
-		for (final IpRange range : findAllRootRanges()) {
-			final IpNetwork checkNetwork = range.getRange();
-			if (overlap(checkNetwork, reserveNetwork)) {
-				throw new IllegalArgumentException("new range " + reserveNetwork + " overlaps with existsing " + checkNetwork);
-			}
+		final IpRange foundParentNetwork = findParentRange(reserveNetwork);
+		if (foundParentNetwork != null) {
+			throw new IllegalArgumentException("new range " + reserveNetwork + " overlaps with existsing " + foundParentNetwork);
 		}
 		final IpRange reservationRange = new IpRange(reserveNetwork, reservationMask, AddressRangeType.ROOT);
 		reservationRange.setComment(comment);
@@ -520,7 +518,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -583,7 +581,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -593,7 +591,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -625,9 +623,27 @@ public class AddressManagementBean implements AddressManagementService {
 		return null;
 	}
 
+	private IpRange findParentRange(final IpNetwork reserveNetwork) {
+		return findParentRange(reserveNetwork, findAllRootRanges());
+	}
+
+	private IpRange findParentRange(final IpNetwork reserveNetwork, final Collection<IpRange> collection) {
+		for (final IpRange range : collection) {
+			final IpNetwork checkNetwork = range.getRange();
+			if (overlap(checkNetwork, reserveNetwork)) {
+				final IpRange subRange = findParentRange(reserveNetwork, range.getReservations());
+				if (subRange != null) {
+					return subRange;
+				}
+				return range;
+			}
+		}
+		return null;
+	}
+
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -664,7 +680,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -751,7 +767,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -761,7 +777,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
@@ -795,6 +811,73 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 		// no free reservation found in range
 		return null;
+	}
+
+	@Override
+	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
+		try {
+			final String[] addressParts = address.split("/", 2);
+			final InetAddress inetAddress = InetAddress.getByName(addressParts[0]);
+			final int singleAddressMask;
+			switch (addressType) {
+			case V4:
+				if (!(inetAddress instanceof Inet4Address)) {
+					log.info("Wrong v4-Address: " + address);
+					return false;
+				}
+				singleAddressMask = 32;
+				break;
+			case V6:
+				if (!(inetAddress instanceof Inet6Address)) {
+					log.info("Wrong v6-Address: " + address);
+					return false;
+				}
+				singleAddressMask = 128;
+				break;
+			default:
+				log.info("Unknown Address-Type: " + addressType);
+				return false;
+			}
+			final int addressMask;
+			if (addressParts.length > 1) {
+				addressMask = Integer.parseInt(addressParts[1]);
+			} else {
+				addressMask = singleAddressMask;
+			}
+			final IpNetwork reserveNetwork = new IpNetwork(new IpAddress(inetAddress), addressMask);
+			final IpRange foundParentRange = findParentRange(reserveNetwork);
+			final IpRange reservedRange;
+			if (foundParentRange == null) {
+				// reserve special range
+				if (addressMask > singleAddressMask - 2) {
+					log.info("Cannot create reservation for " + address);
+					return false;
+				}
+				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
+				reservedRange = reserveRange(rootRange, AddressRangeType.ASSIGNED, singleAddressMask, "");
+			} else {
+				final IpNetwork ipNetwork = new IpNetwork(new IpAddress(inetAddress), foundParentRange.getRangeMask());
+				for (final IpRange checkRange : foundParentRange.getReservations()) {
+					if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
+						log.info("Address-Range " + ipNetwork + " is already reserved");
+						return false;
+					}
+				}
+				reservedRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
+				reservedRange.setParentRange(foundParentRange);
+				foundParentRange.getReservations().add(reservedRange);
+				ipRangeRepository.save(reservedRange);
+			}
+			final IpRange oldReservation = addressPair.getIpAddress(addressType);
+			if (oldReservation != null) {
+				ipRangeRepository.delete(oldReservation);
+			}
+			addressPair.setIpAddress(reservedRange, addressType);
+		} catch (final UnknownHostException e) {
+			log.info("Unknown IP Address", e);
+			return false;
+		}
+		return true;
 	}
 
 	private void updateInterfaceTitle(final NetworkInterface networkInterface, final Connection connection) {
