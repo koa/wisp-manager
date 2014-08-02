@@ -1,17 +1,16 @@
 package ch.bergturbenthal.wisp.manager.view.component;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 
 import com.vaadin.data.Property;
-import com.vaadin.data.util.BeanItemContainer;
 import com.vaadin.ui.Table;
 
+@Slf4j
 public class ListPropertyTable<T> extends Table {
 
-	private BeanItemContainer<T> connectionDataSource;
+	private ListPropertyContainer<T> containerDataSource;
 
 	public ListPropertyTable(final Class<T> type) {
 		super();
@@ -23,6 +22,12 @@ public class ListPropertyTable<T> extends Table {
 		initType(type);
 	}
 
+	public ListPropertyTable(final ListPropertyContainer<T> containerDataSource) {
+		super();
+		this.containerDataSource = containerDataSource;
+		setContainerDataSource(containerDataSource);
+	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public Class<Collection<?>> getType() {
@@ -30,31 +35,14 @@ public class ListPropertyTable<T> extends Table {
 	}
 
 	private void initType(final Class<T> type) {
-		connectionDataSource = new BeanItemContainer<>(type);
-		setContainerDataSource(connectionDataSource);
-	}
-
-	private List<T> makeList(final Object value) {
-		if (value instanceof List) {
-			return (List<T>) value;
-		}
-		if (value instanceof Collection) {
-			return new ArrayList<>((Collection) value);
-		}
-		return (List<T>) Collections.singletonList(value);
+		containerDataSource = new ListPropertyContainer<T>(type);
+		setContainerDataSource(containerDataSource);
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void setPropertyDataSource(final Property newDataSource) {
-		@SuppressWarnings("unchecked")
-		final List<T> value = makeList(newDataSource.getValue());
-		connectionDataSource.removeAllItems();
-		if (value != null) {
-			for (final T v : value) {
-				connectionDataSource.addBean(v);
-			}
-		}
+		containerDataSource.setDataSourceProperty(newDataSource);
 		super.setPropertyDataSource(newDataSource);
 	}
 }

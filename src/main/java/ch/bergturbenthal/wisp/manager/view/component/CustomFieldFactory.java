@@ -3,6 +3,7 @@ package ch.bergturbenthal.wisp.manager.view.component;
 import java.util.Locale;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
@@ -11,6 +12,7 @@ import com.vaadin.data.util.converter.Converter;
 import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.Field;
 
+@Slf4j
 @AllArgsConstructor
 public class CustomFieldFactory extends DefaultFieldGroupFieldFactory {
 	private final CrudRepositoryContainer<NetworkDevice, Long> devicesContainer;
@@ -52,6 +54,10 @@ public class CustomFieldFactory extends DefaultFieldGroupFieldFactory {
 				}
 			});
 			return (T) comboBox;
+		}
+		if (dataType.isAssignableFrom(Iterable.class)) {
+			log.info("Iterable: " + dataType);
+			// return new ListPropertyTable<T>(type);
 		}
 		return super.createField(dataType, fieldType);
 	}

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
@@ -22,6 +23,7 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 
 import com.vaadin.data.Item;
+import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.util.BeanItem;
 import com.vaadin.ui.Button;
@@ -33,6 +35,7 @@ import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.Table.ColumnHeaderMode;
 import com.vaadin.ui.VerticalLayout;
+import com.vaadin.ui.Window;
 
 @Component
 public class StationEditor extends CustomComponent implements ItemEditor<Station> {
@@ -53,9 +56,65 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	public StationEditor() {
 	}
 
+	private Table createCustomerConnectionTable() {
+		final ListPropertyContainer<CustomerConnection> listPropertyContainer = new ListPropertyContainer<>(CustomerConnection.class);
+		final Table customerConnectionTable = new ListPropertyTable<>(listPropertyContainer);
+		customerConnectionTable.setPageLength(0);
+		customerConnectionTable.setSizeFull();
+		customerConnectionTable.setCaption("Customer Connection");
+
+		customerConnectionTable.addGeneratedColumn("editConnection", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return new Button("edit", new ClickListener() {
+
+					@Override
+					public void buttonClick(final ClickEvent event) {
+						final Window window = new Window("VLan");
+						window.setModal(true);
+						final Property networksProperty = listPropertyContainer.getContainerProperty(itemId, "ownNetworks");
+						window.setContent(new VerticalLayout(createVlanTable(networksProperty)));
+						window.center();
+						event.getButton().getUI().addWindow(window);
+
+					}
+				});
+			}
+		});
+		customerConnectionTable.setVisibleColumns("name", "editConnection");
+		customerConnectionTable.setEditable(true);
+		return customerConnectionTable;
+	}
+
+	private Table createVlanTable(final Property containerProperty) {
+		final Table vlanTable = new ListPropertyTable<>(VLan.class);
+		vlanTable.setPageLength(0);
+		vlanTable.setSizeFull();
+		vlanTable.setCaption("networks");
+		vlanTable.addGeneratedColumn("v4Address", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return getAddressFromVlanItem(source, itemId, false);
+			}
+		});
+		vlanTable.addGeneratedColumn("v6Address", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return getAddressFromVlanItem(source, itemId, true);
+			}
+		});
+		vlanTable.setVisibleColumns("vlanId", "networkInterface", "v4Address", "v6Address");
+		vlanTable.setColumnCollapsingAllowed(true);
+		vlanTable.setPropertyDataSource(containerProperty);
+		return vlanTable;
+	}
+
 	private Object getAddressFromVlanItem(final Table source, final Object itemId, final boolean v6Address) {
-		final BeanItem<VLan> item = (BeanItem<VLan>) source.getContainerDataSource().getItem(itemId);
-		final VLan bean = item.getBean();
+		final CrudItem<VLan> item = (CrudItem<VLan>) source.getContainerDataSource().getItem(itemId);
+		final VLan bean = item.getPojo();
 		if (bean == null) {
 			return null;
 		}
@@ -104,28 +163,15 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		fieldGroup.bind(connectionTable, "connections");
 		mainLayout.addComponent(connectionTable);
 
-		final Table vlanTable = new ListPropertyTable<>(VLan.class);
-		vlanTable.setPageLength(0);
-		vlanTable.setSizeFull();
-		vlanTable.setCaption("networks");
-		vlanTable.addGeneratedColumn("v4Address", new ColumnGenerator() {
+		final Table customerConnectionTable = createCustomerConnectionTable();
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				return getAddressFromVlanItem(source, itemId, false);
-			}
-		});
-		vlanTable.addGeneratedColumn("v6Address", new ColumnGenerator() {
+		fieldGroup.bind(customerConnectionTable, "customerConnections");
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				return getAddressFromVlanItem(source, itemId, true);
-			}
-		});
-		vlanTable.setVisibleColumns("vlanId", "networkInterface", "v4Address", "v6Address");
-		vlanTable.setColumnCollapsingAllowed(true);
-		// fieldGroup.bind(vlanTable, "ownNetworks");
-		mainLayout.addComponent(vlanTable);
+		mainLayout.addComponent(customerConnectionTable);
+
+		// final Table vlanTable = createVlanTable();
+		// // fieldGroup.bind(vlanTable, "ownNetworks");
+		// mainLayout.addComponent(vlanTable);
 
 		provisionButton = new Button("provision");
 		provisionButton.addClickListener(new ClickListener() {
