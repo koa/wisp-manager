@@ -7,11 +7,15 @@ import java.util.Set;
 
 import javax.annotation.PostConstruct;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
+import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
@@ -28,6 +32,9 @@ import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.util.BeanItem;
+import com.vaadin.data.util.ObjectProperty;
+import com.vaadin.event.Action;
+import com.vaadin.event.Action.Handler;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
@@ -40,6 +47,7 @@ import com.vaadin.ui.TextField;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
+@Slf4j
 @Component
 public class StationEditor extends CustomComponent implements ItemEditor<Station> {
 
@@ -78,11 +86,10 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					public void buttonClick(final ClickEvent event) {
 						final Window window = new Window("VLan");
 						window.setModal(true);
-						final Property networksProperty = listPropertyContainer.getContainerProperty(itemId, "ownNetworks");
-						window.setContent(new VerticalLayout(createVlanTable(networksProperty)));
+						final Table vlanTable = createVlanTable(listPropertyContainer.getItem(itemId));
+						window.setContent(new VerticalLayout(vlanTable));
 						window.center();
 						event.getButton().getUI().addWindow(window);
-
 					}
 				});
 			}
@@ -92,12 +99,8 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		return customerConnectionTable;
 	}
 
-	private Table createVlanTable(final Property containerProperty) {
-		final Table vlanTable = new ListPropertyTable<>(VLan.class);
-		vlanTable.setPageLength(0);
-		vlanTable.setSizeFull();
-		vlanTable.setCaption("networks");
-		vlanTable.addGeneratedColumn("v4Address", new ColumnGenerator() {
+	private ColumnGenerator createVlanAddressEditor(final IpAddressType addressType) {
+		return new ColumnGenerator() {
 
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
@@ -110,7 +113,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 					@Override
 					public String getValue() {
-						return describeVlanAddress(readVlanValue(source, itemId), false);
+						return describeVlanAddress(readVlanValue(source, itemId), addressType);
 					}
 
 					@Override
@@ -124,27 +127,87 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 					@Override
 					public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
-						addressManagementService.setAddressManually(readVlanValue(source, itemId).getAddress(), newValue, IpAddressType.V4);
+						final VLan vlan = readVlanValue(source, itemId);
+						if (vlan.getAddress() == null) {
+							vlan.setAddress(new RangePair());
+						}
+						addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
 					}
 				});
 				textField.setBuffered(false);
 				return textField;
 			}
-		});
-		vlanTable.addGeneratedColumn("v6Address", new ColumnGenerator() {
+		};
+	}
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				return getAddressFromVlanItem(source, itemId, true);
-			}
-		});
+	private Table createVlanTable(final CrudItem<CustomerConnection> customerConnectionItem) {
+		final Table vlanTable = new ListPropertyTable<>(VLan.class);
+		vlanTable.setPageLength(0);
+		vlanTable.setSizeFull();
+		vlanTable.setCaption("networks");
+		vlanTable.addGeneratedColumn("v4Address", createVlanAddressEditor(IpAddressType.V4));
+		vlanTable.addGeneratedColumn("v6Address", createVlanAddressEditor(IpAddressType.V6));
 		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address");
 		vlanTable.setColumnCollapsingAllowed(true);
-		vlanTable.setPropertyDataSource(containerProperty);
+		vlanTable.setPropertyDataSource(customerConnectionItem.getItemProperty("ownNetworks"));
+
+		vlanTable.setImmediate(true);
+		vlanTable.setSelectable(true);
+		vlanTable.setSizeFull();
+		final Action removeAction = new Action("Remove");
+		final Action addAction = new Action("Add");
+		vlanTable.addActionHandler(new Handler() {
+
+			@Override
+			public Action[] getActions(final Object target, final Object sender) {
+				return new Action[] { removeAction, addAction };
+			}
+
+			@Override
+			public void handleAction(final Action action, final Object sender, final Object target) {
+				if (removeAction == action) {
+					final CrudItem<VLan> item = (CrudItem<VLan>) vlanTable.getContainerDataSource().getItem(target);
+					final VLan vlan = item.getPojo();
+					vlan.getCustomerConnection().getOwnNetworks().remove(vlan);
+					vlanTable.refreshRowCache();
+				} else if (addAction == action) {
+					final Window window = new Window("VLan");
+					window.setModal(true);
+					final FormLayout formLayout = new FormLayout();
+					final Property<Integer> vlanId = new ObjectProperty<Integer>(Integer.valueOf(0), Integer.class);
+					formLayout.addComponent(new TextField("VLAN id", vlanId));
+					formLayout.addComponent(new Button("add", new ClickListener() {
+
+						@Override
+						public void buttonClick(final ClickEvent event) {
+							final int selectedValue = vlanId.getValue().intValue();
+							final CustomerConnection customerConnection = customerConnectionItem.getPojo();
+							for (final VLan component : customerConnection.getOwnNetworks()) {
+								if (component.getVlanId() == selectedValue) {
+									window.close();
+									return;
+								}
+							}
+							final VLan vLan = new VLan();
+							vLan.setVlanId(selectedValue);
+							vLan.setCustomerConnection(customerConnection);
+							customerConnection.getOwnNetworks().add(vLan);
+							window.close();
+							vlanTable.refreshRowCache();
+						}
+					}));
+					window.setContent(formLayout);
+					window.center();
+					vlanTable.getUI().addWindow(window);
+
+				}
+			}
+		});
+
 		return vlanTable;
 	}
 
-	private String describeVlanAddress(final VLan bean, final boolean v6Address) {
+	private String describeVlanAddress(final VLan bean, final IpAddressType addressType) {
 		if (bean == null) {
 			return null;
 		}
@@ -152,15 +215,20 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		if (address == null) {
 			return null;
 		}
-		final InetAddress inetAddress = v6Address ? address.getInet6Address() : address.getInet4Address();
+		final IpRange ipAddress = address.getIpAddress(addressType);
+		if (ipAddress == null) {
+			return null;
+		}
+		final IpNetwork range = ipAddress.getRange();
+		final InetAddress inetAddress = range.getAddress().getInetAddress();
 		if (inetAddress == null) {
 			return null;
 		}
-		return inetAddress.getHostAddress() + "/" + (v6Address ? address.getInet6Mask() : address.getInet4Mask());
+		return inetAddress.getHostAddress() + "/" + range.getNetmask();
 	}
 
-	private String getAddressFromVlanItem(final Table source, final Object itemId, final boolean v6Address) {
-		return describeVlanAddress(readVlanValue(source, itemId), v6Address);
+	private String getAddressFromVlanItem(final Table source, final Object itemId, final IpAddressType addressType) {
+		return describeVlanAddress(readVlanValue(source, itemId), addressType);
 	}
 
 	@Override
