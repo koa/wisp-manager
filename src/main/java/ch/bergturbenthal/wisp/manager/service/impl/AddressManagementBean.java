@@ -106,7 +106,8 @@ public class AddressManagementBean implements AddressManagementService {
 
 		@Override
 		public boolean isRoot(final Object itemId) {
-			return loadPojo(itemId).getParentRange() == null;
+			final IpRange ipRange = loadPojo(itemId);
+			return ipRange == null || ipRange.getParentRange() == null;
 		}
 
 		private IpRange loadPojo(final Object itemId) {
@@ -775,6 +776,14 @@ public class AddressManagementBean implements AddressManagementService {
 		dnsServerRepository.delete(address);
 	}
 
+	@Override
+	public void removeRange(final IpRange ipRange) {
+		if (ipRange.getType() != AddressRangeType.ASSIGNED && ipRange.getReservations().isEmpty()) {
+			ipRangeRepository.delete(ipRange);
+		}
+
+	}
+
 	/*
 	 * (non-Javadoc)
 	 *
@@ -816,6 +825,10 @@ public class AddressManagementBean implements AddressManagementService {
 	@Override
 	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
 		try {
+			if (address == null || address.trim().isEmpty()) {
+				addressPair.setIpAddress(null, addressType);
+				return true;
+			}
 			final String[] addressParts = address.split("/", 2);
 			final InetAddress inetAddress = InetAddress.getByName(addressParts[0]);
 			final int singleAddressMask;

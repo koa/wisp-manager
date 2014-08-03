@@ -17,6 +17,8 @@ import com.vaadin.event.ItemClickEvent;
 import com.vaadin.event.ItemClickEvent.ItemClickListener;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
+import com.vaadin.ui.Button;
+import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.Table;
@@ -52,6 +54,16 @@ public class RootRangesView extends CustomComponent implements View {
 		final FieldGroup fieldGroup = new FieldGroup(new BeanItem<IpRange>(new IpRange()));
 		fieldGroup.setBuffered(false);
 		formLayout.addComponent(fieldGroup.buildAndBind("Comment", "comment"));
+		formLayout.addComponent(new Button("remove", new Button.ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				final CrudItem<IpRange> itemDataSource = (CrudItem<IpRange>) fieldGroup.getItemDataSource();
+				final IpRange ipRange = itemDataSource.getPojo();
+				addressManagementBean.removeRange(ipRange);
+				treeTable.refreshRowCache();
+			}
+		}));
 		formLayout.setVisible(false);
 		treeTable.addItemClickListener(new ItemClickListener() {
 

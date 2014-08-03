@@ -31,6 +31,8 @@ public interface AddressManagementService {
 
 	void initAddressRanges();
 
+	void removeRange(final IpRange range);
+
 	Collection<IpAddress> listGlobalDnsServers();
 
 	void removeGlobalDns(final IpAddress address);
