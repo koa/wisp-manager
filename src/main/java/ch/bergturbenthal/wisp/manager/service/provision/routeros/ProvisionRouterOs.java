@@ -23,8 +23,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -575,20 +573,20 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			session.connect();
 			try {
 				SSHUtil.copyToDevice(session, tempFile, new File("manager.auto.rsc"));
-				// SSHUtil.sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
-				final Thread currentThread = Thread.currentThread();
-				final ScheduledFuture<?> timeoutFuture = executorService.schedule(new Runnable() {
-
-					@Override
-					public void run() {
-						currentThread.interrupt();
-					}
-				}, 10, TimeUnit.SECONDS);
-				try {
-					SSHUtil.sendCmdWithoutAnswer(session, "import manager.auto.rsc");
-				} finally {
-					timeoutFuture.cancel(false);
-				}
+				SSHUtil.sendCmdWithoutAnswer(session, "system reset-configuration run-after-reset=manager.auto.rsc");
+				// final Thread currentThread = Thread.currentThread();
+				// final ScheduledFuture<?> timeoutFuture = executorService.schedule(new Runnable() {
+				//
+				// @Override
+				// public void run() {
+				// currentThread.interrupt();
+				// }
+				// }, 10, TimeUnit.SECONDS);
+				// try {
+				// SSHUtil.sendCmdWithoutAnswer(session, "import manager.auto.rsc");
+				// } finally {
+				// timeoutFuture.cancel(false);
+				// }
 			} finally {
 				session.disconnect();
 			}
