@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
+import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -38,6 +40,7 @@ import com.vaadin.event.Action.Handler;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
 import com.vaadin.ui.Button.ClickListener;
+import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.Table;
@@ -47,6 +50,8 @@ import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
+import com.vaadin.ui.Window.CloseEvent;
+import com.vaadin.ui.Window.CloseListener;
 
 @Slf4j
 @Component
@@ -73,6 +78,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	private Table createCustomerConnectionTable() {
 		final ListPropertyContainer<CustomerConnection> listPropertyContainer = new ListPropertyContainer<>(CustomerConnection.class);
 		final Table customerConnectionTable = new ListPropertyTable<>(listPropertyContainer);
+		customerConnectionTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
 		customerConnectionTable.setPageLength(0);
 		customerConnectionTable.setSizeFull();
 		customerConnectionTable.setCaption("Customer Connection");
@@ -110,11 +116,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					station.getCustomerConnections().remove(customerConnection);
 					customerConnectionTable.refreshRowCache();
 				} else if (addAction == action) {
-					final CrudItem<Station> stationItem = (CrudItem<Station>) fieldGroup.getItemDataSource();
-					if (stationItem == null) {
-						return;
-					}
-					final Station station = stationItem.getPojo();
+					final Station station = getCurrentStation();
 					if (station == null) {
 						return;
 					}
@@ -127,6 +129,117 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		});
 
 		return customerConnectionTable;
+	}
+
+	private Table createGatewayTable() {
+		final Table gatewayTable = new ListPropertyTable<>(GatewaySettings.class);
+		gatewayTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
+		gatewayTable.setPageLength(0);
+		gatewayTable.setSizeFull();
+		gatewayTable.setCaption("Gateways");
+		gatewayTable.setEditable(true);
+		gatewayTable.addGeneratedColumn("description", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) source.getContainerDataSource().getItem(itemId);
+				if (gatewayItem == null) {
+					return "";
+				}
+				final GatewaySettings selectedGateway = gatewayItem.getPojo();
+				if (selectedGateway == null) {
+					return "";
+				}
+				final GatewayType gatewayType = selectedGateway.getGatewayType();
+				if (gatewayType == null) {
+					return "";
+				}
+				return gatewayType.name();
+			}
+		});
+		gatewayTable.setVisibleColumns("gatewayName", "description");
+
+		final Action removeAction = new Action("Remove");
+		final Action addAction = new Action("Add");
+		final Action editAction = new Action("Edit");
+
+		gatewayTable.addActionHandler(new Handler() {
+
+			@Override
+			public Action[] getActions(final Object target, final Object sender) {
+				return new Action[] { addAction, editAction, removeAction };
+			}
+
+			@Override
+			public void handleAction(final Action action, final Object sender, final Object target) {
+				if (addAction == action) {
+					final Station station = getCurrentStation();
+					if (station == null) {
+						return;
+					}
+					final GatewaySettings gatewaySettings = new GatewaySettings();
+					gatewaySettings.setStation(station);
+					station.getGatewaySettings().add(gatewaySettings);
+					gatewayTable.refreshRowCache();
+				} else if (removeAction == action) {
+					if (target == null) {
+						return;
+					}
+					final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
+					if (gatewayItem == null) {
+						return;
+					}
+					final GatewaySettings selectedGateway = gatewayItem.getPojo();
+					if (selectedGateway == null) {
+						return;
+					}
+					final Station station = selectedGateway.getStation();
+					if (station == null) {
+						return;
+					}
+					station.getGatewaySettings().remove(selectedGateway);
+					gatewayTable.refreshRowCache();
+				} else if (editAction == action) {
+					if (target == null) {
+						return;
+					}
+					final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
+					if (gatewayItem == null) {
+						return;
+					}
+					final Window window = new Window("Gateway Settings");
+					window.setModal(true);
+					final FormLayout formLayout = new FormLayout();
+					final FieldGroup formFieldGroup = new FieldGroup(gatewayItem);
+					formFieldGroup.setBuffered(false);
+					formFieldGroup.setFieldFactory(new CustomFieldFactory(devicesContainer));
+					final ComboBox gatewayTypeField = new ComboBox("Type", Arrays.asList(GatewayType.values()));
+					gatewayTypeField.setNullSelectionAllowed(false);
+					formFieldGroup.bind(gatewayTypeField, "gatewayType");
+					formLayout.addComponent(gatewayTypeField);
+					formLayout.addComponent(formFieldGroup.buildAndBind("hasIPv4"));
+					formLayout.addComponent(formFieldGroup.buildAndBind("v4Address"));
+					formLayout.addComponent(formFieldGroup.buildAndBind("hasIPv6"));
+					formLayout.addComponent(formFieldGroup.buildAndBind("v6Address"));
+					formLayout.addComponent(formFieldGroup.buildAndBind("userName"));
+					formLayout.addComponent(formFieldGroup.buildAndBind("password"));
+
+					window.setContent(formLayout);
+					window.center();
+					window.addCloseListener(new CloseListener() {
+
+						@Override
+						public void windowClose(final CloseEvent e) {
+							gatewayTable.refreshRowCache();
+						}
+					});
+
+					gatewayTable.getUI().addWindow(window);
+
+				}
+			}
+		});
+		return gatewayTable;
 	}
 
 	private ColumnGenerator createVlanAddressEditor(final IpAddressType addressType) {
@@ -271,6 +384,19 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		return null;
 	}
 
+	private Station getCurrentStation() {
+		final CrudItem<Station> stationItem = getCurrentStationItem();
+		if (stationItem == null) {
+			return null;
+		}
+		return stationItem.getPojo();
+	}
+
+	private CrudItem<Station> getCurrentStationItem() {
+		final CrudItem<Station> stationItem = (CrudItem<Station>) fieldGroup.getItemDataSource();
+		return stationItem;
+	}
+
 	@PostConstruct
 	public void init() {
 		devicesContainer = networkDeviceManagementService.createContainerRepository();
@@ -284,6 +410,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		mainLayout.addComponent(fieldGroup.buildAndBind("device"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("tunnelConnection"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("loopbackDescription"));
+
 		final Table connectionTable = new ListPropertyTable<>(Connection.class);
 		connectionTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
 		connectionTable.setPageLength(0);
@@ -292,11 +419,14 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		connectionTable.setCaption("Connections");
 		fieldGroup.bind(connectionTable, "connections");
 		mainLayout.addComponent(connectionTable);
+
 		final Table customerConnectionTable = createCustomerConnectionTable();
-
 		fieldGroup.bind(customerConnectionTable, "customerConnections");
-
 		mainLayout.addComponent(customerConnectionTable);
+
+		final Table gatewayTable = createGatewayTable();
+		fieldGroup.bind(gatewayTable, "gatewaySettings");
+		mainLayout.addComponent(gatewayTable);
 
 		provisionButton = new Button("provision");
 		provisionButton.addClickListener(new ClickListener() {
