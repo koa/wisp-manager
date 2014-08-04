@@ -282,14 +282,12 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		setSizeFull();
 		mainLayout.addComponent(fieldGroup.buildAndBind("name"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("device"));
+		mainLayout.addComponent(fieldGroup.buildAndBind("tunnelConnection"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("loopbackDescription"));
 		final Table connectionTable = new ListPropertyTable<>(Connection.class);
 		connectionTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
 		connectionTable.setPageLength(0);
 		connectionTable.setVisibleColumns("title");
-		// for (final Object column : connectionTable.getVisibleColumns()) {
-		// connectionTable.setColumnExpandRatio(column, 1);
-		// }
 		connectionTable.setSizeFull();
 		connectionTable.setCaption("Connections");
 		fieldGroup.bind(connectionTable, "connections");
@@ -299,10 +297,6 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		fieldGroup.bind(customerConnectionTable, "customerConnections");
 
 		mainLayout.addComponent(customerConnectionTable);
-
-		// final Table vlanTable = createVlanTable();
-		// // fieldGroup.bind(vlanTable, "ownNetworks");
-		// mainLayout.addComponent(vlanTable);
 
 		provisionButton = new Button("provision");
 		provisionButton.addClickListener(new ClickListener() {
