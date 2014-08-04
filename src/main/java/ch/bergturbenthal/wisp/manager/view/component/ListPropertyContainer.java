@@ -230,7 +230,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 				iterator.next();
 			}
 			if (!iterator.hasNext()) {
-				throw new IndexOutOfBoundsException();
+				throw new IndexOutOfBoundsException("Index " + itemIndex + " is out of bounds");
 			}
 			return iterator.next();
 		}

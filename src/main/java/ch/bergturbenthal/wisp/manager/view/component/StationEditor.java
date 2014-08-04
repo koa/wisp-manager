@@ -44,6 +44,7 @@ import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.Table.ColumnHeaderMode;
 import com.vaadin.ui.TextField;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 
@@ -76,26 +77,55 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		customerConnectionTable.setSizeFull();
 		customerConnectionTable.setCaption("Customer Connection");
 
-		customerConnectionTable.addGeneratedColumn("editConnection", new ColumnGenerator() {
+		customerConnectionTable.setVisibleColumns("name");
+		customerConnectionTable.setEditable(true);
+
+		final Action removeAction = new Action("Remove");
+		final Action addAction = new Action("Add");
+		final Action editAction = new Action("Edit");
+		customerConnectionTable.addActionHandler(new Handler() {
 
 			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				return new Button("edit", new ClickListener() {
+			public Action[] getActions(final Object target, final Object sender) {
+				return new Action[] { addAction, editAction, removeAction };
+			}
 
-					@Override
-					public void buttonClick(final ClickEvent event) {
-						final Window window = new Window("VLan");
-						window.setModal(true);
-						final Table vlanTable = createVlanTable(listPropertyContainer.getItem(itemId));
-						window.setContent(new VerticalLayout(vlanTable));
-						window.center();
-						event.getButton().getUI().addWindow(window);
+			@Override
+			public void handleAction(final Action action, final Object sender, final Object target) {
+				if (editAction == action) {
+					showVLanEditor(listPropertyContainer.getItem(target), getUI());
+				} else if (removeAction == action) {
+					final CrudItem<CustomerConnection> item = listPropertyContainer.getItem(target);
+					if (item == null) {
+						return;
 					}
-				});
+					final CustomerConnection customerConnection = item.getPojo();
+					if (customerConnection == null) {
+						return;
+					}
+					final Station station = customerConnection.getStation();
+					if (station == null) {
+						return;
+					}
+					station.getCustomerConnections().remove(customerConnection);
+					customerConnectionTable.refreshRowCache();
+				} else if (addAction == action) {
+					final CrudItem<Station> stationItem = (CrudItem<Station>) fieldGroup.getItemDataSource();
+					if (stationItem == null) {
+						return;
+					}
+					final Station station = stationItem.getPojo();
+					if (station == null) {
+						return;
+					}
+					final CustomerConnection customerConnection = new CustomerConnection();
+					customerConnection.setStation(station);
+					station.getCustomerConnections().add(customerConnection);
+					customerConnectionTable.refreshRowCache();
+				}
 			}
 		});
-		customerConnectionTable.setVisibleColumns("name", "editConnection");
-		customerConnectionTable.setEditable(true);
+
 		return customerConnectionTable;
 	}
 
@@ -264,7 +294,6 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		connectionTable.setCaption("Connections");
 		fieldGroup.bind(connectionTable, "connections");
 		mainLayout.addComponent(connectionTable);
-
 		final Table customerConnectionTable = createCustomerConnectionTable();
 
 		fieldGroup.bind(customerConnectionTable, "customerConnections");
@@ -318,6 +347,15 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		currentNetworkDevice = item.getPojo().getDevice();
 		provisionButton.setEnabled(currentNetworkDevice != null);
 		mainLayout.setVisible(true);
+	}
+
+	private void showVLanEditor(final CrudItem<CustomerConnection> item, final UI ui) {
+		final Window window = new Window("VLan");
+		window.setModal(true);
+		final Table vlanTable = createVlanTable(item);
+		window.setContent(new VerticalLayout(vlanTable));
+		window.center();
+		ui.addWindow(window);
 	}
 
 }
