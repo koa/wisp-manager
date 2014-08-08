@@ -446,11 +446,12 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						}
 						session.connect();
 						connectedPw = pwCandidate;
+						break;
 					} catch (final JSchException e) {
 						log.trace("wrong password, try next", e);
 					}
 				}
-				if (session == null) {
+				if (session == null || !session.isConnected()) {
 					log.debug("Cannot login into " + host);
 					return null;
 				}
