@@ -238,6 +238,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	public String generateConfig(final NetworkDevice device) {
 		final Station station = device.getStation();
 		final List<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
+		final List<PPPoEClient> pppoeClients = new ArrayList<PPPoEClient>();
 		final List<String> dhcpClientInterfaces = new ArrayList<String>();
 		final List<FirewallRule> v4FilterRules = new ArrayList<FirewallRule>();
 		final List<FirewallRule> v4NatRules = new ArrayList<FirewallRule>();
@@ -263,22 +264,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			}
 			final GatewaySettings gatewaySettings = netIf.getGatewaySettings();
 			if (gatewaySettings != null) {
-				for (final IpRange range : ipRangeRepository.findAllRootRanges()) {
-					final IpAddress address = range.getRange().getAddress();
-					if (address.getAddressType() != IpAddressType.V4) {
-						continue;
-					}
-					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
-					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(ifName).srcAddresses(srcAddresses).build());
-				}
-				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
-				for (final String chain : FORWARD_FILTER_LIST) {
-					v6FilterRules.add(FirewallRule.builder().chain(chain).action("reject").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
-				}
+				final String gatewayIfName;
 				switch (gatewaySettings.getGatewayType()) {
 				case HE:
+					gatewayIfName = ifName;
 					break;
 				case LAN: {
+					gatewayIfName = ifName;
 					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder()
 																																										.ifName(ifName)
 																																										.macAddress(netIf.getMacAddress().getAddress().toUpperCase());
@@ -287,12 +279,38 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					}
 					builder.role(netIf.getRole());
 					networkInterfaces.add(builder.build());
-					continue;
+					break;
 				}
 				case PPPOE:
+					gatewayIfName = uniqifyName(existingNames, stripInterfaceName(gatewaySettings.getGatewayName()), 0);
+					networkInterfaces.add(ProvisionNetworkInterface.builder()
+																													.ifName(ifName)
+																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
+																													.role(netIf.getRole())
+																													.build());
+
+					pppoeClients.add(PPPoEClient.builder()
+																			.ifName(ifName)
+																			.name(gatewayIfName)
+																			.userName(gatewaySettings.getUserName())
+																			.password(gatewaySettings.getPassword())
+																			.build());
 					break;
 				default:
+					gatewayIfName = ifName;
 					break;
+				}
+				for (final IpRange range : ipRangeRepository.findAllRootRanges()) {
+					final IpAddress address = range.getRange().getAddress();
+					if (address.getAddressType() != IpAddressType.V4) {
+						continue;
+					}
+					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
+					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(gatewayIfName).srcAddresses(srcAddresses).build());
+				}
+				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(gatewayIfName).rejectWith("icmp-admin-prohibited").build());
+				for (final String chain : FORWARD_FILTER_LIST) {
+					v6FilterRules.add(FirewallRule.builder().chain(chain).action("reject").inInterface(gatewayIfName).rejectWith("icmp-admin-prohibited").build());
 				}
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
@@ -422,6 +440,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		context.put("v4NatRules", v4NatRules);
 		context.put("v6FilterRules", v6FilterRules);
 		context.put("dhcpClientInterfaces", dhcpClientInterfaces);
+		context.put("pppoeClients", pppoeClients);
 		context.put("d", "$");
 		final Template template = Velocity.getTemplate("templates/routerboard.vm");
 		final StringWriter stringWriter = new StringWriter();
@@ -610,6 +629,9 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	private String stripInterfaceName(final String interfaceName) {
+		if (interfaceName == null || interfaceName.trim().length() == 0) {
+			return "undefined-name";
+		}
 		final Map<Pattern, String> replacements = new HashMap<>();
 		replacements.put(Pattern.compile("[öÖ]"), "oe");
 		replacements.put(Pattern.compile("[äÄ]"), "ae");

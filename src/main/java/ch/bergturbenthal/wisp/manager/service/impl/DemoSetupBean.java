@@ -112,7 +112,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
 	 */
 	@Override
@@ -148,7 +148,9 @@ public class DemoSetupBean implements DemoSetupService {
 			gateway.setHasIPv4(true);
 			gateway.setHasIPv6(true);
 			gateway.setStation(stationBerg);
-			gateway.setGatewayType(GatewayType.LAN);
+			gateway.setGatewayType(GatewayType.PPPOE);
+			gateway.setUserName("pppoe-user");
+			gateway.setPassword("pppoe-password");
 			stationBerg.getGatewaySettings().add(gateway);
 
 			stationService.fillStation(stationBerg);
