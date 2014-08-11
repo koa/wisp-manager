@@ -235,7 +235,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	@Override
-	public String generateConfig(final NetworkDevice device) {
+	public String generateConfig(final NetworkDevice device, final String password) {
 		final Station station = device.getStation();
 		final List<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
 		final List<PPPoEClient> pppoeClients = new ArrayList<PPPoEClient>();
@@ -433,6 +433,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
+		context.put("password", password);
 		context.put("networkInterfaces", networkInterfaces);
 		context.put("tunnelEndpoints", tunnelEndpoints);
 		context.put("dnsServers", dnsServerList.toString());
@@ -570,7 +571,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	@Override
-	public void loadConfig(final NetworkDevice device, final InetAddress host) {
+	public void loadConfig(final NetworkDevice device, final String adminPassword, final InetAddress host) {
 		final HashMap<NetworkDeviceType, Set<String>> pwCandidates = new HashMap<NetworkDeviceType, Set<String>>();
 		pwCandidates.put(	NetworkDeviceType.STATION,
 											device.getCurrentPassword() == null ? Collections.<String> emptySet() : Collections.singleton(device.getCurrentPassword()));
@@ -580,7 +581,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		}
 		try {
 			final File tempFile = File.createTempFile(device.getTitle(), ".rb");
-			final String configContent = generateConfig(device);
+			final String configContent = generateConfig(device, adminPassword);
 			final FileWriter fileWriter = new FileWriter(tempFile);
 			try {
 				fileWriter.write(configContent);
@@ -616,7 +617,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			// waitForReboot(newAddress.getInetAddress());
 			device.setV4Address(newAddress.getInetAddress());
 			device.setV6Address(loopback.getV6Address().getRange().getAddress().getInetAddress());
-			device.setCurrentPassword(station.getAdminPassword());
+			device.setCurrentPassword(adminPassword);
 			device.setProvisioned();
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);

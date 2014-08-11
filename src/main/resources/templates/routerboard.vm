@@ -3,7 +3,7 @@
 
 /system identity set name="Station $station.name"
 
-/user set admin password="$station.adminPassword"
+/user set admin password="$password"
 
 # all interfaces in routing mode
 /interface ethernet
