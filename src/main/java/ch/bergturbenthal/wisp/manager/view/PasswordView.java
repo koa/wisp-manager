@@ -15,6 +15,7 @@ import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.Table;
+import com.vaadin.ui.Table.ColumnGenerator;
 
 @Slf4j
 @VaadinView(name = PasswordView.VIEW_ID)
@@ -39,8 +40,15 @@ public class PasswordView extends CustomComponent implements View {
 
 		};
 		final Table table = new Table("Passwords", repositoryContainer);
+		table.addGeneratedColumn("deviceType", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return String.valueOf(repositoryContainer.getItem(itemId).getItemProperty(columnId));
+			}
+		});
 		table.setVisibleColumns("deviceType", "password");
-		table.setReadOnly(false);
+		table.setEditable(true);
 		table.setSizeFull();
 		table.setPageLength(0);
 		setCompositionRoot(table);
