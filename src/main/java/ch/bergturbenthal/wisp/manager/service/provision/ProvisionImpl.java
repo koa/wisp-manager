@@ -14,15 +14,15 @@ import javax.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.Password;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
-import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
 import ch.bergturbenthal.wisp.manager.repository.AntennaRepository;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
+import ch.bergturbenthal.wisp.manager.repository.PasswordRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 
 @Component
@@ -34,6 +34,8 @@ public class ProvisionImpl implements Provision {
 	private final Map<NetworkOperatingSystem, ProvisionBackend> backendsByOs = new HashMap<NetworkOperatingSystem, ProvisionBackend>();
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
+	@Autowired
+	private PasswordRepository passwordRepository;
 
 	@Autowired
 	private StationRepository stationRepository;
@@ -70,24 +72,10 @@ public class ProvisionImpl implements Provision {
 				}
 			}
 		}
-		for (final Station station : stationRepository.findAll()) {
-			final String adminPassword = station.getAdminPassword();
+		for (final Password password : passwordRepository.findAll()) {
+			final String adminPassword = password.getPassword();
 			if (adminPassword != null) {
-				if (addressInRangePair(station.getLoopback(), host)) {
-					pwCandidates.get(NetworkDeviceType.STATION).add(adminPassword);
-				} else {
-					otherPasswords.get(NetworkDeviceType.STATION).add(adminPassword);
-				}
-			}
-		}
-		for (final Antenna antenna : antennaRepository.findAll()) {
-			final String adminPassword = antenna.getAdminPassword();
-			if (adminPassword != null) {
-				if (addressInRangePair(antenna.getAddresses(), host)) {
-					pwCandidates.get(NetworkDeviceType.ANTENNA).add(adminPassword);
-				} else {
-					otherPasswords.get(NetworkDeviceType.ANTENNA).add(adminPassword);
-				}
+				otherPasswords.get(NetworkDeviceType.STATION).add(adminPassword);
 			}
 		}
 		for (final NetworkDeviceType type : NetworkDeviceType.values()) {
@@ -99,7 +87,15 @@ public class ProvisionImpl implements Provision {
 	@Override
 	public String generateConfig(final NetworkDevice device) {
 		final NetworkOperatingSystem deviceOs = device.getDeviceModel().getDeviceOs();
-		return backendsByOs.get(deviceOs).generateConfig(device);
+		return backendsByOs.get(deviceOs).generateConfig(device, getPasswordForDevice(device));
+	}
+
+	private String getPasswordForDevice(final NetworkDevice device) {
+		final Password password = passwordRepository.findOne(device.getDeviceModel().getDeviceType());
+		if (password == null) {
+			return null;
+		}
+		return password.getPassword();
 	}
 
 	@Override
@@ -117,7 +113,7 @@ public class ProvisionImpl implements Provision {
 	@Override
 	public void loadConfig(final NetworkDevice device, final InetAddress host) {
 		final NetworkOperatingSystem deviceOs = device.getDeviceModel().getDeviceOs();
-		backendsByOs.get(deviceOs).loadConfig(device, host);
+		backendsByOs.get(deviceOs).loadConfig(device, getPasswordForDevice(device), host);
 	}
 
 	@PostConstruct

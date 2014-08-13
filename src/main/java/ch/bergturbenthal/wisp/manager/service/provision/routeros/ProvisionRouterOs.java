@@ -235,9 +235,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	@Override
-	public String generateConfig(final NetworkDevice device) {
+	public String generateConfig(final NetworkDevice device, final String password) {
 		final Station station = device.getStation();
 		final List<ProvisionNetworkInterface> networkInterfaces = new ArrayList<>();
+		final List<PPPoEClient> pppoeClients = new ArrayList<PPPoEClient>();
 		final List<String> dhcpClientInterfaces = new ArrayList<String>();
 		final List<FirewallRule> v4FilterRules = new ArrayList<FirewallRule>();
 		final List<FirewallRule> v4NatRules = new ArrayList<FirewallRule>();
@@ -263,22 +264,13 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			}
 			final GatewaySettings gatewaySettings = netIf.getGatewaySettings();
 			if (gatewaySettings != null) {
-				for (final IpRange range : ipRangeRepository.findAllRootRanges()) {
-					final IpAddress address = range.getRange().getAddress();
-					if (address.getAddressType() != IpAddressType.V4) {
-						continue;
-					}
-					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
-					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(ifName).srcAddresses(srcAddresses).build());
-				}
-				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
-				for (final String chain : FORWARD_FILTER_LIST) {
-					v6FilterRules.add(FirewallRule.builder().chain(chain).action("reject").inInterface(ifName).rejectWith("icmp-admin-prohibited").build());
-				}
+				final String gatewayIfName;
 				switch (gatewaySettings.getGatewayType()) {
 				case HE:
+					gatewayIfName = ifName;
 					break;
 				case LAN: {
+					gatewayIfName = ifName;
 					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder()
 																																										.ifName(ifName)
 																																										.macAddress(netIf.getMacAddress().getAddress().toUpperCase());
@@ -287,12 +279,38 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					}
 					builder.role(netIf.getRole());
 					networkInterfaces.add(builder.build());
-					continue;
+					break;
 				}
 				case PPPOE:
+					gatewayIfName = uniqifyName(existingNames, stripInterfaceName(gatewaySettings.getGatewayName()), 0);
+					networkInterfaces.add(ProvisionNetworkInterface.builder()
+																													.ifName(ifName)
+																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
+																													.role(netIf.getRole())
+																													.build());
+
+					pppoeClients.add(PPPoEClient.builder()
+																			.ifName(ifName)
+																			.name(gatewayIfName)
+																			.userName(gatewaySettings.getUserName())
+																			.password(gatewaySettings.getPassword())
+																			.build());
 					break;
 				default:
+					gatewayIfName = ifName;
 					break;
+				}
+				for (final IpRange range : ipRangeRepository.findAllRootRanges()) {
+					final IpAddress address = range.getRange().getAddress();
+					if (address.getAddressType() != IpAddressType.V4) {
+						continue;
+					}
+					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
+					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(gatewayIfName).srcAddresses(srcAddresses).build());
+				}
+				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(gatewayIfName).rejectWith("icmp-admin-prohibited").build());
+				for (final String chain : FORWARD_FILTER_LIST) {
+					v6FilterRules.add(FirewallRule.builder().chain(chain).action("reject").inInterface(gatewayIfName).rejectWith("icmp-admin-prohibited").build());
 				}
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
@@ -415,6 +433,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		}
 		final VelocityContext context = new VelocityContext();
 		context.put("station", station);
+		context.put("password", password);
 		context.put("networkInterfaces", networkInterfaces);
 		context.put("tunnelEndpoints", tunnelEndpoints);
 		context.put("dnsServers", dnsServerList.toString());
@@ -422,6 +441,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		context.put("v4NatRules", v4NatRules);
 		context.put("v6FilterRules", v6FilterRules);
 		context.put("dhcpClientInterfaces", dhcpClientInterfaces);
+		context.put("pppoeClients", pppoeClients);
 		context.put("d", "$");
 		final Template template = Velocity.getTemplate("templates/routerboard.vm");
 		final StringWriter stringWriter = new StringWriter();
@@ -551,7 +571,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	@Override
-	public void loadConfig(final NetworkDevice device, final InetAddress host) {
+	public void loadConfig(final NetworkDevice device, final String adminPassword, final InetAddress host) {
 		final HashMap<NetworkDeviceType, Set<String>> pwCandidates = new HashMap<NetworkDeviceType, Set<String>>();
 		pwCandidates.put(	NetworkDeviceType.STATION,
 											device.getCurrentPassword() == null ? Collections.<String> emptySet() : Collections.singleton(device.getCurrentPassword()));
@@ -561,7 +581,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		}
 		try {
 			final File tempFile = File.createTempFile(device.getTitle(), ".rb");
-			final String configContent = generateConfig(device);
+			final String configContent = generateConfig(device, adminPassword);
 			final FileWriter fileWriter = new FileWriter(tempFile);
 			try {
 				fileWriter.write(configContent);
@@ -597,7 +617,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			// waitForReboot(newAddress.getInetAddress());
 			device.setV4Address(newAddress.getInetAddress());
 			device.setV6Address(loopback.getV6Address().getRange().getAddress().getInetAddress());
-			device.setCurrentPassword(station.getAdminPassword());
+			device.setCurrentPassword(adminPassword);
 			device.setProvisioned();
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);
@@ -610,6 +630,9 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	}
 
 	private String stripInterfaceName(final String interfaceName) {
+		if (interfaceName == null || interfaceName.trim().length() == 0) {
+			return "undefined-name";
+		}
 		final Map<Pattern, String> replacements = new HashMap<>();
 		replacements.put(Pattern.compile("[öÖ]"), "oe");
 		replacements.put(Pattern.compile("[äÄ]"), "ae");

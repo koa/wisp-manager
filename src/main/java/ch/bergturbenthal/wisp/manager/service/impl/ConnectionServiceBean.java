@@ -64,9 +64,7 @@ public class ConnectionServiceBean implements ConnectionService {
 	}
 
 	private void fillAntenna(final Antenna antenna) {
-		if (antenna.getAdminPassword() == null) {
-			antenna.setAdminPassword(RandomStringUtils.randomAlphanumeric(10));
-		}
+
 	}
 
 	@Override

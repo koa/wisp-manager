@@ -13,6 +13,7 @@ import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
 import ch.bergturbenthal.wisp.manager.view.ConnectionView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
 import ch.bergturbenthal.wisp.manager.view.NetworkDeviceView;
+import ch.bergturbenthal.wisp.manager.view.PasswordView;
 import ch.bergturbenthal.wisp.manager.view.RootRangesView;
 
 import com.vaadin.annotations.Widgetset;
@@ -60,6 +61,7 @@ public class WispManagerUI extends UI {
 		menuEntries.put("Connections", ConnectionView.VIEW_ID);
 		menuEntries.put("Network Devices", NetworkDeviceView.VIEW_ID);
 		menuEntries.put("Network Ranges", RootRangesView.VIEW_ID);
+		menuEntries.put("Password", PasswordView.VIEW_ID);
 
 		for (final Entry<String, String> entry : menuEntries.entrySet()) {
 			final String viewId = entry.getValue();

@@ -18,7 +18,6 @@ import lombok.ToString;
 @EqualsAndHashCode(exclude = { "apBridge", "clientBridge" })
 public class Antenna {
 	private RangePair addresses;
-	private String adminPassword;
 	@OneToOne(mappedBy = "apAntenna")
 	private Bridge apBridge;
 	@OneToOne(mappedBy = "clientAntenna")

@@ -12,6 +12,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -122,9 +124,9 @@ public class ProvisionAirOs implements ProvisionBackend {
 	}
 
 	@Override
-	public String generateConfig(final NetworkDevice device) {
+	public String generateConfig(final NetworkDevice device, final String password) {
 		try {
-			final Properties settings = generateProperties(device);
+			final Properties settings = generateProperties(device, password);
 			final StringWriter writer = new StringWriter();
 			settings.store(writer, "");
 			return writer.toString();
@@ -133,11 +135,11 @@ public class ProvisionAirOs implements ProvisionBackend {
 		}
 	}
 
-	private Properties generateProperties(final NetworkDevice device) throws IOException {
+	private Properties generateProperties(final NetworkDevice device, final String password) throws IOException {
 		final Properties settings = new Properties();
 		settings.load(new ClassPathResource("templates/airos.properties").getInputStream());
 		final Antenna antenna = device.getAntenna();
-		settings.setProperty("users.1.password", Crypt.crypt(antenna.getAdminPassword(), RandomStringUtils.randomAlphanumeric(2)));
+		settings.setProperty("users.1.password", Crypt.crypt(password, RandomStringUtils.randomAlphanumeric(2)));
 		settings.setProperty("users.1.name", "admin");
 		settings.setProperty("users.1.status", "enabled");
 		final Bridge bridge = antenna.getBridge();
@@ -278,7 +280,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 	}
 
 	@Override
-	public void loadConfig(final NetworkDevice device, final InetAddress host) {
+	public void loadConfig(final NetworkDevice device, final String adminPassword, final InetAddress host) {
 		final List<LoginData> logins = possibleLoginsOfDevice(device);
 		final DetectedDevice detectedDevice = identify(host, logins);
 		if (!detectedDevice.getSerialNumber().equals(device.getSerialNumber())) {
@@ -296,7 +298,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 		try {
 			final Session session = connect(host, username, password);
 			final File tempFile = File.createTempFile(device.getTitle(), ".cfg");
-			final Properties properties = generateProperties(device);
+			final Properties properties = generateProperties(device, adminPassword);
 			final FileOutputStream os = new FileOutputStream(tempFile);
 			try {
 				properties.store(os, device.getTitle());
@@ -308,7 +310,7 @@ public class ProvisionAirOs implements ProvisionBackend {
 			SSHUtil.sendCmdWithoutAnswer(session, "ubntconf");
 			SSHUtil.sendCmdWithoutAnswer(session, "reboot");
 			tempFile.delete();
-			device.setCurrentPassword(device.getAntenna().getAdminPassword());
+			device.setCurrentPassword(adminPassword);
 			device.setV4Address(device.getAntenna().getAddresses().getInet4Address());
 			device.setProvisioned();
 
@@ -339,15 +341,13 @@ public class ProvisionAirOs implements ProvisionBackend {
 	}
 
 	private List<LoginData> possibleLoginsOfDevice(final NetworkDevice device) {
-		final List<LoginData> logins = new ArrayList<ProvisionAirOs.LoginData>();
+		final LoginData defaultLogin = new LoginData("ubnt", "ubnt");
 		final String currentPassword = device.getCurrentPassword();
-		if (currentPassword != null) {
-			logins.add(new LoginData(currentPassword, "admin"));
+		if (currentPassword == null) {
+			return Collections.singletonList(defaultLogin);
+		} else {
+			return Arrays.asList(new LoginData(currentPassword, "admin"), defaultLogin);
 		}
-		logins.add(new LoginData("ubnt", "ubnt"));
-		final String adminPassword = device.getAntenna().getAdminPassword();
-		logins.add(new LoginData(adminPassword, "admin"));
-		return logins;
 	}
 
 	private Map<String, String> readBoardInfo(final Session session) throws JSchException {

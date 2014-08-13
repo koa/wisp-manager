@@ -16,11 +16,14 @@ import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.Password;
 import ch.bergturbenthal.wisp.manager.model.Position;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
+import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
+import ch.bergturbenthal.wisp.manager.repository.PasswordRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
@@ -39,6 +42,8 @@ public class DemoSetupBean implements DemoSetupService {
 	private NetworkDeviceManagementService networkDeviceManagementBean;
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
+	@Autowired
+	private PasswordRepository passwordRepository;
 	@Autowired
 	private StationRepository stationRepository;
 	@Autowired
@@ -110,13 +115,17 @@ public class DemoSetupBean implements DemoSetupService {
 		station.setDevice(networkDeviceRepository.save(device));
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see ch.bergturbenthal.wisp.manager.service.impl.DemoSetupService#initDemoData()
-	 */
 	@Override
 	public void initDemoData() {
+		for (final NetworkDeviceType type : NetworkDeviceType.values()) {
+			final Password foundPassword = passwordRepository.findOne(type);
+			if (foundPassword == null) {
+				final Password newPassword = new Password();
+				newPassword.setDeviceType(type);
+				newPassword.setPassword(RandomStringUtils.randomAlphanumeric(6));
+				passwordRepository.save(newPassword);
+			}
+		}
 		addressManagementBean.initAddressRanges();
 		if (stationService.listAllStations().isEmpty()) {
 			final Station stationBerg = createStation("Berg", new Position(47.4196598, 8.8859171));
@@ -148,7 +157,9 @@ public class DemoSetupBean implements DemoSetupService {
 			gateway.setHasIPv4(true);
 			gateway.setHasIPv6(true);
 			gateway.setStation(stationBerg);
-			gateway.setGatewayType(GatewayType.LAN);
+			gateway.setGatewayType(GatewayType.PPPOE);
+			gateway.setUserName("pppoe-user");
+			gateway.setPassword("pppoe-password");
 			stationBerg.getGatewaySettings().add(gateway);
 
 			stationService.fillStation(stationBerg);
