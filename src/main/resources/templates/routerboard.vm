@@ -175,3 +175,5 @@
 
 /ip dns
 set servers=$dnsServers
+
+/system reboot
