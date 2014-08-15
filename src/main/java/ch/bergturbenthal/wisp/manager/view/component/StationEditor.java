@@ -19,6 +19,7 @@ import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
+import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -26,6 +27,7 @@ import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
+import ch.bergturbenthal.wisp.manager.service.StationService;
 import ch.bergturbenthal.wisp.manager.util.CrudItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
@@ -33,7 +35,6 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
-import com.vaadin.data.util.BeanItem;
 import com.vaadin.data.util.ObjectProperty;
 import com.vaadin.event.Action;
 import com.vaadin.event.Action.Handler;
@@ -66,6 +67,8 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
 	private Button provisionButton;
+	@Autowired
+	private StationService stationService;
 
 	/**
 	 * The constructor should first build the main layout, set the composition root and then do any custom initialization.
@@ -400,7 +403,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	@PostConstruct
 	public void init() {
 		devicesContainer = networkDeviceManagementService.createContainerRepository();
-		fieldGroup = new FieldGroup(new BeanItem<Station>(new Station()));
+		fieldGroup = new FieldGroup(stationService.createContainerRepository().getDummyItem());
 		fieldGroup.setFieldFactory(new CustomFieldFactory(devicesContainer));
 		fieldGroup.setBuffered(false);
 		mainLayout = new FormLayout();
@@ -408,6 +411,16 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		setSizeFull();
 		mainLayout.addComponent(fieldGroup.buildAndBind("name"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("device"));
+
+		final ListPropertyTable<NetworkInterface> networkInterfaceTable = new ListPropertyTable<>(NetworkInterface.class);
+		// networkInterfaceTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
+		networkInterfaceTable.setVisibleColumns("interfaceName", "role", "type");
+		networkInterfaceTable.setPageLength(0);
+		networkInterfaceTable.setSizeFull();
+		networkInterfaceTable.setCaption("Connection configuration");
+		fieldGroup.bind(networkInterfaceTable, "device.interfaces");
+		mainLayout.addComponent(networkInterfaceTable);
+
 		mainLayout.addComponent(fieldGroup.buildAndBind("tunnelConnection"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("loopbackDescription"));
 
@@ -439,7 +452,16 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 				}
 			}
 		});
-		final VerticalLayout actionButtonsLayout = new VerticalLayout(provisionButton);
+		final Button fillButton = new Button("fill");
+		fillButton.addClickListener(new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				stationService.fillStation(getCurrentStation());
+
+			}
+		});
+		final VerticalLayout actionButtonsLayout = new VerticalLayout(provisionButton, fillButton);
 		actionButtonsLayout.setCaption("Actions");
 		mainLayout.addComponent(actionButtonsLayout);
 		setCompositionRoot(mainLayout);
