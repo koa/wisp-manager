@@ -29,7 +29,7 @@
     <repository>
       <id>berg-turbenthal-thirdparty</id>
       <name>Neptun Third-Party</name>
-      <url>https://nexus.berg-turbenthal.ch/content/repositories/thirdparty//</url>
+      <url>http://nexus.berg-turbenthal.ch/content/repositories/thirdparty/</url>
     </repository>
     <repository>
       <id>vaadin-addons</id>
