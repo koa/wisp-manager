@@ -28,7 +28,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 
@@ -104,7 +104,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 				if (editAction == action) {
 					showVLanEditor(listPropertyContainer.getItem(target), getUI());
 				} else if (removeAction == action) {
-					final CrudItem<CustomerConnection> item = listPropertyContainer.getItem(target);
+					final PojoItem<CustomerConnection> item = listPropertyContainer.getItem(target);
 					if (item == null) {
 						return;
 					}
@@ -145,7 +145,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) source.getContainerDataSource().getItem(itemId);
+				final PojoItem<GatewaySettings> gatewayItem = (PojoItem<GatewaySettings>) source.getContainerDataSource().getItem(itemId);
 				if (gatewayItem == null) {
 					return "";
 				}
@@ -188,7 +188,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					if (target == null) {
 						return;
 					}
-					final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
+					final PojoItem<GatewaySettings> gatewayItem = (PojoItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
 					if (gatewayItem == null) {
 						return;
 					}
@@ -206,7 +206,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					if (target == null) {
 						return;
 					}
-					final CrudItem<GatewaySettings> gatewayItem = (CrudItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
+					final PojoItem<GatewaySettings> gatewayItem = (PojoItem<GatewaySettings>) gatewayTable.getContainerDataSource().getItem(target);
 					if (gatewayItem == null) {
 						return;
 					}
@@ -286,7 +286,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		};
 	}
 
-	private Table createVlanTable(final CrudItem<CustomerConnection> customerConnectionItem) {
+	private Table createVlanTable(final PojoItem<CustomerConnection> customerConnectionItem) {
 		final Table vlanTable = new ListPropertyTable<>(VLan.class);
 		vlanTable.setPageLength(0);
 		vlanTable.setSizeFull();
@@ -312,7 +312,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 			@Override
 			public void handleAction(final Action action, final Object sender, final Object target) {
 				if (removeAction == action) {
-					final CrudItem<VLan> item = (CrudItem<VLan>) vlanTable.getContainerDataSource().getItem(target);
+					final PojoItem<VLan> item = (PojoItem<VLan>) vlanTable.getContainerDataSource().getItem(target);
 					final VLan vlan = item.getPojo();
 					vlan.getCustomerConnection().getOwnNetworks().remove(vlan);
 					vlanTable.refreshRowCache();
@@ -379,24 +379,24 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public CrudItem<Station> getCurrentItem() {
+	public PojoItem<Station> getCurrentItem() {
 		final Item itemDataSource = fieldGroup.getItemDataSource();
-		if (itemDataSource instanceof CrudItem) {
-			return (CrudItem<Station>) itemDataSource;
+		if (itemDataSource instanceof PojoItem) {
+			return (PojoItem<Station>) itemDataSource;
 		}
 		return null;
 	}
 
 	private Station getCurrentStation() {
-		final CrudItem<Station> stationItem = getCurrentStationItem();
+		final PojoItem<Station> stationItem = getCurrentStationItem();
 		if (stationItem == null) {
 			return null;
 		}
 		return stationItem.getPojo();
 	}
 
-	private CrudItem<Station> getCurrentStationItem() {
-		final CrudItem<Station> stationItem = (CrudItem<Station>) fieldGroup.getItemDataSource();
+	private PojoItem<Station> getCurrentStationItem() {
+		final PojoItem<Station> stationItem = (PojoItem<Station>) fieldGroup.getItemDataSource();
 		return stationItem;
 	}
 
@@ -469,13 +469,13 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	}
 
 	private VLan readVlanValue(final Table source, final Object itemId) {
-		final CrudItem<VLan> item = (CrudItem<VLan>) source.getContainerDataSource().getItem(itemId);
+		final PojoItem<VLan> item = (PojoItem<VLan>) source.getContainerDataSource().getItem(itemId);
 		final VLan vLan = item.getPojo();
 		return vLan;
 	}
 
 	@Override
-	public void setItem(final CrudItem<Station> item) {
+	public void setItem(final PojoItem<Station> item) {
 		fieldGroup.setItemDataSource(item);
 		devicesContainer.removeAllFilters();
 		final Long stationId = item.getPojo().getId();
@@ -495,7 +495,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		mainLayout.setVisible(true);
 	}
 
-	private void showVLanEditor(final CrudItem<CustomerConnection> item, final UI ui) {
+	private void showVLanEditor(final PojoItem<CustomerConnection> item, final UI ui) {
 		final Window window = new Window("VLan");
 		window.setModal(true);
 		final Table vlanTable = createVlanTable(item);

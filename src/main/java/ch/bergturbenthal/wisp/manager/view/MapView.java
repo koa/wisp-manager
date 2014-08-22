@@ -15,7 +15,7 @@ import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.view.component.StationEditor;
 import ch.bergturbenthal.wisp.manager.view.map.GoogleMap;
@@ -116,7 +116,7 @@ public class MapView extends CustomComponent implements View {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
-				final CrudItem<Station> currentItem = stationEditor.getCurrentItem();
+				final PojoItem<Station> currentItem = stationEditor.getCurrentItem();
 				if (currentItem == null) {
 					return;
 				}

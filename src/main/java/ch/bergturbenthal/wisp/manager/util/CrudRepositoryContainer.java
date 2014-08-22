@@ -189,8 +189,8 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 		return properties.keySet();
 	}
 
-	public CrudItem<T> getDummyItem() {
-		return new CrudItem<T>() {
+	public PojoItem<T> getDummyItem() {
+		return new PojoItem<T>() {
 
 			@Override
 			public boolean addItemProperty(final Object id, final Property property) throws UnsupportedOperationException {
@@ -220,8 +220,8 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 	}
 
 	@Override
-	public CrudItem<T> getItem(final Object itemId) {
-		return new CrudItem<T>() {
+	public PojoItem<T> getItem(final Object itemId) {
+		return new PojoItem<T>() {
 
 			@Override
 			public boolean addItemProperty(final Object id, final Property property) throws UnsupportedOperationException {

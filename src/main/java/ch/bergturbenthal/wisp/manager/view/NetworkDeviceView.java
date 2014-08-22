@@ -25,7 +25,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import ch.bergturbenthal.wisp.manager.view.component.InetAddressConverter;
@@ -67,7 +67,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 	@Autowired
 	private StationService stationService;
 
-	private ComboBox createAntennaComboBox(final CrudItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Antenna, Long> antennaContainer) {
+	private ComboBox createAntennaComboBox(final PojoItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Antenna, Long> antennaContainer) {
 		final NetworkDevice networkDevice = deviceItem.getPojo();
 		antennaContainer.removeAllFilters();
 		antennaContainer.addFilter(new PojoFilter<Antenna>() {
@@ -102,7 +102,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		return antennaComboBox;
 	}
 
-	private ComboBox createStationComboBox(final CrudItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Station, Long> stationContainer) {
+	private ComboBox createStationComboBox(final PojoItem<NetworkDevice> deviceItem, final CrudRepositoryContainer<Station, Long> stationContainer) {
 		final NetworkDevice networkDevice = deviceItem.getPojo();
 		stationContainer.removeAllFilters();
 		stationContainer.addFilter(new PojoFilter<Station>() {
@@ -219,7 +219,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 		editDeviceForm.setEnabled(false);
 		deviceSelect.addValueChangeListener(new ValueChangeListener() {
 
-			private TextField createInetAddressField(final CrudItem<NetworkDevice> deviceItem, final String fieldName) {
+			private TextField createInetAddressField(final PojoItem<NetworkDevice> deviceItem, final String fieldName) {
 				final TextField field = withConverter(new TextField(fieldName), InetAddressConverter.getInstance());
 				field.setPropertyDataSource(deviceItem.getItemProperty(fieldName));
 				field.setNullRepresentation("");
@@ -230,7 +230,7 @@ public class NetworkDeviceView extends CustomComponent implements View {
 			public void valueChange(final ValueChangeEvent event) {
 
 				final Long deviceId = (Long) event.getProperty().getValue();
-				final CrudItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
+				final PojoItem<NetworkDevice> deviceItem = devicesContainer.getItem(deviceId);
 				final NetworkDevice networkDevice = deviceItem.getPojo();
 				editDeviceForm.removeAllComponents();
 				editDeviceForm.addComponent(new Label(deviceItem.getItemProperty("title")));

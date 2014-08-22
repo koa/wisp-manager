@@ -1,9 +1,9 @@
 package ch.bergturbenthal.wisp.manager.view.component;
 
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 
 public interface ItemEditor<T> {
-	void setItem(final CrudItem<T> item);
+	void setItem(final PojoItem<T> item);
 
-	CrudItem<T> getCurrentItem();
+	PojoItem<T> getCurrentItem();
 }

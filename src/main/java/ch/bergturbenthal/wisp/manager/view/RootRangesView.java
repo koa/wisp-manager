@@ -8,7 +8,7 @@ import org.vaadin.spring.navigator.VaadinView;
 
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 
 import com.vaadin.data.fieldgroup.FieldGroup;
@@ -58,7 +58,7 @@ public class RootRangesView extends CustomComponent implements View {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
-				final CrudItem<IpRange> itemDataSource = (CrudItem<IpRange>) fieldGroup.getItemDataSource();
+				final PojoItem<IpRange> itemDataSource = (PojoItem<IpRange>) fieldGroup.getItemDataSource();
 				final IpRange ipRange = itemDataSource.getPojo();
 				addressManagementBean.removeRange(ipRange);
 				treeTable.refreshRowCache();
@@ -70,7 +70,7 @@ public class RootRangesView extends CustomComponent implements View {
 			@Override
 			public void itemClick(final ItemClickEvent event) {
 				formLayout.setVisible(true);
-				log.info("clicked at " + ((CrudItem<IpRange>) event.getItem()).getPojo());
+				log.info("clicked at " + ((PojoItem<IpRange>) event.getItem()).getPojo());
 				fieldGroup.setItemDataSource(event.getItem());
 			}
 		});

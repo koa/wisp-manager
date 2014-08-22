@@ -13,7 +13,7 @@ import lombok.Setter;
 
 import org.springframework.beans.BeanUtils;
 
-import ch.bergturbenthal.wisp.manager.util.CrudItem;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Item;
@@ -100,9 +100,9 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	}
 
 	@Override
-	public CrudItem<T> getItem(final Object itemId) {
+	public PojoItem<T> getItem(final Object itemId) {
 		final int itemIndex = ((Integer) itemId).intValue();
-		return new CrudItem<T>() {
+		return new PojoItem<T>() {
 
 			@Override
 			public boolean addItemProperty(final Object id, final Property property) throws UnsupportedOperationException {
