@@ -43,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
@@ -344,8 +345,14 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						} else {
 							// address is net-address -> select first host-address
 							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
-							final Integer expectedV4Offset = network.getExpectedOffsetPair().getExpectedV4Offset();
-							v4AddressString = v4RangeAddress.getAddressOfNetwork(expectedV4Offset == null ? 1 : expectedV4Offset.intValue()).getHostAddress();
+							final int addressIndex;
+							final BigInteger expectedOffset = getExpectedOffset(network, IpAddressType.V4);
+							if (expectedOffset == null) {
+								addressIndex = 1;
+							} else {
+								addressIndex = expectedOffset.intValue();
+							}
+							v4AddressString = v4RangeAddress.getAddressOfNetwork(addressIndex).getHostAddress();
 							v4Mask = v4Address.getRange().getNetmask();
 							v4NetAddressString = inet4Address.getHostAddress();
 							// add default dhcp range
@@ -386,7 +393,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
-							final BigInteger expectedV6Offset = network.getExpectedOffsetPair().getExpectedV6Offset();
+							final BigInteger expectedV6Offset = getExpectedOffset(network, IpAddressType.V6);
 							if (expectedV6Offset == null) {
 								v6AddressString = inet6Address.getHostAddress();
 							} else {
@@ -454,6 +461,17 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		final StringWriter stringWriter = new StringWriter();
 		template.merge(context, stringWriter);
 		return stringWriter.toString();
+	}
+
+	private BigInteger getExpectedOffset(final VLan network, final IpAddressType type) {
+		if (network == null) {
+			return null;
+		}
+		final ExpectedOffsetPair expectedOffsetPair = network.getExpectedOffsetPair();
+		if (expectedOffsetPair == null) {
+			return null;
+		}
+		return expectedOffsetPair.getExpectedOffset(type);
 	}
 
 	@Override
