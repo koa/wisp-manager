@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.view.component;
 
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -14,8 +15,10 @@ import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
+import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -28,9 +31,9 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
+import ch.bergturbenthal.wisp.manager.util.PojoItem;
 
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
@@ -277,7 +280,11 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 						if (vlan.getAddress() == null) {
 							vlan.setAddress(new RangePair());
 						}
-						addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
+						final BigInteger remainingOffset = addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
+						if (vlan.getExpectedOffsetPair() == null) {
+							vlan.setExpectedOffsetPair(new ExpectedOffsetPair());
+						}
+						vlan.getExpectedOffsetPair().setExpectedOffset(remainingOffset, addressType);
 					}
 				});
 				textField.setBuffered(false);
@@ -357,16 +364,28 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		if (bean == null) {
 			return null;
 		}
-		final RangePair address = bean.getAddress();
-		if (address == null) {
+		final RangePair raingePair = bean.getAddress();
+		if (raingePair == null) {
 			return null;
 		}
-		final IpRange ipAddress = address.getIpAddress(addressType);
+		final IpRange ipAddress = raingePair.getIpAddress(addressType);
 		if (ipAddress == null) {
 			return null;
 		}
 		final IpNetwork range = ipAddress.getRange();
-		final InetAddress inetAddress = range.getAddress().getInetAddress();
+		final IpAddress address = range.getAddress();
+		if (address == null) {
+			return null;
+		}
+		final ExpectedOffsetPair offsetPair = bean.getExpectedOffsetPair();
+		if (offsetPair != null) {
+			final BigInteger expectedOffset = offsetPair.getExpectedOffset(addressType);
+			if (expectedOffset != null) {
+				final InetAddress inetAddress = IpAddress.bigInteger2InetAddress(address.getRawValue().add(expectedOffset));
+				return inetAddress.getHostAddress() + "/" + range.getNetmask();
+			}
+		}
+		final InetAddress inetAddress = address.getInetAddress();
 		if (inetAddress == null) {
 			return null;
 		}

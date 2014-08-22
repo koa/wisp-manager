@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.Format;
@@ -343,7 +344,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						} else {
 							// address is net-address -> select first host-address
 							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
-							v4AddressString = v4RangeAddress.getAddressOfNetwork(1).getHostAddress();
+							final Integer expectedV4Offset = network.getExpectedOffsetPair().getExpectedV4Offset();
+							v4AddressString = v4RangeAddress.getAddressOfNetwork(expectedV4Offset == null ? 1 : expectedV4Offset.intValue()).getHostAddress();
 							v4Mask = v4Address.getRange().getNetmask();
 							v4NetAddressString = inet4Address.getHostAddress();
 							// add default dhcp range
@@ -384,7 +386,12 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
-							v6AddressString = inet6Address.getHostAddress();
+							final BigInteger expectedV6Offset = network.getExpectedOffsetPair().getExpectedV6Offset();
+							if (expectedV6Offset == null) {
+								v6AddressString = inet6Address.getHostAddress();
+							} else {
+								v6AddressString = v6Address.getRange().getAddress().getAddressOfNetwork(expectedV6Offset.longValue()).getHostAddress();
+							}
 							v6Mask = v6Address.getRange().getNetmask();
 							v6NetAddressString = inet6Address.getHostAddress();
 						}

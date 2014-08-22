@@ -823,11 +823,16 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	@Override
-	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
+	public BigInteger setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
 		try {
 			if (address == null || address.trim().isEmpty()) {
 				addressPair.setIpAddress(null, addressType);
-				return true;
+				return null;
+			}
+			final IpRange reservationBefore = addressPair.getIpAddress(addressType);
+			if (reservationBefore != null) {
+				ipRangeRepository.delete(reservationBefore);
+				addressPair.setIpAddress(null, addressType);
 			}
 			final String[] addressParts = address.split("/", 2);
 			final InetAddress inetAddress = InetAddress.getByName(addressParts[0]);
@@ -836,20 +841,20 @@ public class AddressManagementBean implements AddressManagementService {
 			case V4:
 				if (!(inetAddress instanceof Inet4Address)) {
 					log.info("Wrong v4-Address: " + address);
-					return false;
+					return null;
 				}
 				singleAddressMask = 32;
 				break;
 			case V6:
 				if (!(inetAddress instanceof Inet6Address)) {
 					log.info("Wrong v6-Address: " + address);
-					return false;
+					return null;
 				}
 				singleAddressMask = 128;
 				break;
 			default:
 				log.info("Unknown Address-Type: " + addressType);
-				return false;
+				return null;
 			}
 			final int addressMask;
 			if (addressParts.length > 1) {
@@ -857,23 +862,24 @@ public class AddressManagementBean implements AddressManagementService {
 			} else {
 				addressMask = singleAddressMask;
 			}
-			final IpNetwork reserveNetwork = new IpNetwork(new IpAddress(inetAddress), addressMask);
+			final IpAddress enteredIpAddress = new IpAddress(inetAddress);
+			final IpNetwork reserveNetwork = new IpNetwork(enteredIpAddress, addressMask);
 			final IpRange foundParentRange = findParentRange(reserveNetwork);
 			final IpRange reservedRange;
 			if (foundParentRange == null) {
 				// reserve special range
 				if (addressMask > singleAddressMask - 2) {
 					log.info("Cannot create reservation for " + address);
-					return false;
+					return null;
 				}
 				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
 				reservedRange = reserveRange(rootRange, AddressRangeType.ASSIGNED, singleAddressMask, "");
 			} else {
-				final IpNetwork ipNetwork = new IpNetwork(new IpAddress(inetAddress), foundParentRange.getRangeMask());
+				final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, foundParentRange.getRangeMask());
 				for (final IpRange checkRange : foundParentRange.getReservations()) {
 					if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
 						log.info("Address-Range " + ipNetwork + " is already reserved");
-						return false;
+						return null;
 					}
 				}
 				reservedRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
@@ -881,16 +887,13 @@ public class AddressManagementBean implements AddressManagementService {
 				foundParentRange.getReservations().add(reservedRange);
 				ipRangeRepository.save(reservedRange);
 			}
-			final IpRange oldReservation = addressPair.getIpAddress(addressType);
-			if (oldReservation != null) {
-				ipRangeRepository.delete(oldReservation);
-			}
 			addressPair.setIpAddress(reservedRange, addressType);
+			final BigInteger networkStartAddress = reservedRange.getRange().getAddress().getRawValue();
+			return enteredIpAddress.getRawValue().subtract(networkStartAddress);
 		} catch (final UnknownHostException e) {
 			log.info("Unknown IP Address", e);
-			return false;
+			return null;
 		}
-		return true;
 	}
 
 	private void updateInterfaceTitle(final NetworkInterface networkInterface, final Connection connection) {

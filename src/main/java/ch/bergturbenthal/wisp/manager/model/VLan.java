@@ -26,6 +26,8 @@ public class VLan {
 	private CustomerConnection customerConnection;
 	@Embedded
 	private DHCPSettings dhcpSettings;
+	@Embedded
+	private ExpectedOffsetPair expectedOffsetPair;
 	@Id
 	@GeneratedValue
 	private Long id;

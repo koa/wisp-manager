@@ -20,12 +20,14 @@ public class ListPropertyTable<T> extends Table {
 	public ListPropertyTable(final Class<T> type, final String caption) {
 		super(caption);
 		initType(type);
+		setSelectable(false);
 	}
 
 	public ListPropertyTable(final ListPropertyContainer<T> containerDataSource) {
 		super();
 		this.containerDataSource = containerDataSource;
 		setContainerDataSource(containerDataSource);
+		setSelectable(false);
 	}
 
 	@Override
