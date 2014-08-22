@@ -116,17 +116,9 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	}
 
-	private Collection<InetAddress> findDnsServers() {
-		final ArrayList<InetAddress> ret = new ArrayList<>();
-		for (final IpAddress entry : addressManagementService.listGlobalDnsServers()) {
-			ret.add(entry.getInetAddress());
-		}
-		return ret;
-	}
-
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#generateConfig(ch.bergturbenthal.wisp.manager.model.NetworkDevice)
 	 */
 	@Override
@@ -137,7 +129,7 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.NetworkManagementService#loadConfig(java.net.InetAddress)
 	 */
 	@Override
@@ -192,6 +184,14 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 		return ret;
 	}
 
+	private Collection<InetAddress> findDnsServers() {
+		final ArrayList<InetAddress> ret = new ArrayList<>();
+		for (final IpAddress entry : addressManagementService.listGlobalDnsServers()) {
+			ret.add(entry.getInetAddress());
+		}
+		return ret;
+	}
+
 	private void setKnownIp(final NetworkDevice device, final InetAddress host) {
 		if (host == null) {
 			return;
@@ -232,5 +232,6 @@ public class NetworkDeviceManagementBean implements NetworkDeviceManagementServi
 			}
 		}
 		deviceEntity.setInterfaces(interfaces);
+		deviceEntity.setCurrentPassword(identifiedDevice.getCurrentPassword());
 	}
 }
