@@ -300,7 +300,7 @@ public class AddressManagementBean implements AddressManagementService {
 				vLan.setCustomerConnection(customerConnection);
 				customerNetworks.add(vLan);
 			}
-			for (final VLan vLan : customerNetworks) {
+			for (final VLan vLan : VLan.sortVLans(customerNetworks)) {
 				final RangePair address;
 				if (vLan.getAddress() == null) {
 					address = new RangePair();
@@ -389,7 +389,7 @@ public class AddressManagementBean implements AddressManagementService {
 			} else {
 				// find connections and stations for this interface
 				final Set<CustomerConnection> foundCustomerConnections = new HashSet<>();
-				for (final VLan vLan : networks) {
+				for (final VLan vLan : VLan.sortVLans(networks)) {
 					final RangePair connectionAddress = vLan.getAddress();
 					if (connectionAddress == null) {
 						continue;
@@ -449,7 +449,7 @@ public class AddressManagementBean implements AddressManagementService {
 			if (ownNetworks != null && !ownNetworks.isEmpty()) {
 				final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
 				final Map<Integer, VLan> networksByVlan = orderNetworksByVlan(networks);
-				for (final VLan vlan : ownNetworks) {
+				for (final VLan vlan : VLan.sortVLans(ownNetworks)) {
 					final VLan deviceVlan = networksByVlan.get(vlan.getVlanId());
 					if (deviceVlan != null) {
 						final RangePair deviceAddressPair = deviceVlan.getAddress();
@@ -488,6 +488,8 @@ public class AddressManagementBean implements AddressManagementService {
 				final VLan vLan = new VLan();
 				vLan.setAddress(rangePair);
 				networks.add(vLan);
+				vLan.setNetworkInterface(networkInterface);
+				networkInterface.setNetworks(networks);
 			}
 			// TODO Assign new ranges and set a title on every connection
 			// final VLan vLan = appendVlan(0, connection.getAddresses());
@@ -569,7 +571,8 @@ public class AddressManagementBean implements AddressManagementService {
 				final IpIpv6Tunnel tunnel = new IpIpv6Tunnel();
 				tunnel.setStartDevice(networkDevice);
 				tunnel.setEndDevice(partnerDevice);
-				tunnel.setV4Address(findAndReserveAddressRange(AddressRangeType.TUNNEL, IpAddressType.V4, 30, 32, AddressRangeType.ASSIGNED, null));
+				final IpRange tunnelAddressRange = findAndReserveAddressRange(AddressRangeType.TUNNEL, IpAddressType.V4, 30, 32, AddressRangeType.ASSIGNED, null);
+				tunnel.setV4Address(tunnelAddressRange);
 				networkDevice.getTunnelBegins().add(tunnel);
 				partnerDevice.getTunnelEnds().add(tunnel);
 				ipIpv6TunnelRepository.save(tunnel);

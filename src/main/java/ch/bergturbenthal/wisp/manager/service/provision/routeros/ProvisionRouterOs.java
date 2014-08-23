@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +33,7 @@ import lombok.Setter;
 import lombok.experimental.Builder;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
@@ -317,7 +319,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
 			boolean hasAddressWithoutVlan = false;
-			for (final VLan network : netIf.getNetworks()) {
+			for (final VLan network : VLan.sortVLans(netIf.getNetworks())) {
 				if (network.getAddress() != null) {
 					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder();
 					if (network.getVlanId() == 0) {
@@ -435,14 +437,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		for (final IpIpv6Tunnel tunnel : device.getTunnelEnds()) {
 			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getStartDevice(), 2, existingNames));
 		}
-
-		final StringBuilder dnsServerList = new StringBuilder();
+		final Set<String> dnsServers = new TreeSet<String>();
 		if (device.getDnsServers() != null) {
 			for (final IpAddress ipAddress : device.getDnsServers()) {
-				if (dnsServerList.length() > 0) {
-					dnsServerList.append(",");
-				}
-				dnsServerList.append(ipAddress.getInetAddress().getHostAddress());
+				dnsServers.add(ipAddress.getInetAddress().getHostAddress());
 			}
 		}
 		final VelocityContext context = new VelocityContext();
@@ -450,7 +448,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		context.put("password", password);
 		context.put("networkInterfaces", networkInterfaces);
 		context.put("tunnelEndpoints", tunnelEndpoints);
-		context.put("dnsServers", dnsServerList.toString());
+		context.put("dnsServers", StringUtils.join(dnsServers, ','));
 		context.put("v4FilterRules", v4FilterRules);
 		context.put("v4NatRules", v4NatRules);
 		context.put("v6FilterRules", v6FilterRules);

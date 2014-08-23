@@ -1,9 +1,11 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,7 @@ public class DemoSetupBean implements DemoSetupService {
 	private AddressManagementService addressManagementBean;
 	@Autowired
 	private ConnectionService connectionService;
+	private final AtomicInteger deviceCounter = new AtomicInteger(2);
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementBean;
 	@Autowired
@@ -46,6 +49,7 @@ public class DemoSetupBean implements DemoSetupService {
 	private PasswordRepository passwordRepository;
 	@Autowired
 	private StationRepository stationRepository;
+
 	@Autowired
 	private StationService stationService;
 
@@ -70,7 +74,11 @@ public class DemoSetupBean implements DemoSetupService {
 	}
 
 	private NetworkDevice createRandomDevice(final NetworkDeviceModel type) {
-		final NetworkDevice device = NetworkDevice.createDevice(type, RandomStringUtils.random(12, "0123456789abcdef"));
+		final int deviceNr = deviceCounter.incrementAndGet();
+		final String hexNr = Integer.toHexString(deviceNr);
+		final String part = hexNr.length() == 1 ? "0" + hexNr : hexNr;
+		final MessageFormat macFormat = new MessageFormat("B2:8E:{0}:FA:70:90");
+		final NetworkDevice device = NetworkDevice.createDevice(type, macFormat.format(new Object[] { part }));
 		device.setSerialNumber(RandomStringUtils.random(12, "0123456789abcdef"));
 		return device;
 	}
@@ -117,6 +125,7 @@ public class DemoSetupBean implements DemoSetupService {
 
 	@Override
 	public void initDemoData() {
+		deviceCounter.set(2);
 		for (final NetworkDeviceType type : NetworkDeviceType.values()) {
 			final Password foundPassword = passwordRepository.findOne(type);
 			if (foundPassword == null) {
