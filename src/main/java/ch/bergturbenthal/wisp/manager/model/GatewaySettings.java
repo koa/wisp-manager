@@ -18,6 +18,8 @@ import lombok.ToString;
 @EqualsAndHashCode(exclude = "station")
 @ToString(exclude = "station")
 public class GatewaySettings {
+	@Embedded
+	private ExpectedOffsetPair expectedOffsetPair;
 	private String gatewayName;
 	private GatewayType gatewayType;
 	private boolean hasIPv4;
@@ -30,11 +32,13 @@ public class GatewaySettings {
 	private Station station;
 	private String userName;
 	@Embedded
-	@AttributeOverrides({ @AttributeOverride(name = "addressType", column = @Column(name = "v4_address_type")),
-												@AttributeOverride(name = "rawValue", column = @Column(name = "v4_raw_value")) })
-	private IpAddress v4Address;
+	@AttributeOverrides({ @AttributeOverride(name = "address.addressType", column = @Column(name = "v4_address_type")),
+												@AttributeOverride(name = "address.rawValue", column = @Column(name = "v4_raw_value")),
+												@AttributeOverride(name = "netmask", column = @Column(name = "v4_mask")) })
+	private IpNetwork v4Address;
 	@Embedded
-	@AttributeOverrides({ @AttributeOverride(name = "addressType", column = @Column(name = "v6_address_type")),
-												@AttributeOverride(name = "rawValue", column = @Column(name = "v6_raw_value")) })
-	private IpAddress v6Address;
+	@AttributeOverrides({ @AttributeOverride(name = "address.addressType", column = @Column(name = "v6_address_type")),
+												@AttributeOverride(name = "address.rawValue", column = @Column(name = "v6_raw_value")),
+												@AttributeOverride(name = "netmask", column = @Column(name = "v6_mask")) })
+	private IpNetwork v6Address;
 }

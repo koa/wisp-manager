@@ -287,11 +287,22 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				}
 				case PPPOE:
 					gatewayIfName = uniqifyName(existingNames, stripInterfaceName(gatewaySettings.getGatewayName()), 0);
-					networkInterfaces.add(ProvisionNetworkInterface.builder()
-																													.ifName(ifName)
-																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
-																													.role(netIf.getRole())
-																													.build());
+					final ProvisionNetworkInterfaceBuilder baseIfBuilder = ProvisionNetworkInterface.builder()
+																																													.ifName(ifName)
+																																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
+																																													.role(netIf.getRole());
+					final ExpectedOffsetPair expectedOffsetPair = gatewaySettings.getExpectedOffsetPair();
+					final IpNetwork gatewayV4Address = gatewaySettings.getV4Address();
+					if (gatewayV4Address != null) {
+						final Integer expectedV4Offset = expectedOffsetPair == null ? null : expectedOffsetPair.getExpectedV4Offset();
+						final int v4Offset = expectedV4Offset == null ? 1 : expectedV4Offset.intValue();
+						final IpAddress v4GatewayAddress = gatewayV4Address.getAddress();
+						final InetAddress inetAddress = IpAddress.bigInteger2InetAddress(v4GatewayAddress.getRawValue().add(BigInteger.valueOf(v4Offset)));
+						baseIfBuilder.v4Address(inetAddress.getHostAddress());
+						baseIfBuilder.v4Mask(gatewayV4Address.getNetmask());
+						baseIfBuilder.v4NetAddress(v4GatewayAddress.getInetAddress().getHostAddress());
+					}
+					networkInterfaces.add(baseIfBuilder.build());
 
 					pppoeClients.add(PPPoEClient.builder()
 																			.ifName(ifName)
