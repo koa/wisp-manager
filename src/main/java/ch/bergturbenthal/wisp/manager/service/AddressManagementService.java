@@ -1,10 +1,10 @@
 package ch.bergturbenthal.wisp.manager.service;
 
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
 
+import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
@@ -46,6 +46,6 @@ public interface AddressManagementService {
 
 	Iterable<InetAddress> listPossibleNetworkDevices();
 
-	BigInteger setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType);
+	boolean setAddressManually(final RangePair addressPair, ExpectedOffsetPair offsetPair, final String address, final IpAddressType addressType);
 
 }

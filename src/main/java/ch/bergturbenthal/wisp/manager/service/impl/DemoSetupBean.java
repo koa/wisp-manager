@@ -1,7 +1,5 @@
 package ch.bergturbenthal.wisp.manager.service.impl;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,15 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
-import ch.bergturbenthal.wisp.manager.model.IpAddress;
-import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Password;
 import ch.bergturbenthal.wisp.manager.model.Position;
+import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
+import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
@@ -129,67 +128,65 @@ public class DemoSetupBean implements DemoSetupService {
 
 	@Override
 	public void initDemoData() {
-		try {
-			deviceCounter.set(2);
-			for (final NetworkDeviceType type : NetworkDeviceType.values()) {
-				final Password foundPassword = passwordRepository.findOne(type);
-				if (foundPassword == null) {
-					final Password newPassword = new Password();
-					newPassword.setDeviceType(type);
-					newPassword.setPassword(RandomStringUtils.randomAlphanumeric(6));
-					passwordRepository.save(newPassword);
-				}
+		deviceCounter.set(2);
+		for (final NetworkDeviceType type : NetworkDeviceType.values()) {
+			final Password foundPassword = passwordRepository.findOne(type);
+			if (foundPassword == null) {
+				final Password newPassword = new Password();
+				newPassword.setDeviceType(type);
+				newPassword.setPassword(RandomStringUtils.randomAlphanumeric(6));
+				passwordRepository.save(newPassword);
 			}
-			addressManagementBean.initAddressRanges();
-			if (stationService.listAllStations().isEmpty()) {
-				final Station stationBerg = createStation("Berg", new Position(47.4196598, 8.8859171));
-				final Station stationChalchegg = createStation("Chalchegg", new Position(47.4113853, 8.9027828));
-				final Station stationSusanne = createStation("Susanne", new Position(47.4186617, 8.8852251));
-				final Station stationFaesigrund = createStation("Fäsigrund", new Position(47.4273742, 8.9079165));
+		}
+		addressManagementBean.initAddressRanges();
+		if (stationService.listAllStations().isEmpty()) {
+			final Station stationBerg = createStation("Berg", new Position(47.4196598, 8.8859171));
+			final Station stationChalchegg = createStation("Chalchegg", new Position(47.4113853, 8.9027828));
+			final Station stationSusanne = createStation("Susanne", new Position(47.4186617, 8.8852251));
+			final Station stationFaesigrund = createStation("Fäsigrund", new Position(47.4273742, 8.9079165));
 
-				// final IpRange bergRootRange = addressManagementBean.addRootRange(InetAddress.getByName("10.14.0.0"), 16, 16, "Reservation König Berg");
-				// final IpRange bergUserRange = addressManagementBean.reserveRange(bergRootRange, AddressRangeType.USER, 32, "Internal Berg");
-				// final IpRange routerIp = addressManagementBean.reserveRange(bergUserRange, AddressRangeType.ASSIGNED, 32, "Router Address");
+			// final IpRange bergRootRange = addressManagementBean.addRootRange(InetAddress.getByName("10.14.0.0"), 16, 16, "Reservation König Berg");
+			// final IpRange bergUserRange = addressManagementBean.reserveRange(bergRootRange, AddressRangeType.USER, 32, "Internal Berg");
+			// final IpRange routerIp = addressManagementBean.reserveRange(bergUserRange, AddressRangeType.ASSIGNED, 32, "Router Address");
 
-				// final Set<VLan> bergNetworks = stationBerg.getOwnNetworks();
-				// final VLan vlan1Berg = new VLan();
-				// vlan1Berg.setVlanId(1);
-				// vlan1Berg.setAddress(new RangePair(bergUserRange, null));
-				// bergNetworks.add(vlan1Berg);
-				// vlan1Berg.setStation(stationBerg);
+			// final Set<VLan> bergNetworks = stationBerg.getOwnNetworks();
+			// final VLan vlan1Berg = new VLan();
+			// vlan1Berg.setVlanId(1);
+			// vlan1Berg.setAddress(new RangePair(bergUserRange, null));
+			// bergNetworks.add(vlan1Berg);
+			// vlan1Berg.setStation(stationBerg);
 
-				final Connection connection1 = connectionService.connectStations(stationBerg, stationChalchegg);
-				final Connection connection2 = connectionService.connectStations(stationSusanne, stationFaesigrund);
-				final Connection connection3 = connectionService.connectStations(stationBerg, stationSusanne);
+			final Connection connection1 = connectionService.connectStations(stationBerg, stationChalchegg);
+			final Connection connection2 = connectionService.connectStations(stationSusanne, stationFaesigrund);
+			final Connection connection3 = connectionService.connectStations(stationBerg, stationSusanne);
 
-				appendVlan(stationChalchegg, 1);
-				appendVlan(stationChalchegg, 2);
-				appendVlan(stationChalchegg, 10);
-				stationBerg.setTunnelConnection(true);
-				final GatewaySettings gateway = new GatewaySettings();
-				gateway.setGatewayName("Cyberlink");
-				gateway.setHasIPv4(true);
-				gateway.setHasIPv6(true);
-				gateway.setV4Address(new IpNetwork(new IpAddress(InetAddress.getByName("172.30.30.2")), 20));
-				gateway.setStation(stationBerg);
-				gateway.setGatewayType(GatewayType.PPPOE);
-				gateway.setUserName("pppoe-user");
-				gateway.setPassword("pppoe-password");
-				stationBerg.getGatewaySettings().add(gateway);
+			appendVlan(stationChalchegg, 1);
+			appendVlan(stationChalchegg, 2);
+			appendVlan(stationChalchegg, 10);
+			stationBerg.setTunnelConnection(true);
+			final GatewaySettings gateway = new GatewaySettings();
+			gateway.setGatewayName("Cyberlink");
+			gateway.setHasIPv4(true);
+			gateway.setHasIPv6(true);
+			gateway.setManagementAddress(new RangePair());
+			gateway.setManagementExpectedOffsetPair(new ExpectedOffsetPair());
+			addressManagementBean.setAddressManually(gateway.getManagementAddress(), gateway.getManagementExpectedOffsetPair(), "172.30.30.2/30", IpAddressType.V4);
+			gateway.setStation(stationBerg);
+			gateway.setGatewayType(GatewayType.PPPOE);
+			gateway.setUserName("pppoe-user");
+			gateway.setPassword("pppoe-password");
+			stationBerg.getGatewaySettings().add(gateway);
 
-				stationService.fillStation(stationBerg);
+			stationService.fillStation(stationBerg);
 
-				stationRepository.save(Arrays.asList(stationBerg, stationChalchegg, stationFaesigrund, stationSusanne));
+			stationRepository.save(Arrays.asList(stationBerg, stationChalchegg, stationFaesigrund, stationSusanne));
 
-				// addressManagementBean.fillStation(stationChalchegg);
-				// addressManagementBean.fillStation(stationSusanne);
-				// addressManagementBean.fillStation(stationFaesigrund);
-				// addressManagementBean.fillConnection(connection1);
-				// addressManagementBean.fillConnection(connection2);
-				// addressManagementBean.fillConnection(connection3);
-			}
-		} catch (final UnknownHostException e) {
-			throw new RuntimeException(e);
+			// addressManagementBean.fillStation(stationChalchegg);
+			// addressManagementBean.fillStation(stationSusanne);
+			// addressManagementBean.fillStation(stationFaesigrund);
+			// addressManagementBean.fillConnection(connection1);
+			// addressManagementBean.fillConnection(connection2);
+			// addressManagementBean.fillConnection(connection3);
 		}
 	}
 }

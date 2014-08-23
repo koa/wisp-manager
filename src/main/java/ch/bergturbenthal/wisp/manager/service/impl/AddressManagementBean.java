@@ -27,6 +27,7 @@ import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -826,11 +827,14 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	@Override
-	public BigInteger setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
+	public boolean setAddressManually(final RangePair addressPair, final ExpectedOffsetPair offsetPair, final String address, final IpAddressType addressType) {
 		try {
 			if (address == null || address.trim().isEmpty()) {
 				addressPair.setIpAddress(null, addressType);
-				return null;
+				if (offsetPair != null) {
+					offsetPair.setExpectedOffset(null, addressType);
+				}
+				return true;
 			}
 			final IpRange reservationBefore = addressPair.getIpAddress(addressType);
 			if (reservationBefore != null) {
@@ -844,20 +848,20 @@ public class AddressManagementBean implements AddressManagementService {
 			case V4:
 				if (!(inetAddress instanceof Inet4Address)) {
 					log.info("Wrong v4-Address: " + address);
-					return null;
+					return false;
 				}
 				singleAddressMask = 32;
 				break;
 			case V6:
 				if (!(inetAddress instanceof Inet6Address)) {
 					log.info("Wrong v6-Address: " + address);
-					return null;
+					return false;
 				}
 				singleAddressMask = 128;
 				break;
 			default:
 				log.info("Unknown Address-Type: " + addressType);
-				return null;
+				return false;
 			}
 			final int addressMask;
 			if (addressParts.length > 1) {
@@ -873,7 +877,7 @@ public class AddressManagementBean implements AddressManagementService {
 				// reserve special range
 				if (addressMask > singleAddressMask - 2) {
 					log.info("Cannot create reservation for " + address);
-					return null;
+					return false;
 				}
 				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
 				reservedRange = reserveRange(rootRange, AddressRangeType.ASSIGNED, singleAddressMask, "");
@@ -882,7 +886,7 @@ public class AddressManagementBean implements AddressManagementService {
 				for (final IpRange checkRange : foundParentRange.getReservations()) {
 					if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
 						log.info("Address-Range " + ipNetwork + " is already reserved");
-						return null;
+						return false;
 					}
 				}
 				reservedRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
@@ -892,10 +896,15 @@ public class AddressManagementBean implements AddressManagementService {
 			}
 			addressPair.setIpAddress(reservedRange, addressType);
 			final BigInteger networkStartAddress = reservedRange.getRange().getAddress().getRawValue();
-			return enteredIpAddress.getRawValue().subtract(networkStartAddress);
+
+			final BigInteger remainingOffset = enteredIpAddress.getRawValue().subtract(networkStartAddress);
+			if (offsetPair != null) {
+				offsetPair.setExpectedOffset(remainingOffset, addressType);
+			}
+			return true;
 		} catch (final UnknownHostException e) {
 			log.info("Unknown IP Address", e);
-			return null;
+			return false;
 		}
 	}
 

@@ -291,11 +291,12 @@ public class ProvisionRouterOs implements ProvisionBackend {
 																																													.ifName(ifName)
 																																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
 																																													.role(netIf.getRole());
-					final ExpectedOffsetPair expectedOffsetPair = gatewaySettings.getExpectedOffsetPair();
-					final IpNetwork gatewayV4Address = gatewaySettings.getV4Address();
-					if (gatewayV4Address != null) {
+					final ExpectedOffsetPair expectedOffsetPair = gatewaySettings.getManagementExpectedOffsetPair();
+					final RangePair manualAddress = gatewaySettings.getManagementAddress();
+					if (manualAddress != null) {
 						final Integer expectedV4Offset = expectedOffsetPair == null ? null : expectedOffsetPair.getExpectedV4Offset();
 						final int v4Offset = expectedV4Offset == null ? 1 : expectedV4Offset.intValue();
+						final IpNetwork gatewayV4Address = manualAddress.getV4Address().getRange();
 						final IpAddress v4GatewayAddress = gatewayV4Address.getAddress();
 						final InetAddress inetAddress = IpAddress.bigInteger2InetAddress(v4GatewayAddress.getRawValue().add(BigInteger.valueOf(v4Offset)));
 						baseIfBuilder.v4Address(inetAddress.getHostAddress());

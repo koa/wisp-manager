@@ -34,7 +34,7 @@
 	add address=172.16.0.1/32 interface=loopback network=172.16.0.1
 	
 # configured IPs
-	add address=172.30.16.0/20 interface=gateway-cyberlink
+	add address=172.30.30.2/16 interface=gateway-cyberlink
 	add address=172.17.0.1/24 interface=customer
 	add address=172.16.1.1/29 interface=station-connection-1
 	add address=172.16.1.9/29 interface=station-connection-2
@@ -62,7 +62,7 @@
 /routing ospf network
 	remove numbers=[find dynamic=no]
 	add area=backbone network=172.16.0.1/32
-	add area=backbone network=172.30.16.0/20
+	add area=backbone network=172.30.0.0/16
 	add area=backbone network=172.17.0.0/24
 	add area=backbone network=172.16.1.0/29
 	add area=backbone network=172.16.1.8/29

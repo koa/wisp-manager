@@ -280,11 +280,10 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 						if (vlan.getAddress() == null) {
 							vlan.setAddress(new RangePair());
 						}
-						final BigInteger remainingOffset = addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
 						if (vlan.getExpectedOffsetPair() == null) {
 							vlan.setExpectedOffsetPair(new ExpectedOffsetPair());
 						}
-						vlan.getExpectedOffsetPair().setExpectedOffset(remainingOffset, addressType);
+						addressManagementService.setAddressManually(vlan.getAddress(), vlan.getExpectedOffsetPair(), newValue, addressType);
 					}
 				});
 				textField.setBuffered(false);
