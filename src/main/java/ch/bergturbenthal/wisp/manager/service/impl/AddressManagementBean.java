@@ -27,7 +27,6 @@ import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
-import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -208,6 +207,20 @@ public class AddressManagementBean implements AddressManagementService {
 		networkInterface.setGatewaySettings(gatewaySettings);
 		networkInterface.setRole(NetworkInterfaceRole.GATEWAY);
 		networkInterface.setInterfaceName("Gateway " + gatewaySettings.getGatewayName());
+	}
+
+	private void clearIntermediateParent(final IpRange parentRange) {
+		if (parentRange == null) {
+			return;
+		}
+		if (parentRange.getType() != AddressRangeType.INTERMEDIATE) {
+			return;
+		}
+		if (parentRange.getReservations().size() > 1) {
+			return;
+		}
+		clearIntermediateParent(parentRange.getParentRange());
+		ipRangeRepository.delete(parentRange);
 	}
 
 	@Override
@@ -827,17 +840,18 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	@Override
-	public boolean setAddressManually(final RangePair addressPair, final ExpectedOffsetPair offsetPair, final String address, final IpAddressType addressType) {
+	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
 		try {
 			if (address == null || address.trim().isEmpty()) {
 				addressPair.setIpAddress(null, addressType);
-				if (offsetPair != null) {
-					offsetPair.setExpectedOffset(null, addressType);
-				}
+				// if (offsetPair != null) {
+				// offsetPair.setExpectedOffset(null, addressType);
+				// }
 				return true;
 			}
 			final IpRange reservationBefore = addressPair.getIpAddress(addressType);
 			if (reservationBefore != null) {
+				clearIntermediateParent(reservationBefore.getParentRange());
 				ipRangeRepository.delete(reservationBefore);
 				addressPair.setIpAddress(null, addressType);
 			}
@@ -872,7 +886,7 @@ public class AddressManagementBean implements AddressManagementService {
 			final IpAddress enteredIpAddress = new IpAddress(inetAddress);
 			final IpNetwork reserveNetwork = new IpNetwork(enteredIpAddress, addressMask);
 			final IpRange foundParentRange = findParentRange(reserveNetwork);
-			final IpRange reservedRange;
+			final IpRange reservedIntermediateRange;
 			if (foundParentRange == null) {
 				// reserve special range
 				if (addressMask > singleAddressMask - 2) {
@@ -880,7 +894,7 @@ public class AddressManagementBean implements AddressManagementService {
 					return false;
 				}
 				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
-				reservedRange = reserveRange(rootRange, AddressRangeType.ASSIGNED, singleAddressMask, "");
+				reservedIntermediateRange = reserveRange(rootRange, AddressRangeType.INTERMEDIATE, singleAddressMask, "");
 			} else {
 				final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, foundParentRange.getRangeMask());
 				for (final IpRange checkRange : foundParentRange.getReservations()) {
@@ -889,18 +903,17 @@ public class AddressManagementBean implements AddressManagementService {
 						return false;
 					}
 				}
-				reservedRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
-				reservedRange.setParentRange(foundParentRange);
-				foundParentRange.getReservations().add(reservedRange);
-				ipRangeRepository.save(reservedRange);
+				reservedIntermediateRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.INTERMEDIATE);
+				reservedIntermediateRange.setParentRange(foundParentRange);
+				foundParentRange.getReservations().add(reservedIntermediateRange);
+				ipRangeRepository.save(reservedIntermediateRange);
 			}
+			final IpNetwork reservationNetwork = new IpNetwork(enteredIpAddress, singleAddressMask);
+			final IpRange reservedRange = new IpRange(reservationNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
+			reservedRange.setParentRange(reservedIntermediateRange);
+			reservedIntermediateRange.getReservations().add(reservedRange);
+			ipRangeRepository.save(reservedRange);
 			addressPair.setIpAddress(reservedRange, addressType);
-			final BigInteger networkStartAddress = reservedRange.getRange().getAddress().getRawValue();
-
-			final BigInteger remainingOffset = enteredIpAddress.getRawValue().subtract(networkStartAddress);
-			if (offsetPair != null) {
-				offsetPair.setExpectedOffset(remainingOffset, addressType);
-			}
 			return true;
 		} catch (final UnknownHostException e) {
 			log.info("Unknown IP Address", e);

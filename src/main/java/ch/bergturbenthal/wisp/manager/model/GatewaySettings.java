@@ -24,8 +24,6 @@ public class GatewaySettings {
 	private Long id;
 	@Embedded
 	private RangePair managementAddress;
-	@Embedded
-	private ExpectedOffsetPair managementExpectedOffsetPair;
 	private String password;
 	@ManyToOne(optional = false)
 	private Station station;

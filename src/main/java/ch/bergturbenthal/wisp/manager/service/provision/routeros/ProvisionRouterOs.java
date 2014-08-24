@@ -6,7 +6,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.Format;
@@ -45,7 +44,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
-import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
@@ -291,17 +289,12 @@ public class ProvisionRouterOs implements ProvisionBackend {
 																																													.ifName(ifName)
 																																													.macAddress(netIf.getMacAddress().getAddress().toUpperCase())
 																																													.role(netIf.getRole());
-					final ExpectedOffsetPair expectedOffsetPair = gatewaySettings.getManagementExpectedOffsetPair();
 					final RangePair manualAddress = gatewaySettings.getManagementAddress();
 					if (manualAddress != null) {
-						final Integer expectedV4Offset = expectedOffsetPair == null ? null : expectedOffsetPair.getExpectedV4Offset();
-						final int v4Offset = expectedV4Offset == null ? 1 : expectedV4Offset.intValue();
-						final IpNetwork gatewayV4Address = manualAddress.getV4Address().getRange();
-						final IpAddress v4GatewayAddress = gatewayV4Address.getAddress();
-						final InetAddress inetAddress = IpAddress.bigInteger2InetAddress(v4GatewayAddress.getRawValue().add(BigInteger.valueOf(v4Offset)));
-						baseIfBuilder.v4Address(inetAddress.getHostAddress());
-						baseIfBuilder.v4Mask(gatewayV4Address.getNetmask());
-						baseIfBuilder.v4NetAddress(v4GatewayAddress.getInetAddress().getHostAddress());
+						final IpNetwork parentRange = manualAddress.getV4Address().getParentRange().getRange();
+						baseIfBuilder.v4Address(manualAddress.getInet4Address().getHostAddress());
+						baseIfBuilder.v4Mask(parentRange.getNetmask());
+						baseIfBuilder.v4NetAddress(parentRange.getAddress().getInetAddress().getHostAddress());
 					}
 					networkInterfaces.add(baseIfBuilder.build());
 
@@ -359,14 +352,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						} else {
 							// address is net-address -> select first host-address
 							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
-							final int addressIndex;
-							final BigInteger expectedOffset = getExpectedOffset(network, IpAddressType.V4);
-							if (expectedOffset == null) {
-								addressIndex = 1;
-							} else {
-								addressIndex = expectedOffset.intValue();
-							}
-							v4AddressString = v4RangeAddress.getAddressOfNetwork(addressIndex).getHostAddress();
+							v4AddressString = v4RangeAddress.getAddressOfNetwork(1).getHostAddress();
 							v4Mask = v4Address.getRange().getNetmask();
 							v4NetAddressString = inet4Address.getHostAddress();
 							// add default dhcp range
@@ -407,12 +393,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
-							final BigInteger expectedV6Offset = getExpectedOffset(network, IpAddressType.V6);
-							if (expectedV6Offset == null) {
-								v6AddressString = inet6Address.getHostAddress();
-							} else {
-								v6AddressString = v6Address.getRange().getAddress().getAddressOfNetwork(expectedV6Offset.longValue()).getHostAddress();
-							}
+							v6AddressString = inet6Address.getHostAddress();
 							v6Mask = v6Address.getRange().getNetmask();
 							v6NetAddressString = inet6Address.getHostAddress();
 						}
@@ -471,17 +452,6 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		final StringWriter stringWriter = new StringWriter();
 		template.merge(context, stringWriter);
 		return stringWriter.toString();
-	}
-
-	private BigInteger getExpectedOffset(final VLan network, final IpAddressType type) {
-		if (network == null) {
-			return null;
-		}
-		final ExpectedOffsetPair expectedOffsetPair = network.getExpectedOffsetPair();
-		if (expectedOffsetPair == null) {
-			return null;
-		}
-		return expectedOffsetPair.getExpectedOffset(type);
 	}
 
 	@Override

@@ -1,6 +1,5 @@
 package ch.bergturbenthal.wisp.manager.view.component;
 
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
-import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -262,7 +260,11 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 					@Override
 					public String getValue() {
-						return describeVlanAddress(readVlanValue(source, itemId), addressType);
+						final VLan bean = readVlanValue(source, itemId);
+						if (bean == null) {
+							return null;
+						}
+						return describeCurrentAddress(bean.getAddress(), addressType);
 					}
 
 					@Override
@@ -280,10 +282,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 						if (vlan.getAddress() == null) {
 							vlan.setAddress(new RangePair());
 						}
-						if (vlan.getExpectedOffsetPair() == null) {
-							vlan.setExpectedOffsetPair(new ExpectedOffsetPair());
-						}
-						addressManagementService.setAddressManually(vlan.getAddress(), vlan.getExpectedOffsetPair(), newValue, addressType);
+						addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
 					}
 				});
 				textField.setBuffered(false);
@@ -359,36 +358,39 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		return vlanTable;
 	}
 
-	private String describeVlanAddress(final VLan bean, final IpAddressType addressType) {
-		if (bean == null) {
+	private String describeCurrentAddress(final RangePair rangePair, final IpAddressType addressType) {
+		if (rangePair == null) {
 			return null;
 		}
-		final RangePair raingePair = bean.getAddress();
-		if (raingePair == null) {
+		final IpRange ipRange = rangePair.getIpAddress(addressType);
+		if (ipRange == null) {
 			return null;
 		}
-		final IpRange ipAddress = raingePair.getIpAddress(addressType);
-		if (ipAddress == null) {
+		final IpRange parentRange = ipRange.getParentRange();
+		if (parentRange == null) {
 			return null;
 		}
-		final IpNetwork range = ipAddress.getRange();
+		final int netmask = parentRange.getRange().getNetmask();
+		final IpNetwork range = ipRange.getRange();
+		if (range == null) {
+			return null;
+		}
 		final IpAddress address = range.getAddress();
 		if (address == null) {
 			return null;
-		}
-		final ExpectedOffsetPair offsetPair = bean.getExpectedOffsetPair();
-		if (offsetPair != null) {
-			final BigInteger expectedOffset = offsetPair.getExpectedOffset(addressType);
-			if (expectedOffset != null) {
-				final InetAddress inetAddress = IpAddress.bigInteger2InetAddress(address.getRawValue().add(expectedOffset));
-				return inetAddress.getHostAddress() + "/" + range.getNetmask();
-			}
 		}
 		final InetAddress inetAddress = address.getInetAddress();
 		if (inetAddress == null) {
 			return null;
 		}
-		return inetAddress.getHostAddress() + "/" + range.getNetmask();
+		return inetAddress.getHostAddress() + "/" + netmask;
+	}
+
+	private String describeVlanAddress(final VLan bean, final IpAddressType addressType) {
+		if (bean == null) {
+			return null;
+		}
+		return describeCurrentAddress(bean.getAddress(), addressType);
 	}
 
 	private String getAddressFromVlanItem(final Table source, final Object itemId, final IpAddressType addressType) {

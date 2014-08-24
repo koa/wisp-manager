@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
-import ch.bergturbenthal.wisp.manager.model.ExpectedOffsetPair;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -169,8 +168,7 @@ public class DemoSetupBean implements DemoSetupService {
 			gateway.setHasIPv4(true);
 			gateway.setHasIPv6(true);
 			gateway.setManagementAddress(new RangePair());
-			gateway.setManagementExpectedOffsetPair(new ExpectedOffsetPair());
-			addressManagementBean.setAddressManually(gateway.getManagementAddress(), gateway.getManagementExpectedOffsetPair(), "172.30.30.2/30", IpAddressType.V4);
+			addressManagementBean.setAddressManually(gateway.getManagementAddress(), "172.30.30.2/30", IpAddressType.V4);
 			gateway.setStation(stationBerg);
 			gateway.setGatewayType(GatewayType.PPPOE);
 			gateway.setUserName("pppoe-user");
