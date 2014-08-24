@@ -59,6 +59,44 @@ import com.vaadin.ui.Window.CloseListener;
 @Component
 public class StationEditor extends CustomComponent implements ItemEditor<Station> {
 
+	private static interface Getter<T> {
+		T get();
+	}
+
+	private class RangePairTextProperty implements Property<String> {
+		private final IpAddressType addressType;
+		private final Getter<RangePair> rangePairGetter;
+
+		private RangePairTextProperty(final Getter<RangePair> rangePairGetter, final IpAddressType addressType) {
+			this.rangePairGetter = rangePairGetter;
+			this.addressType = addressType;
+		}
+
+		@Override
+		public Class<? extends String> getType() {
+			return String.class;
+		}
+
+		@Override
+		public String getValue() {
+			return describeCurrentAddress(rangePairGetter.get(), addressType);
+		}
+
+		@Override
+		public boolean isReadOnly() {
+			return false;
+		}
+
+		@Override
+		public void setReadOnly(final boolean newStatus) {
+		}
+
+		@Override
+		public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
+			addressManagementService.setAddressManually(rangePairGetter.get(), newValue, addressType);
+		}
+	}
+
 	@Autowired
 	private AddressManagementService addressManagementService;
 	private NetworkDevice currentNetworkDevice;
@@ -68,6 +106,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
 	private Button provisionButton;
+
 	@Autowired
 	private StationService stationService;
 
@@ -222,9 +261,20 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					formFieldGroup.bind(gatewayTypeField, "gatewayType");
 					formLayout.addComponent(gatewayTypeField);
 					formLayout.addComponent(formFieldGroup.buildAndBind("hasIPv4"));
-					formLayout.addComponent(formFieldGroup.buildAndBind("v4Address"));
+					final Getter<RangePair> rangePairGetter = new Getter<RangePair>() {
+
+						@Override
+						public RangePair get() {
+							final GatewaySettings gatewaySettings = gatewayItem.getPojo();
+							if (gatewaySettings.getManagementAddress() == null) {
+								gatewaySettings.setManagementAddress(new RangePair());
+							}
+							return gatewaySettings.getManagementAddress();
+						}
+					};
+					formLayout.addComponent(new TextField("v4Address", new RangePairTextProperty(rangePairGetter, IpAddressType.V4)));
 					formLayout.addComponent(formFieldGroup.buildAndBind("hasIPv6"));
-					formLayout.addComponent(formFieldGroup.buildAndBind("v6Address"));
+					formLayout.addComponent(new TextField("v6Address", new RangePairTextProperty(rangePairGetter, IpAddressType.V6)));
 					formLayout.addComponent(formFieldGroup.buildAndBind("userName"));
 					formLayout.addComponent(formFieldGroup.buildAndBind("password"));
 
@@ -247,44 +297,26 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	}
 
 	private ColumnGenerator createVlanAddressEditor(final IpAddressType addressType) {
+
 		return new ColumnGenerator() {
 
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final TextField textField = new TextField(new Property<String>() {
+
+				final TextField textField = new TextField(new RangePairTextProperty(new Getter<RangePair>() {
 
 					@Override
-					public Class<? extends String> getType() {
-						return String.class;
-					}
-
-					@Override
-					public String getValue() {
+					public RangePair get() {
 						final VLan bean = readVlanValue(source, itemId);
 						if (bean == null) {
 							return null;
 						}
-						return describeCurrentAddress(bean.getAddress(), addressType);
-					}
-
-					@Override
-					public boolean isReadOnly() {
-						return false;
-					}
-
-					@Override
-					public void setReadOnly(final boolean newStatus) {
-					}
-
-					@Override
-					public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
-						final VLan vlan = readVlanValue(source, itemId);
-						if (vlan.getAddress() == null) {
-							vlan.setAddress(new RangePair());
+						if (bean.getAddress() == null) {
+							bean.setAddress(new RangePair());
 						}
-						addressManagementService.setAddressManually(vlan.getAddress(), newValue, addressType);
+						return bean.getAddress();
 					}
-				});
+				}, addressType));
 				textField.setBuffered(false);
 				return textField;
 			}
