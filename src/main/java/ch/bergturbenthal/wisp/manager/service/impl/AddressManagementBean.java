@@ -896,17 +896,27 @@ public class AddressManagementBean implements AddressManagementService {
 				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
 				reservedIntermediateRange = reserveRange(rootRange, AddressRangeType.INTERMEDIATE, singleAddressMask, "");
 			} else {
-				final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, foundParentRange.getRangeMask());
+				final int rangeMask = foundParentRange.getRangeMask();
+				final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, rangeMask);
 				for (final IpRange checkRange : foundParentRange.getReservations()) {
 					if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
 						log.info("Address-Range " + ipNetwork + " is already reserved");
 						return false;
 					}
 				}
-				reservedIntermediateRange = new IpRange(ipNetwork, singleAddressMask, AddressRangeType.INTERMEDIATE);
-				reservedIntermediateRange.setParentRange(foundParentRange);
-				foundParentRange.getReservations().add(reservedIntermediateRange);
-				ipRangeRepository.save(reservedIntermediateRange);
+				final boolean intermediateRangeNeeded = rangeMask < addressMask;
+				final IpRange immediateReservationRange = new IpRange(ipNetwork, intermediateRangeNeeded ? addressMask : singleAddressMask, AddressRangeType.INTERMEDIATE);
+				immediateReservationRange.setParentRange(foundParentRange);
+				foundParentRange.getReservations().add(immediateReservationRange);
+				if (intermediateRangeNeeded) {
+					final IpNetwork ipSubNetwork = new IpNetwork(enteredIpAddress, addressMask);
+					reservedIntermediateRange = new IpRange(ipSubNetwork, singleAddressMask, AddressRangeType.INTERMEDIATE);
+					reservedIntermediateRange.setParentRange(immediateReservationRange);
+					immediateReservationRange.getReservations().add(reservedIntermediateRange);
+				} else {
+					reservedIntermediateRange = immediateReservationRange;
+				}
+				ipRangeRepository.save(immediateReservationRange);
 			}
 			final IpNetwork reservationNetwork = new IpNetwork(enteredIpAddress, singleAddressMask);
 			final IpRange reservedRange = new IpRange(reservationNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
