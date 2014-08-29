@@ -16,7 +16,6 @@ import org.springframework.context.annotation.Configuration;
 public class WispManager {
 
 	public static void main(final String[] args) throws Exception {
-		SpringApplication.run(WispManager.class, args);
 		final SpringApplication springApplication = new SpringApplication(WispManager.class);
 		springApplication.addListeners(new ApplicationPidListener("wisp-manager.pid"));
 		springApplication.run(args);
