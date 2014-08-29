@@ -75,7 +75,8 @@ public class TestGenerateRouterOsConfig {
 			public Void doInTransaction(final TransactionStatus status) {
 				try {
 					final Station station = stationRepository.findOne(stationId);
-					final File file = new File("target/result/" + station.getName() + ".rsc");
+					final String filename = createFileName(station);
+					final File file = new File("target/result/" + filename);
 					if (!file.getParentFile().exists()) {
 						file.getParentFile().mkdirs();
 					}
@@ -83,7 +84,7 @@ public class TestGenerateRouterOsConfig {
 					final OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file));
 					final String generatedConfig = networkDeviceManagementBean.generateConfig(station.getDevice());
 					writer.write(generatedConfig);
-					final ClassPathResource classPathResource = new ClassPathResource("templates/" + station.getName() + ".rsc");
+					final ClassPathResource classPathResource = new ClassPathResource("templates/" + createFileName(station));
 
 					@Cleanup
 					final InputStreamReader reader = new InputStreamReader(classPathResource.getInputStream(), "utf-8");
@@ -96,6 +97,10 @@ public class TestGenerateRouterOsConfig {
 				}
 			}
 		});
+	}
+
+	private String createFileName(final Station station) {
+		return station.getName().replace("ä", "ae") + ".rsc";
 	}
 
 	@Before
