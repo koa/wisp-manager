@@ -237,8 +237,8 @@
         <version>${vaadin.version}</version>
         <configuration>
           <extraJvmArgs>-Xmx512M -Xss1024k</extraJvmArgs>
-          <webappDirectory>${basedir}/src/main/webapp/VAADIN/widgetsets</webappDirectory>
-          <hostedWebapp>${basedir}/src/main/webapp/VAADIN/widgetsets</hostedWebapp>
+          <webappDirectory>${basedir}/target/classes/VAADIN/widgetsets</webappDirectory>
+          <hostedWebapp>${basedir}/target/classes/VAADIN/widgetsets</hostedWebapp>
           <noServer>true</noServer>
           <persistentunitcachedir>${basedir}/target/tmp/gwt-unitCache</persistentunitcachedir>
           <compileReport>true</compileReport>
