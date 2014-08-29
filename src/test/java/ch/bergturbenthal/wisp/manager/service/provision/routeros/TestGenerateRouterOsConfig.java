@@ -86,7 +86,7 @@ public class TestGenerateRouterOsConfig {
 					final ClassPathResource classPathResource = new ClassPathResource("templates/" + station.getName() + ".rsc");
 
 					@Cleanup
-					final InputStreamReader reader = new InputStreamReader(classPathResource.getInputStream());
+					final InputStreamReader reader = new InputStreamReader(classPathResource.getInputStream(), "utf-8");
 					final String template = IOUtils.toString(reader);
 					Assert.assertEquals("Difference in " + station.getName(), template, generatedConfig);
 					return null;
