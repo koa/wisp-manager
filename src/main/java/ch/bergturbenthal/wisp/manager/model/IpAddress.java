@@ -43,7 +43,7 @@ public class IpAddress implements Serializable {
 	@Enumerated(EnumType.STRING)
 	private IpAddressType addressType;
 
-	@Column(columnDefinition = "numeric")
+	@Column(precision = 45)
 	private BigInteger rawValue;
 
 	public IpAddress(final BigInteger ipAddress) {
