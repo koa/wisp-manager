@@ -1,19 +1,16 @@
 package ch.bergturbenthal.wisp.manager.util;
 
-import java.beans.PropertyDescriptor;
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.BeanUtils;
 import org.springframework.data.repository.CrudRepository;
+
+import ch.bergturbenthal.wisp.manager.util.PropertyResolver.PropertyHandler;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Container.ItemSetChangeNotifier;
@@ -28,67 +25,16 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 		boolean accept(final T candidate);
 	}
 
-	private static interface PropertyHandler {
-		Class<?> getPropertyType();
-
-		void setValue(final Object bean, final Object value);
-
-		Object getValue(final Object bean);
-
-		boolean canWrite();
-	}
-
 	private final Collection<PojoFilter<T>> filters = new ArrayList<CrudRepositoryContainer.PojoFilter<T>>(1);
 	private final List<ItemSetChangeListener> listeners = new ArrayList<Container.ItemSetChangeListener>();
-	private final Map<String, PropertyHandler> properties = new HashMap<String, PropertyHandler>();
+	private final PropertyResolver<T> propertyResolver;
 
 	@Setter
 	protected CrudRepository<T, ID> repository;
 
 	public CrudRepositoryContainer(final CrudRepository<T, ID> repository, final Class<T> entityType) {
 		this.repository = repository;
-		final PropertyDescriptor[] propertyDescriptors = BeanUtils.getPropertyDescriptors(entityType);
-		for (final PropertyDescriptor descriptor : propertyDescriptors) {
-			if (descriptor.getReadMethod() != null) {
-				properties.put(descriptor.getName(), new PropertyHandler() {
-
-					@Override
-					public boolean canWrite() {
-						return descriptor.getWriteMethod() != null;
-					}
-
-					@Override
-					public Class<?> getPropertyType() {
-						return descriptor.getPropertyType();
-					}
-
-					@Override
-					public Object getValue(final Object bean) {
-						if (bean == null) {
-							return null;
-						}
-						try {
-							return descriptor.getReadMethod().invoke(bean);
-						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-							throw new RuntimeException("Cannot read property " + descriptor.getDisplayName() + " from " + bean, e);
-						}
-					}
-
-					@Override
-					public void setValue(final Object bean, final Object value) {
-						if (bean == null) {
-							return;
-						}
-						try {
-							descriptor.getWriteMethod().invoke(bean, value);
-						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-							throw new RuntimeException("Cannot write property " + descriptor.getDisplayName() + " with value " + value + " to " + bean, e);
-						}
-					}
-
-				});
-			}
-		}
+		propertyResolver = new PropertyResolver<T>(entityType);
 	}
 
 	@Override
@@ -186,7 +132,7 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 
 	@Override
 	public Collection<?> getContainerPropertyIds() {
-		return properties.keySet();
+		return propertyResolver.knownProperties();
 	}
 
 	public PojoItem<T> getDummyItem() {
@@ -323,64 +269,7 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 	}
 
 	private PropertyHandler resolveProperty(final Object propertyId) {
-		final String valueName = String.valueOf(propertyId);
-		if (properties.containsKey(valueName)) {
-			return properties.get(valueName);
-		}
-		final int splitPoint = valueName.lastIndexOf('.');
-		if (splitPoint < 0) {
-			return null;
-		}
-		final String beforePt = valueName.substring(0, splitPoint);
-		final PropertyHandler baseProperty = resolveProperty(beforePt);
-		if (baseProperty == null) {
-			return null;
-		}
-		final PropertyDescriptor[] propertyDescriptors = BeanUtils.getPropertyDescriptors(baseProperty.getPropertyType());
-		for (final PropertyDescriptor propertyDescriptor : propertyDescriptors) {
-			if (propertyDescriptor.getReadMethod() != null) {
-				final String subPropertyName = propertyDescriptor.getName();
-				properties.put(beforePt + "." + subPropertyName, new PropertyHandler() {
-
-					@Override
-					public boolean canWrite() {
-						return propertyDescriptor.getWriteMethod() != null;
-					}
-
-					@Override
-					public Class<?> getPropertyType() {
-						return propertyDescriptor.getPropertyType();
-					}
-
-					@Override
-					public Object getValue(final Object bean) {
-						final Object baseValue = baseProperty.getValue(bean);
-						if (baseValue == null) {
-							return null;
-						}
-						try {
-							return propertyDescriptor.getReadMethod().invoke(baseValue);
-						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-							throw new RuntimeException("Cannot read property " + propertyDescriptor.getDisplayName() + " from " + baseValue, e);
-						}
-					}
-
-					@Override
-					public void setValue(final Object bean, final Object value) {
-						final Object baseObject = baseProperty.getValue(bean);
-						if (baseObject == null) {
-							throw new com.vaadin.data.Property.ReadOnlyException("cannot set property of null object");
-						}
-						try {
-							propertyDescriptor.getWriteMethod().invoke(baseObject, value);
-						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-							throw new RuntimeException("Cannot write property " + propertyDescriptor.getDisplayName() + " with value " + value + " to " + baseObject, e);
-						}
-					}
-				});
-			}
-		}
-		return properties.get(valueName);
+		return propertyResolver.resolveProperty(propertyId);
 	}
 
 	@Override

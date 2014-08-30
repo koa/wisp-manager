@@ -1,19 +1,14 @@
 package ch.bergturbenthal.wisp.manager.view.component;
 
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import lombok.Setter;
-
-import org.springframework.beans.BeanUtils;
-
 import ch.bergturbenthal.wisp.manager.util.PojoItem;
+import ch.bergturbenthal.wisp.manager.util.PropertyResolver;
+import ch.bergturbenthal.wisp.manager.util.PropertyResolver.PropertyHandler;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Item;
@@ -28,15 +23,11 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	@Setter
 	private Property<T> dataSourceProperty;
 
-	private final Map<String, PropertyDescriptor> properties = new HashMap<String, PropertyDescriptor>();
+	private final PropertyResolver<T> resolver;
 
 	public ListPropertyContainer(final Class<T> beanEntryType) {
 		this.beanEntryType = beanEntryType;
-		for (final PropertyDescriptor descriptor : BeanUtils.getPropertyDescriptors(beanEntryType)) {
-			if (descriptor.getReadMethod() != null) {
-				properties.put(descriptor.getName(), descriptor);
-			}
-		}
+		resolver = new PropertyResolver<T>(beanEntryType);
 	}
 
 	@Override
@@ -91,7 +82,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 
 	@Override
 	public Collection<?> getContainerPropertyIds() {
-		return properties.keySet();
+		return resolver.knownProperties();
 	}
 
 	@Override
@@ -116,7 +107,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 
 			@Override
 			public Collection<?> getItemPropertyIds() {
-				return properties.keySet();
+				return resolver.knownProperties();
 			}
 
 			@Override
@@ -177,7 +168,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	}
 
 	private Property<Object> loadContainerProperty(final int itemIndex, final Object propertyId) {
-		final PropertyDescriptor propertyDescriptor = properties.get(propertyId);
+		final PropertyHandler propertyDescriptor = resolver.resolveProperty(propertyId);
 		if (propertyDescriptor == null) {
 			throw new IllegalArgumentException("Property " + propertyId + " not exists");
 		}
@@ -194,25 +185,16 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 				if (foundItem == null) {
 					return null;
 				}
-				try {
-					return propertyDescriptor.getReadMethod().invoke(foundItem);
-				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
-					throw new RuntimeException("Cannot read " + propertyId + " from " + foundItem, e);
-				}
+				return propertyDescriptor.getValue(foundItem);
 			}
 
 			@Override
 			public void setValue(final Object newValue) throws com.vaadin.data.Property.ReadOnlyException {
 				final T foundItem = loadItem(itemIndex);
-				try {
-					propertyDescriptor.getWriteMethod().invoke(foundItem, newValue);
-				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
-					throw new RuntimeException("Cannot write " + propertyId + " to " + foundItem, e);
-				}
-
+				propertyDescriptor.setValue(foundItem, newValue);
 			}
 		};
-		property.setReadOnly(propertyDescriptor.getWriteMethod() == null);
+		property.setReadOnly(!propertyDescriptor.canWrite());
 		return property;
 	}
 
