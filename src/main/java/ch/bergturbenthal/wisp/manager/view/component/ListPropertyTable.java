@@ -15,6 +15,7 @@ public class ListPropertyTable<T> extends Table {
 	public ListPropertyTable(final Class<T> type) {
 		super();
 		initType(type);
+		setSelectable(false);
 	}
 
 	public ListPropertyTable(final Class<T> type, final String caption) {

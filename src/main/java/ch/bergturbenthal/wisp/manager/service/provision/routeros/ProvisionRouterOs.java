@@ -344,14 +344,16 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						final String v4AddressString;
 						final int v4Mask;
 						final String v4NetAddressString;
+						final IpAddress v4RangeAddress;
 						if (v4Address.getRange().getNetmask() == 32) {
 							// address is host-address
 							v4AddressString = inet4Address.getHostAddress();
 							v4Mask = network.getAddress().getInet4ParentMask();
-							v4NetAddressString = v4Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
+							v4RangeAddress = v4Address.getParentRange().getRange().getAddress();
+							v4NetAddressString = v4RangeAddress.getInetAddress().getHostAddress();
 						} else {
 							// address is net-address -> select first host-address
-							final IpAddress v4RangeAddress = v4Address.getRange().getAddress();
+							v4RangeAddress = v4Address.getRange().getAddress();
 							v4AddressString = v4RangeAddress.getAddressOfNetwork(1).getHostAddress();
 							v4Mask = v4Address.getRange().getNetmask();
 							v4NetAddressString = inet4Address.getHostAddress();
@@ -366,7 +368,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						final DHCPSettings dhcpSettings = network.getDhcpSettings();
 						if (dhcpSettings != null) {
 							builder.dhcpLeaseTime(DURATION_FORMAT.print(Duration.millis(dhcpSettings.getLeaseTime().longValue()).toPeriod()));
-							builder.dhcpRange(dhcpSettings.getStartIp().getInetAddress().getHostAddress() + "-" + dhcpSettings.getEndIp().getInetAddress().getHostAddress());
+							final long startOffset = dhcpSettings.getStartOffset().longValue();
+							final long addressCount = dhcpSettings.getAddressCount().longValue();
+							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(startOffset).getHostAddress() + "-"
+																+ v4RangeAddress.getAddressOfNetwork(startOffset + addressCount).getHostAddress());
 						}
 						if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
 							for (final String chain : FORWARD_FILTER_LIST) {

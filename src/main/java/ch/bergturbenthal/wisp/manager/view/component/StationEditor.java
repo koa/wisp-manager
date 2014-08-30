@@ -3,12 +3,17 @@ package ch.bergturbenthal.wisp.manager.view.component;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.joda.time.DateTime;
+import org.joda.time.Period;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +42,7 @@ import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
 import com.vaadin.data.util.ObjectProperty;
+import com.vaadin.data.util.converter.Converter;
 import com.vaadin.event.Action;
 import com.vaadin.event.Action.Handler;
 import com.vaadin.ui.Button;
@@ -97,6 +103,15 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		}
 	}
 
+	private static final PeriodFormatter DURATION_FORMAT = new PeriodFormatterBuilder().appendDays()
+																																											.appendSuffix("d")
+																																											.appendHours()
+																																											.appendSuffix("h")
+																																											.appendMinutes()
+																																											.appendSuffix("m")
+																																											.appendSeconds()
+																																											.appendSuffix("s")
+																																											.toFormatter();
 	@Autowired
 	private AddressManagementService addressManagementService;
 	private NetworkDevice currentNetworkDevice;
@@ -105,6 +120,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	private FormLayout mainLayout;
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
+
 	private Button provisionButton;
 
 	@Autowired
@@ -330,7 +346,45 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		vlanTable.setCaption("networks");
 		vlanTable.addGeneratedColumn("v4Address", createVlanAddressEditor(IpAddressType.V4));
 		vlanTable.addGeneratedColumn("v6Address", createVlanAddressEditor(IpAddressType.V6));
-		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address");
+		vlanTable.addGeneratedColumn("dhcpSettings.leaseTime", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				final Property timeProperty = source.getContainerDataSource().getContainerProperty(itemId, columnId);
+				final TextField textField = new TextField(timeProperty);
+				textField.setConverter(new Converter<String, Long>() {
+
+					@Override
+					public Long convertToModel(final String value, final Class<? extends Long> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+						if (value == null) {
+							return null;
+						}
+						final Period period = DURATION_FORMAT.parsePeriod(value);
+						return Long.valueOf(period.toDurationFrom(new DateTime()).getMillis());
+					}
+
+					@Override
+					public String convertToPresentation(final Long value, final Class<? extends String> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+						if (value == null) {
+							return null;
+						}
+						return DURATION_FORMAT.print(new Period(value.longValue()));
+					}
+
+					@Override
+					public Class<Long> getModelType() {
+						return Long.class;
+					}
+
+					@Override
+					public Class<String> getPresentationType() {
+						return String.class;
+					}
+				});
+				return textField;
+			}
+		});
+		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address", "dhcpSettings.leaseTime");
 		vlanTable.setColumnCollapsingAllowed(true);
 		vlanTable.setPropertyDataSource(customerConnectionItem.getItemProperty("ownNetworks"));
 

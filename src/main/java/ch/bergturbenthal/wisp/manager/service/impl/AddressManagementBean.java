@@ -153,7 +153,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -163,7 +163,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -323,13 +323,20 @@ public class AddressManagementBean implements AddressManagementService {
 				}
 				final boolean addDhcpSettings = address.getV4Address() == null;
 				fillRangePair(address, AddressRangeType.USER, 25, 32, 64, 128, null);
-				if (addDhcpSettings) {
-					final IpRange v4AddressRange = address.getV4Address();
-					final DHCPSettings dhcpSettings = new DHCPSettings();
-					dhcpSettings.setLeaseTime(Long.valueOf(TimeUnit.MINUTES.toMillis(30)));
-					dhcpSettings.setStartIp(new IpAddress(v4AddressRange.getRange().getAddress().getAddressOfNetwork(20)));
-					dhcpSettings.setEndIp(new IpAddress(v4AddressRange.getRange().getAddress().getAddressOfNetwork(100)));
-					vLan.setDhcpSettings(dhcpSettings);
+				if (addDhcpSettings && vLan.getDhcpSettings() == null) {
+					vLan.setDhcpSettings(new DHCPSettings());
+				}
+				if (vLan.getDhcpSettings() != null) {
+					final DHCPSettings dhcpSettings = vLan.getDhcpSettings();
+					if (dhcpSettings.getLeaseTime() == null) {
+						dhcpSettings.setLeaseTime(Long.valueOf(TimeUnit.MINUTES.toMillis(30)));
+					}
+					if (dhcpSettings.getStartOffset() == null) {
+						dhcpSettings.setStartOffset(Long.valueOf(20));
+					}
+					if (dhcpSettings.getAddressCount() == null) {
+						dhcpSettings.setAddressCount(Long.valueOf(80));
+					}
 				}
 				vLan.setAddress(address);
 			}
@@ -535,7 +542,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -599,7 +606,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -609,7 +616,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -661,7 +668,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -698,7 +705,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -785,7 +792,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -803,7 +810,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
