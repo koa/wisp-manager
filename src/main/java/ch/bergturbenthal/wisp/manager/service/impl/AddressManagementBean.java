@@ -153,7 +153,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -163,7 +163,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -207,6 +207,24 @@ public class AddressManagementBean implements AddressManagementService {
 		networkInterface.setGatewaySettings(gatewaySettings);
 		networkInterface.setRole(NetworkInterfaceRole.GATEWAY);
 		networkInterface.setInterfaceName("Gateway " + gatewaySettings.getGatewayName());
+	}
+
+	private long calculateOffsetInParentRange(final IpRange v4Address, final String enteredAddress) throws UnknownHostException {
+		final IpRange parentRange = v4Address.getParentRange();
+		final long availableReservations = parentRange.getAvailableReservations();
+		final InetAddress inetAddress = InetAddress.getByName(enteredAddress);
+		final BigInteger numericAddress = IpAddress.inet2BigInteger(inetAddress);
+		final BigInteger numericBaseAddress = parentRange.getRange().getAddress().getRawValue();
+		final BigInteger offset = numericAddress.subtract(numericBaseAddress);
+		final long offsetValue;
+		if (offset.compareTo(BigInteger.ONE) < 1) {
+			offsetValue = 1;
+		} else if (offset.compareTo(BigInteger.valueOf(availableReservations)) > 0) {
+			offsetValue = availableReservations - 1;
+		} else {
+			offsetValue = offset.longValue();
+		}
+		return offsetValue;
 	}
 
 	private void clearIntermediateParent(final IpRange parentRange) {
@@ -334,8 +352,8 @@ public class AddressManagementBean implements AddressManagementService {
 					if (dhcpSettings.getStartOffset() == null) {
 						dhcpSettings.setStartOffset(Long.valueOf(20));
 					}
-					if (dhcpSettings.getAddressCount() == null) {
-						dhcpSettings.setAddressCount(Long.valueOf(80));
+					if (dhcpSettings.getEndOffset() == null) {
+						dhcpSettings.setEndOffset(Long.valueOf(100));
 					}
 				}
 				vLan.setAddress(address);
@@ -542,7 +560,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -606,7 +624,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -616,7 +634,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -666,9 +684,72 @@ public class AddressManagementBean implements AddressManagementService {
 		return null;
 	}
 
+	@Override
+	public String getDhcpEndAddress(final VLan vlan) {
+		final IpRange v4Address = getV4AddressRange(vlan);
+		if (v4Address == null) {
+			return null;
+		}
+		final IpRange parentRange = v4Address.getParentRange();
+		final long availableReservations = parentRange.getAvailableReservations();
+		final DHCPSettings dhcpSettings = vlan.getDhcpSettings();
+		if (dhcpSettings == null) {
+			return null;
+		}
+		final Long endOffset = dhcpSettings.getEndOffset();
+		if (endOffset == null) {
+			return null;
+		}
+		if (endOffset.longValue() >= availableReservations) {
+			dhcpSettings.setStartOffset(Long.valueOf(availableReservations - 1));
+		}
+		if (endOffset.longValue() < 1) {
+			dhcpSettings.setEndOffset(Long.valueOf(1));
+		}
+		return parentRange.getRange().getAddress().getAddressOfNetwork(dhcpSettings.getEndOffset().longValue()).getHostAddress();
+
+	}
+
+	@Override
+	public String getDhcpStartAddress(final VLan vlan) {
+		final IpRange v4Address = getV4AddressRange(vlan);
+		if (v4Address == null) {
+			return null;
+		}
+		final IpRange parentRange = v4Address.getParentRange();
+		final long availableReservations = parentRange.getAvailableReservations();
+		final DHCPSettings dhcpSettings = vlan.getDhcpSettings();
+		if (dhcpSettings == null) {
+			return null;
+		}
+		final Long startOffset = dhcpSettings.getStartOffset();
+		if (startOffset == null) {
+			return null;
+		}
+		if (startOffset.longValue() >= availableReservations) {
+			dhcpSettings.setStartOffset(Long.valueOf(availableReservations - 1));
+		}
+		if (startOffset.longValue() < 1) {
+			dhcpSettings.setStartOffset(Long.valueOf(1));
+		}
+		return parentRange.getRange().getAddress().getAddressOfNetwork(dhcpSettings.getStartOffset().longValue()).getHostAddress();
+
+	}
+
+	private IpRange getV4AddressRange(final VLan vlan) {
+		if (vlan == null) {
+			return null;
+		}
+		final RangePair rangePair = vlan.getAddress();
+		if (rangePair == null) {
+			return null;
+		}
+		return rangePair.getV4Address();
+	}
+
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -705,7 +786,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -792,7 +873,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -810,7 +891,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
@@ -938,7 +1019,46 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 	}
 
+	@Override
+	public boolean setDhcpEndAddress(final VLan vlan, final String endAddress) {
+		try {
+			final IpRange v4Address = getV4AddressRange(vlan);
+			if (v4Address == null) {
+				return false;
+			}
+			final long offsetValue = calculateOffsetInParentRange(v4Address, endAddress);
+			if (vlan.getDhcpSettings() == null) {
+				vlan.setDhcpSettings(new DHCPSettings());
+			}
+			vlan.getDhcpSettings().setEndOffset(Long.valueOf(offsetValue));
+			return true;
+		} catch (final UnknownHostException e) {
+			log.info("Unknown IP Address", e);
+			return false;
+		}
+	}
+
+	@Override
+	public boolean setDhcpStartAddress(final VLan vlan, final String startAddress) {
+		try {
+			final IpRange v4Address = getV4AddressRange(vlan);
+			if (v4Address == null) {
+				return false;
+			}
+			final long offsetValue = calculateOffsetInParentRange(v4Address, startAddress);
+			if (vlan.getDhcpSettings() == null) {
+				vlan.setDhcpSettings(new DHCPSettings());
+			}
+			vlan.getDhcpSettings().setStartOffset(Long.valueOf(offsetValue));
+			return true;
+		} catch (final UnknownHostException e) {
+			log.info("Unknown IP Address", e);
+			return false;
+		}
+	}
+
 	private void updateInterfaceTitle(final NetworkInterface networkInterface, final Connection connection) {
 		networkInterface.setInterfaceName("connection: " + connection.getTitle());
 	}
+
 }

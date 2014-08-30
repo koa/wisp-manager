@@ -369,9 +369,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						if (dhcpSettings != null) {
 							builder.dhcpLeaseTime(DURATION_FORMAT.print(Duration.millis(dhcpSettings.getLeaseTime().longValue()).toPeriod()));
 							final long startOffset = dhcpSettings.getStartOffset().longValue();
-							final long addressCount = dhcpSettings.getAddressCount().longValue();
-							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(startOffset).getHostAddress() + "-"
-																+ v4RangeAddress.getAddressOfNetwork(startOffset + addressCount).getHostAddress());
+							final long endOffset = dhcpSettings.getEndOffset().longValue();
+							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(startOffset).getHostAddress() + "-" + v4RangeAddress.getAddressOfNetwork(endOffset).getHostAddress());
 						}
 						if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
 							for (final String chain : FORWARD_FILTER_LIST) {

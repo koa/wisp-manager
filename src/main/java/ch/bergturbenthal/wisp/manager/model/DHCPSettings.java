@@ -7,7 +7,7 @@ import lombok.Data;
 @Embeddable
 @Data
 public class DHCPSettings {
-	private Long addressCount;
+	private Long endOffset;
 	private Long leaseTime;
 	private Long startOffset;
 }

@@ -38,6 +38,7 @@ import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import ch.bergturbenthal.wisp.manager.util.PojoItem;
 
+import com.vaadin.data.Container;
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.data.fieldgroup.FieldGroup;
@@ -103,15 +104,45 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		}
 	}
 
-	private static final PeriodFormatter DURATION_FORMAT = new PeriodFormatterBuilder().appendDays()
-																																											.appendSuffix("d")
-																																											.appendHours()
-																																											.appendSuffix("h")
-																																											.appendMinutes()
-																																											.appendSuffix("m")
-																																											.appendSeconds()
-																																											.appendSuffix("s")
-																																											.toFormatter();
+	private static final class TimeSpanConverter implements Converter<String, Long> {
+		private static final PeriodFormatter DURATION_FORMAT = new PeriodFormatterBuilder().appendDays()
+																																												.appendSuffix("d")
+																																												.appendHours()
+																																												.appendSuffix("h")
+																																												.appendMinutes()
+																																												.appendSuffix("m")
+																																												.appendSeconds()
+																																												.appendSuffix("s")
+																																												.toFormatter();
+
+		@Override
+		public Long convertToModel(final String value, final Class<? extends Long> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+			if (value == null) {
+				return null;
+			}
+			final Period period = DURATION_FORMAT.parsePeriod(value);
+			return Long.valueOf(period.toDurationFrom(new DateTime()).getMillis());
+		}
+
+		@Override
+		public String convertToPresentation(final Long value, final Class<? extends String> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+			if (value == null) {
+				return null;
+			}
+			return DURATION_FORMAT.print(new Period(value.longValue()));
+		}
+
+		@Override
+		public Class<Long> getModelType() {
+			return Long.class;
+		}
+
+		@Override
+		public Class<String> getPresentationType() {
+			return String.class;
+		}
+	}
+
 	@Autowired
 	private AddressManagementService addressManagementService;
 	private NetworkDevice currentNetworkDevice;
@@ -188,6 +219,92 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		});
 
 		return customerConnectionTable;
+	}
+
+	private Property<String> createDhcpEndAddressProperty(final Object itemId, final Container containerDataSource) {
+		return new Property<String>() {
+
+			@Override
+			public Class<? extends String> getType() {
+				return String.class;
+			}
+
+			@Override
+			public String getValue() {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				return addressManagementService.getDhcpEndAddress(vlanItem.getPojo());
+			}
+
+			@Override
+			public boolean isReadOnly() {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				if (vlanItem == null) {
+					return true;
+				}
+				final VLan vlan = vlanItem.getPojo();
+				if (vlan == null) {
+					return true;
+				}
+				final RangePair address = vlan.getAddress();
+				if (address == null) {
+					return true;
+				}
+				return address.getV4Address() == null;
+			}
+
+			@Override
+			public void setReadOnly(final boolean newStatus) {
+			}
+
+			@Override
+			public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				addressManagementService.setDhcpEndAddress(vlanItem.getPojo(), newValue);
+			}
+		};
+	}
+
+	private Property<String> createDhcpStartAddressProperty(final Object itemId, final Container containerDataSource) {
+		return new Property<String>() {
+
+			@Override
+			public Class<? extends String> getType() {
+				return String.class;
+			}
+
+			@Override
+			public String getValue() {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				return addressManagementService.getDhcpStartAddress(vlanItem.getPojo());
+			}
+
+			@Override
+			public boolean isReadOnly() {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				if (vlanItem == null) {
+					return true;
+				}
+				final VLan vlan = vlanItem.getPojo();
+				if (vlan == null) {
+					return true;
+				}
+				final RangePair address = vlan.getAddress();
+				if (address == null) {
+					return true;
+				}
+				return address.getV4Address() == null;
+			}
+
+			@Override
+			public void setReadOnly(final boolean newStatus) {
+			}
+
+			@Override
+			public void setValue(final String newValue) throws com.vaadin.data.Property.ReadOnlyException {
+				final PojoItem<VLan> vlanItem = (PojoItem<VLan>) containerDataSource.getItem(itemId);
+				addressManagementService.setDhcpStartAddress(vlanItem.getPojo(), newValue);
+			}
+		};
 	}
 
 	private Table createGatewayTable() {
@@ -346,45 +463,34 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		vlanTable.setCaption("networks");
 		vlanTable.addGeneratedColumn("v4Address", createVlanAddressEditor(IpAddressType.V4));
 		vlanTable.addGeneratedColumn("v6Address", createVlanAddressEditor(IpAddressType.V6));
-		vlanTable.addGeneratedColumn("dhcpSettings.leaseTime", new ColumnGenerator() {
+		vlanTable.addGeneratedColumn("leaseTime", new ColumnGenerator() {
 
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final Property timeProperty = source.getContainerDataSource().getContainerProperty(itemId, columnId);
-				final TextField textField = new TextField(timeProperty);
-				textField.setConverter(new Converter<String, Long>() {
-
-					@Override
-					public Long convertToModel(final String value, final Class<? extends Long> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
-						if (value == null) {
-							return null;
-						}
-						final Period period = DURATION_FORMAT.parsePeriod(value);
-						return Long.valueOf(period.toDurationFrom(new DateTime()).getMillis());
-					}
-
-					@Override
-					public String convertToPresentation(final Long value, final Class<? extends String> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
-						if (value == null) {
-							return null;
-						}
-						return DURATION_FORMAT.print(new Period(value.longValue()));
-					}
-
-					@Override
-					public Class<Long> getModelType() {
-						return Long.class;
-					}
-
-					@Override
-					public Class<String> getPresentationType() {
-						return String.class;
-					}
-				});
+				final TextField textField = new TextField(source.getContainerDataSource().getContainerProperty(itemId, "dhcpSettings.leaseTime"));
+				textField.setConverter(new TimeSpanConverter());
 				return textField;
 			}
 		});
-		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address", "dhcpSettings.leaseTime");
+		vlanTable.addGeneratedColumn("dhcpStartAddress", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return new TextField(createDhcpStartAddressProperty(itemId, source.getContainerDataSource()));
+			}
+
+		});
+
+		vlanTable.addGeneratedColumn("dhcpEndAddress", new ColumnGenerator() {
+
+			@Override
+			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
+				return new TextField(createDhcpEndAddressProperty(itemId, source.getContainerDataSource()));
+			}
+
+		});
+
+		vlanTable.setVisibleColumns("vlanId", "v4Address", "v6Address", "leaseTime", "dhcpStartAddress", "dhcpEndAddress");
 		vlanTable.setColumnCollapsingAllowed(true);
 		vlanTable.setPropertyDataSource(customerConnectionItem.getItemProperty("ownNetworks"));
 

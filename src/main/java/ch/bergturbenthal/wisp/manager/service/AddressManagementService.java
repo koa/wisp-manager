@@ -8,6 +8,7 @@ import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
+import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
@@ -46,5 +47,13 @@ public interface AddressManagementService {
 	Iterable<InetAddress> listPossibleNetworkDevices();
 
 	boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType);
+
+	String getDhcpStartAddress(final VLan vlan);
+
+	String getDhcpEndAddress(final VLan vlan);
+
+	boolean setDhcpStartAddress(final VLan vlan, final String startAddress);
+
+	boolean setDhcpEndAddress(final VLan vlan, final String endAddress);
 
 }
