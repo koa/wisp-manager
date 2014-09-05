@@ -673,7 +673,24 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 			}
 		});
-		final VerticalLayout actionButtonsLayout = new VerticalLayout(provisionButton, fillButton);
+		final Button showConfigButton = new Button("show Config");
+		showConfigButton.addClickListener(new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				final Station currentStation = getCurrentStation();
+				if (currentStation == null) {
+					return;
+				}
+				final NetworkDevice device = currentStation.getDevice();
+				if (device == null) {
+					return;
+				}
+				log.info(networkDeviceManagementService.generateConfig(device));
+			}
+		});
+
+		final VerticalLayout actionButtonsLayout = new VerticalLayout(provisionButton, fillButton, showConfigButton);
 		actionButtonsLayout.setCaption("Actions");
 		mainLayout.addComponent(actionButtonsLayout);
 		setCompositionRoot(mainLayout);

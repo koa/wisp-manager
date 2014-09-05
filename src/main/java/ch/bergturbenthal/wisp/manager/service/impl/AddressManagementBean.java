@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -189,6 +190,19 @@ public class AddressManagementBean implements AddressManagementService {
 		return reservationRange;
 	}
 
+	private void appendRangeToMap(final Map<CustomerConnection, Collection<Runnable>> foundCustomerConnections,
+																final CustomerConnection connection,
+																final Runnable cleanupRunnable) {
+		final Collection<Runnable> existingCollection = foundCustomerConnections.get(connection);
+		if (existingCollection == null) {
+			final ArrayList<Runnable> ranges = new ArrayList<Runnable>(2);
+			ranges.add(cleanupRunnable);
+			foundCustomerConnections.put(connection, ranges);
+		} else {
+			existingCollection.add(cleanupRunnable);
+		}
+	}
+
 	private VLan appendVlan(final int vlanId, final RangePair parentAddresses) {
 		final RangePair address = new RangePair();
 		final VLan vLan = new VLan();
@@ -238,12 +252,28 @@ public class AddressManagementBean implements AddressManagementService {
 			return;
 		}
 		clearIntermediateParent(parentRange.getParentRange());
-		ipRangeRepository.delete(parentRange);
+		deleteIpRange(parentRange);
 	}
 
 	@Override
 	public CrudRepositoryContainer<IpRange, Long> createIpContainer() {
 		return new IpRangeCrudContainer(ipRangeRepository, IpRange.class);
+	}
+
+	private void deleteIpRange(final IpRange range) {
+		final VLan foundVLan = vLanRepository.findVlanByRange(range);
+		if (foundVLan != null) {
+			final RangePair address = foundVLan.getAddress();
+			if (address != null) {
+				if (address.getV4Address() == range) {
+					address.setV4Address(null);
+				}
+				if (address.getV6Address() == range) {
+					address.setV6Address(null);
+				}
+			}
+		}
+		ipRangeRepository.delete(range);
 	}
 
 	@Override
@@ -427,47 +457,67 @@ public class AddressManagementBean implements AddressManagementService {
 				networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
 			} else {
 				// find connections and stations for this interface
-				final Set<CustomerConnection> foundCustomerConnections = new HashSet<>();
+				final Map<CustomerConnection, Collection<Runnable>> foundCustomerConnections = new HashMap<CustomerConnection, Collection<Runnable>>();
 				for (final VLan vLan : VLan.sortVLans(networks)) {
 					final RangePair connectionAddress = vLan.getAddress();
 					if (connectionAddress == null) {
 						continue;
 					}
-					if (connectionAddress.getV4Address() != null) {
-						final IpRange parentRange = connectionAddress.getV4Address().getParentRange();
-						foundCustomerConnections.add(stationRepository.findStationNetworkForRange(parentRange));
+					final IpRange v4Address = connectionAddress.getV4Address();
+					if (v4Address != null) {
+						final IpRange parentRange = v4Address.getParentRange();
+						final CustomerConnection stationFromRange = stationRepository.findStationNetworkForRange(parentRange);
+						appendRangeToMap(foundCustomerConnections, stationFromRange, new Runnable() {
+							@Override
+							public void run() {
+								parentRange.getReservations().remove(v4Address);
+								connectionAddress.setV4Address(null);
+								deleteIpRange(v4Address);
+							}
+						});
 						vLanRepository.findVlanByRange(parentRange);
 					}
-					if (connectionAddress.getV6Address() != null) {
-						final IpRange parentRange = connectionAddress.getV6Address().getParentRange();
-						foundCustomerConnections.add(stationRepository.findStationNetworkForRange(parentRange));
+					final IpRange v6Address = connectionAddress.getV6Address();
+					if (v6Address != null) {
+						final IpRange parentRange = v6Address.getParentRange();
+						final CustomerConnection stationFromRange = stationRepository.findStationNetworkForRange(parentRange);
+						appendRangeToMap(foundCustomerConnections, stationFromRange, new Runnable() {
+
+							@Override
+							public void run() {
+								parentRange.getReservations().remove(v6Address);
+								connectionAddress.setV6Address(null);
+								deleteIpRange(v6Address);
+							}
+						});
 					}
 				}
 				// remove not found entries
 				foundCustomerConnections.remove(null);
-				if (foundCustomerConnections.isEmpty()) {
-					// unassigned interface
-					freeInterfaces.add(networkInterface);
-					networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
-					continue;
-				}
 				if (!foundCustomerConnections.isEmpty()) {
-					for (final CustomerConnection foundCustomerConnection : foundCustomerConnections) {
-						if (station.equals(foundCustomerConnection.getStation())) {
+					for (final Iterator<Entry<CustomerConnection, Collection<Runnable>>> iterator = foundCustomerConnections.entrySet().iterator(); iterator.hasNext();) {
+						final Entry<CustomerConnection, Collection<Runnable>> entry = iterator.next();
+						final CustomerConnection foundCustomerConnection = entry.getKey();
+						final Station stationOfConnection = foundCustomerConnection.getStation();
+						if (station.equals(stationOfConnection)) {
 							// locally connected interface
 							networkInterface.setInterfaceName(makeInterfaceName(foundCustomerConnection));
 							networkInterface.setRole(NetworkInterfaceRole.NETWORK);
 							userAssignedInterfaces.add(networkInterface);
 							remainingCustomerConnections.remove(foundCustomerConnection);
+						} else {
+							iterator.remove();
+							for (final Runnable runnable : entry.getValue()) {
+								runnable.run();
+							}
 						}
 					}
-					continue;
 				}
-				// every other case is inconsistent and will be cleaned
-				log.warn("Inconsistent connection at interface " + networkInterface + " cleaning");
-				networkInterface.getNetworks().clear();
-				freeInterfaces.add(networkInterface);
-				networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
+				if (foundCustomerConnections.isEmpty()) {
+					// unassigned interface
+					freeInterfaces.add(networkInterface);
+					networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
+				}
 			}
 		}
 		// assign remaining interfaces to connections
@@ -493,7 +543,10 @@ public class AddressManagementBean implements AddressManagementService {
 					if (deviceVlan != null) {
 						final RangePair deviceAddressPair = deviceVlan.getAddress();
 						final RangePair stationAddressPair = vlan.getAddress();
-						if (deviceAddressPair.getV4Address().getParentRange() == stationAddressPair.getV4Address() && deviceAddressPair.getV6Address().getParentRange() == stationAddressPair.getV6Address()) {
+						if (deviceAddressPair != null && deviceAddressPair.getV4Address() != null
+								&& deviceAddressPair.getV6Address() != null
+								&& deviceAddressPair.getV4Address().getParentRange() == stationAddressPair.getV4Address()
+								&& deviceAddressPair.getV6Address().getParentRange() == stationAddressPair.getV6Address()) {
 							if (vlan.getDhcpSettings() != null) {
 								deviceVlan.setDhcpSettings(vlan.getDhcpSettings());
 							}
@@ -502,6 +555,23 @@ public class AddressManagementBean implements AddressManagementService {
 						} else {
 							// address-data invalid -> remove and renew
 							networks.remove(deviceVlan);
+							final RangePair rangePair = stationAddressPair;
+							if (rangePair != null) {
+								final IpRange v4Address = rangePair.getV4Address();
+								if (v4Address != null) {
+									for (final Iterator<IpRange> iterator = v4Address.getReservations().iterator(); iterator.hasNext();) {
+										deleteIpRange(iterator.next());
+										iterator.remove();
+									}
+								}
+								final IpRange v6Address = rangePair.getV6Address();
+								if (v6Address != null) {
+									for (final Iterator<IpRange> iterator = v6Address.getReservations().iterator(); iterator.hasNext();) {
+										deleteIpRange(iterator.next());
+										iterator.remove();
+									}
+								}
+							}
 						}
 					}
 					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
@@ -884,7 +954,7 @@ public class AddressManagementBean implements AddressManagementService {
 	@Override
 	public void removeRange(final IpRange ipRange) {
 		if (ipRange.getType() != AddressRangeType.ASSIGNED && ipRange.getReservations().isEmpty()) {
-			ipRangeRepository.delete(ipRange);
+			deleteIpRange(ipRange);
 		}
 
 	}
@@ -940,7 +1010,7 @@ public class AddressManagementBean implements AddressManagementService {
 			final IpRange reservationBefore = addressPair.getIpAddress(addressType);
 			if (reservationBefore != null) {
 				clearIntermediateParent(reservationBefore.getParentRange());
-				ipRangeRepository.delete(reservationBefore);
+				deleteIpRange(reservationBefore);
 				addressPair.setIpAddress(null, addressType);
 			}
 			final String[] addressParts = address.split("/", 2);

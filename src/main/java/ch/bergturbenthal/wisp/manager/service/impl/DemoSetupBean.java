@@ -162,6 +162,15 @@ public class DemoSetupBean implements DemoSetupService {
 			appendVlan(stationChalchegg, 1);
 			appendVlan(stationChalchegg, 2);
 			appendVlan(stationChalchegg, 10);
+			// for (final CustomerConnection customerConnection : stationChalchegg.getCustomerConnections()) {
+			// customerConnection.setName("König");
+			// for (final Iterator<VLan> iterator = customerConnection.getOwnNetworks().iterator(); iterator.hasNext();) {
+			// final VLan vLan = iterator.next();
+			// if (vLan.getVlanId() == 0) {
+			// iterator.remove();
+			// }
+			// }
+			// }
 			stationBerg.setTunnelConnection(true);
 			final GatewaySettings gateway = new GatewaySettings();
 			gateway.setGatewayName("Cyberlink");

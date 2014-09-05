@@ -1,7 +1,6 @@
 package ch.bergturbenthal.wisp.manager.service.provision.routeros;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -25,11 +24,11 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Password;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
@@ -66,8 +65,7 @@ public class TestGenerateRouterOsConfig {
 	private PlatformTransactionManager transactionManager;
 	private TransactionTemplate transactionTemplate;
 
-	@org.springframework.transaction.annotation.Transactional(propagation = Propagation.REQUIRES_NEW)
-	private void checkStation(final Station station) throws FileNotFoundException, IOException {
+	private void checkStation(final Station station, final String filename) {
 		final Long stationId = station.getId();
 		transactionTemplate.execute(new TransactionCallback<Void>() {
 
@@ -75,7 +73,6 @@ public class TestGenerateRouterOsConfig {
 			public Void doInTransaction(final TransactionStatus status) {
 				try {
 					final Station station = stationRepository.findOne(stationId);
-					final String filename = createFileName(station);
 					final File file = new File("target/result/" + filename);
 					if (!file.getParentFile().exists()) {
 						file.getParentFile().mkdirs();
@@ -84,7 +81,7 @@ public class TestGenerateRouterOsConfig {
 					final OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file));
 					final String generatedConfig = networkDeviceManagementBean.generateConfig(station.getDevice());
 					writer.write(generatedConfig);
-					final ClassPathResource classPathResource = new ClassPathResource("templates/" + createFileName(station));
+					final ClassPathResource classPathResource = new ClassPathResource("templates/" + filename);
 
 					@Cleanup
 					final InputStreamReader reader = new InputStreamReader(classPathResource.getInputStream(), "utf-8");
@@ -130,14 +127,30 @@ public class TestGenerateRouterOsConfig {
 
 		final List<Station> stationList = new ArrayList<Station>(stationService.listAllStations());
 		for (final Station station : stationList) {
-			checkStation(station);
+			checkStation(station, createFileName(station));
 		}
 		for (final Station station : stationList) {
-			checkStation(station);
+			checkStation(station, createFileName(station));
 		}
 		Collections.reverse(stationList);
 		for (final Station station : stationList) {
-			checkStation(station);
+			checkStation(station, createFileName(station));
+		}
+		transactionTemplate.execute(new TransactionCallback<Void>() {
+
+			@Override
+			public Void doInTransaction(final TransactionStatus status) {
+				final Station station0 = stationRepository.findOne(stationList.get(0).getId());
+				final Station station1 = stationRepository.findOne(stationList.get(1).getId());
+				final NetworkDevice device0 = station0.getDevice();
+				final NetworkDevice device1 = station1.getDevice();
+				station0.setDevice(device1);
+				station1.setDevice(device0);
+				return null;
+			}
+		});
+		for (final Station station : stationList) {
+			checkStation(station, "sw-" + createFileName(station));
 		}
 	}
 
