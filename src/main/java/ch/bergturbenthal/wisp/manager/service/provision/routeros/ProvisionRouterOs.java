@@ -265,6 +265,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName), 0);
 			}
 			final GatewaySettings gatewaySettings = netIf.getGatewaySettings();
+			boolean hasAddressWithoutVlan = false;
 			if (gatewaySettings != null) {
 				final String gatewayIfName;
 				switch (gatewaySettings.getGatewayType()) {
@@ -281,6 +282,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					}
 					builder.role(netIf.getRole());
 					networkInterfaces.add(builder.build());
+					hasAddressWithoutVlan = true;
 					break;
 				}
 				case PPPOE:
@@ -304,6 +306,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 																			.userName(gatewaySettings.getUserName())
 																			.password(gatewaySettings.getPassword())
 																			.build());
+					hasAddressWithoutVlan = true;
 					break;
 				default:
 					gatewayIfName = ifName;
@@ -323,7 +326,6 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				}
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
-			boolean hasAddressWithoutVlan = false;
 			for (final VLan network : VLan.sortVLans(netIf.getNetworks())) {
 				if (network.getAddress() != null) {
 					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder();

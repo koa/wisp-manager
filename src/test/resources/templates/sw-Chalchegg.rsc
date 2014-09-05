@@ -5,11 +5,11 @@
 
 # all interfaces in routing mode
 /interface ethernet
-	set [ find mac-address=B2:8E:04:FA:70:90 ] master-port=none speed=1Gbps name=customer
-	set [ find mac-address=B2:8E:04:FA:70:91 ] master-port=none speed=1Gbps name=station-connection-1
-	set [ find mac-address=B2:8E:04:FA:70:92 ] master-port=none speed=1Gbps name=station-connection-2
-	set [ find mac-address=B2:8E:04:FA:70:93 ] master-port=none speed=1Gbps name=station-connection-3
-	set [ find mac-address=B2:8E:04:FA:70:94 ] master-port=none speed=1Gbps name=station-connection-4
+	set [ find mac-address=B2:8E:03:FA:70:90 ] master-port=none speed=1Gbps name=customer
+	set [ find mac-address=B2:8E:03:FA:70:91 ] master-port=none speed=1Gbps name=station-connection-1
+	set [ find mac-address=B2:8E:03:FA:70:92 ] master-port=none speed=1Gbps name=station-connection-2
+	set [ find mac-address=B2:8E:03:FA:70:93 ] master-port=none speed=1Gbps name=station-connection-3
+	set [ find mac-address=B2:8E:03:FA:70:94 ] master-port=none speed=1Gbps name=station-connection-4
 /interface vlan
 	remove numbers=[find]
 	add interface=customer l2mtu=1594 name=customer-1 vlan-id=1
@@ -37,13 +37,13 @@
 	add address=172.17.1.1/24 interface=customer-1
 	add address=172.17.2.1/24 interface=customer-2
 	add address=172.17.3.1/24 interface=customer-10
-	add address=172.16.1.25/29 interface=station-connection-1
-	add address=172.16.1.33/29 interface=station-connection-2
-	add address=172.16.1.41/29 interface=station-connection-3
-	add address=172.16.1.49/29 interface=station-connection-4
+	add address=172.16.1.121/29 interface=station-connection-1
+	add address=172.16.1.1/29 interface=station-connection-2
+	add address=172.16.1.9/29 interface=station-connection-3
+	add address=172.16.1.17/29 interface=station-connection-4
 
 # Tunnel Endpoints
-	add address=172.16.4.1/30 interface=tunnel-Berg
+	add address=172.16.4.2/30 interface=tunnel-Berg
 
 # ipv4 ospf Routing
 /routing ospf instance set [ find default=yes ] router-id=172.16.0.2
@@ -65,10 +65,10 @@
 	add area=backbone network=172.17.1.0/24
 	add area=backbone network=172.17.2.0/24
 	add area=backbone network=172.17.3.0/24
-	add area=backbone network=172.16.1.24/29
-	add area=backbone network=172.16.1.32/29
-	add area=backbone network=172.16.1.40/29
-	add area=backbone network=172.16.1.48/29
+	add area=backbone network=172.16.1.120/29
+	add area=backbone network=172.16.1.0/29
+	add area=backbone network=172.16.1.8/29
+	add area=backbone network=172.16.1.16/29
 	add area=backbone network=172.16.4.0/30
 
 
@@ -79,10 +79,10 @@
 	add name=customer-1_pool ranges=172.17.1.20-172.17.1.100
 	add name=customer-2_pool ranges=172.17.2.20-172.17.2.100
 	add name=customer-10_pool ranges=172.17.3.20-172.17.3.100
-	add name=station-connection-1_pool ranges=172.16.1.26-172.16.1.30
-	add name=station-connection-2_pool ranges=172.16.1.34-172.16.1.38
-	add name=station-connection-3_pool ranges=172.16.1.42-172.16.1.46
-	add name=station-connection-4_pool ranges=172.16.1.50-172.16.1.54
+	add name=station-connection-1_pool ranges=172.16.1.122-172.16.1.126
+	add name=station-connection-2_pool ranges=172.16.1.2-172.16.1.6
+	add name=station-connection-3_pool ranges=172.16.1.10-172.16.1.14
+	add name=station-connection-4_pool ranges=172.16.1.18-172.16.1.22
 /ip dhcp-server
 	remove numbers=[find]
 	add address-pool=customer-1_pool disabled=no interface=customer-1 lease-time=30m name=dhcp_customer-1
@@ -97,10 +97,10 @@
 	add address=172.17.1.0/24 gateway=172.17.1.1
 	add address=172.17.2.0/24 gateway=172.17.2.1
 	add address=172.17.3.0/24 gateway=172.17.3.1
-	add address=172.16.1.24/29 gateway=172.16.1.25
-	add address=172.16.1.32/29 gateway=172.16.1.33
-	add address=172.16.1.40/29 gateway=172.16.1.41
-	add address=172.16.1.48/29 gateway=172.16.1.49
+	add address=172.16.1.120/29 gateway=172.16.1.121
+	add address=172.16.1.0/29 gateway=172.16.1.1
+	add address=172.16.1.8/29 gateway=172.16.1.9
+	add address=172.16.1.16/29 gateway=172.16.1.17
 
 /ip dhcp-client
 	remove numbers=[find]
@@ -134,10 +134,10 @@
 	add address=2001:1620:bba:1:0:0:0:0/64 interface=customer-1
 	add address=2001:1620:bba:2:0:0:0:0/64 interface=customer-2
 	add address=2001:1620:bba:3:0:0:0:0/64 interface=customer-10
-	add address=fd7e:907d:34ab:103:0:0:0:0/64 interface=station-connection-1
-	add address=fd7e:907d:34ab:104:0:0:0:0/64 interface=station-connection-2
-	add address=fd7e:907d:34ab:105:0:0:0:0/64 interface=station-connection-3
-	add address=fd7e:907d:34ab:106:0:0:0:0/64 interface=station-connection-4
+	add address=fd7e:907d:34ab:10f:0:0:0:0/64 interface=station-connection-1
+	add address=fd7e:907d:34ab:100:0:0:0:0/64 interface=station-connection-2
+	add address=fd7e:907d:34ab:101:0:0:0:0/64 interface=station-connection-3
+	add address=fd7e:907d:34ab:102:0:0:0:0/64 interface=station-connection-4
  
 # ospf-v3 Routing 
  

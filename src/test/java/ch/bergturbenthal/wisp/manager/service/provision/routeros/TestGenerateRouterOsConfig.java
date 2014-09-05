@@ -122,6 +122,15 @@ public class TestGenerateRouterOsConfig {
 		});
 	}
 
+	private void switchDevices(final Long id0, final Long id1) {
+		final Station station0 = stationRepository.findOne(id0);
+		final Station station1 = stationRepository.findOne(id1);
+		final NetworkDevice device0 = station0.getDevice();
+		final NetworkDevice device1 = station1.getDevice();
+		station0.setDevice(device1);
+		station1.setDevice(device0);
+	}
+
 	@Test
 	public void testGenerateRbConfig() throws UnknownHostException, IOException {
 
@@ -140,12 +149,8 @@ public class TestGenerateRouterOsConfig {
 
 			@Override
 			public Void doInTransaction(final TransactionStatus status) {
-				final Station station0 = stationRepository.findOne(stationList.get(0).getId());
-				final Station station1 = stationRepository.findOne(stationList.get(1).getId());
-				final NetworkDevice device0 = station0.getDevice();
-				final NetworkDevice device1 = station1.getDevice();
-				station0.setDevice(device1);
-				station1.setDevice(device0);
+				switchDevices(stationList.get(0).getId(), stationList.get(1).getId());
+				switchDevices(stationList.get(2).getId(), stationList.get(3).getId());
 				return null;
 			}
 		});

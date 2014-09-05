@@ -38,7 +38,7 @@
 	add address=172.16.1.81/29 interface=station-connection-4
 
 # Tunnel Endpoints
-	add address=172.16.4.5/30 interface=tunnel-Berg
+	add address=172.16.4.13/30 interface=tunnel-Berg
 
 # ipv4 ospf Routing
 /routing ospf instance set [ find default=yes ] router-id=172.16.0.4
@@ -60,7 +60,7 @@
 	add area=backbone network=172.16.1.64/29
 	add area=backbone network=172.16.1.72/29
 	add area=backbone network=172.16.1.80/29
-	add area=backbone network=172.16.4.4/30
+	add area=backbone network=172.16.4.12/30
 
 
 # ipv4 dhcp

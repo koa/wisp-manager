@@ -154,7 +154,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -164,7 +164,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -241,6 +241,37 @@ public class AddressManagementBean implements AddressManagementService {
 		return offsetValue;
 	}
 
+	private void cleanupRange(final IpRange range) {
+		for (final Iterator<IpRange> iterator = range.getReservations().iterator(); iterator.hasNext();) {
+			final IpRange subRange = iterator.next();
+			subRange.setParentRange(null);
+			deleteIpRange(subRange);
+			iterator.remove();
+		}
+	}
+
+	private void cleanupRangePair(final RangePair rangePair) {
+		if (rangePair != null) {
+			final IpRange v4Address = rangePair.getV4Address();
+			if (v4Address != null) {
+				cleanupRange(v4Address);
+			}
+			final IpRange v6Address = rangePair.getV6Address();
+			if (v6Address != null) {
+				cleanupRange(v6Address);
+			}
+		}
+	}
+
+	private void cleanVlans(final Set<VLan> vlans) {
+		for (final Iterator<VLan> networkIter = vlans.iterator(); networkIter.hasNext();) {
+			final VLan network = networkIter.next();
+			removeRangePair(network.getAddress());
+			vLanRepository.delete(network);
+			networkIter.remove();
+		}
+	}
+
 	private void clearIntermediateParent(final IpRange parentRange) {
 		if (parentRange == null) {
 			return;
@@ -272,6 +303,9 @@ public class AddressManagementBean implements AddressManagementService {
 					address.setV6Address(null);
 				}
 			}
+		}
+		if (range.getParentRange() != null) {
+			range.getParentRange().getReservations().remove(range);
 		}
 		ipRangeRepository.delete(range);
 	}
@@ -439,10 +473,16 @@ public class AddressManagementBean implements AddressManagementService {
 				switch (gatewaySettings.getGatewayType()) {
 				case LAN:
 				case PPPOE:
-					remainingGatewaySettings.remove(gatewaySettings);
-					networkInterface.getNetworks().clear();
-					assignGateway(networkInterface, gatewaySettings);
-					continue;
+					if (remainingGatewaySettings.remove(gatewaySettings)) {
+						// keep gateway
+						assignGateway(networkInterface, gatewaySettings);
+						cleanVlans(networkInterface.getNetworks());
+						continue;
+					} else {
+						// remove gateway
+						networkInterface.setGatewaySettings(null);
+						break;
+					}
 				case HE:
 					// remove -> HE needs no physical interface
 					networkInterface.setGatewaySettings(null);
@@ -506,6 +546,7 @@ public class AddressManagementBean implements AddressManagementService {
 							userAssignedInterfaces.add(networkInterface);
 							remainingCustomerConnections.remove(foundCustomerConnection);
 						} else {
+							cleanVlans(networkInterface.getNetworks());
 							iterator.remove();
 							for (final Runnable runnable : entry.getValue()) {
 								runnable.run();
@@ -555,24 +596,10 @@ public class AddressManagementBean implements AddressManagementService {
 						} else {
 							// address-data invalid -> remove and renew
 							networks.remove(deviceVlan);
-							final RangePair rangePair = stationAddressPair;
-							if (rangePair != null) {
-								final IpRange v4Address = rangePair.getV4Address();
-								if (v4Address != null) {
-									for (final Iterator<IpRange> iterator = v4Address.getReservations().iterator(); iterator.hasNext();) {
-										deleteIpRange(iterator.next());
-										iterator.remove();
-									}
-								}
-								final IpRange v6Address = rangePair.getV6Address();
-								if (v6Address != null) {
-									for (final Iterator<IpRange> iterator = v6Address.getReservations().iterator(); iterator.hasNext();) {
-										deleteIpRange(iterator.next());
-										iterator.remove();
-									}
-								}
-							}
+							cleanupRangePair(stationAddressPair);
 						}
+					} else {
+						cleanupRangePair(vlan.getAddress());
 					}
 					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
 					networks.add(ifaceVlan);
@@ -630,7 +657,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -688,13 +715,15 @@ public class AddressManagementBean implements AddressManagementService {
 			}
 		}
 		for (final IpIpv6Tunnel tunnel : configuredTunnels.values()) {
+			tunnel.getStartDevice().getTunnelBegins().remove(tunnel);
+			tunnel.getEndDevice().getTunnelEnds().remove(tunnel);
 			ipIpv6TunnelRepository.delete(tunnel);
 		}
 	}
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -704,7 +733,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -819,7 +848,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -856,7 +885,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -943,7 +972,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -959,9 +988,25 @@ public class AddressManagementBean implements AddressManagementService {
 
 	}
 
+	private void removeRangePair(final RangePair address) {
+		if (address == null) {
+			return;
+		}
+		final IpRange v4Address = address.getV4Address();
+		if (v4Address != null) {
+			deleteIpRange(v4Address);
+			address.setV4Address(null);
+		}
+		final IpRange v6Address = address.getV6Address();
+		if (v6Address != null) {
+			deleteIpRange(v6Address);
+			address.setV6Address(null);
+		}
+	}
+
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
