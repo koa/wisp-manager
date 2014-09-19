@@ -9,6 +9,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -23,6 +24,8 @@ public class CustomerConnection {
 	@GeneratedValue
 	private Long id;
 	private String name;
+	@OneToOne(mappedBy = "customerConnection")
+	private NetworkInterface networkInterface;
 	@OneToMany(mappedBy = "customerConnection", orphanRemoval = true, cascade = CascadeType.ALL)
 	private Set<VLan> ownNetworks = new HashSet<>();
 	@ManyToOne

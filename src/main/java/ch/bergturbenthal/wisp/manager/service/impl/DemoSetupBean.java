@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.RandomStringUtils;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
@@ -29,6 +31,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.repository.PasswordRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
+import ch.bergturbenthal.wisp.manager.repository.VLanRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.ConnectionService;
 import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
@@ -54,6 +57,9 @@ public class DemoSetupBean implements DemoSetupService {
 
 	@Autowired
 	private StationService stationService;
+
+	@Autowired
+	private VLanRepository vlanRepository;
 
 	private void appendVlan(final Station station, final int vlanId) {
 		final Set<CustomerConnection> customerConnections;
@@ -183,6 +189,24 @@ public class DemoSetupBean implements DemoSetupService {
 			gateway.setUserName("pppoe-user");
 			gateway.setPassword("pppoe-password");
 			stationBerg.getGatewaySettings().add(gateway);
+			final CustomerConnection customerConnection = stationBerg.getCustomerConnections().iterator().next();
+			vlanRepository.delete(customerConnection.getOwnNetworks());
+			customerConnection.getOwnNetworks().clear();
+			final VLan normalVlan = new VLan();
+			normalVlan.setVlanId(1);
+			if (normalVlan.getAddress() == null) {
+				normalVlan.setAddress(new RangePair());
+			}
+			addressManagementBean.setAddressManually(normalVlan.getAddress(), "10.14.10.1/16", IpAddressType.V4);
+			addressManagementBean.setAddressManually(normalVlan.getAddress(), "2001:1620:bba::10:1/16", IpAddressType.V6);
+			final DHCPSettings dhcpSettings = new DHCPSettings();
+			dhcpSettings.setLeaseTime(TimeUnit.MINUTES.toMillis(20));
+			dhcpSettings.setStartOffset(Long.valueOf(256 * 60));
+			dhcpSettings.setEndOffset(Long.valueOf(256 * 61 - 1));
+			normalVlan.setDhcpSettings(dhcpSettings);
+			normalVlan.setCustomerConnection(customerConnection);
+			vlanRepository.save(normalVlan);
+			customerConnection.getOwnNetworks().add(normalVlan);
 
 			stationService.fillStation(stationBerg);
 

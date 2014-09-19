@@ -56,4 +56,6 @@ public interface AddressManagementService {
 
 	boolean setDhcpEndAddress(final VLan vlan, final String endAddress);
 
+	void cleanupOrphanRanges();
+
 }

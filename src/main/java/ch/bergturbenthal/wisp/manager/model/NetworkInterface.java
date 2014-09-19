@@ -1,16 +1,11 @@
 package ch.bergturbenthal.wisp.manager.model;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 
 import lombok.Data;
@@ -24,19 +19,31 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 @ToString(exclude = "networkDevice")
 public class NetworkInterface {
 	@OneToOne
+	private AutoConnectionPort autoConnectionPort;
+	@OneToOne
+	private CustomerConnection customerConnection;
+	@OneToOne
 	private GatewaySettings gatewaySettings;
 	@Id
 	@GeneratedValue
 	private Long id;
-	private String interfaceName;
 	// @Column(unique = true, nullable = true)
 	private MacAddress macAddress;
 	@ManyToOne(optional = false)
 	private NetworkDevice networkDevice;
-	@OneToMany(mappedBy = "networkInterface", orphanRemoval = true, cascade = CascadeType.ALL)
-	private Set<VLan> networks = new HashSet<VLan>();
+
 	@Enumerated(EnumType.STRING)
 	private NetworkInterfaceRole role;
 	@Enumerated(EnumType.STRING)
 	private NetworkInterfaceType type;
+
+	public String getInterfaceName() {
+		if (customerConnection != null) {
+			return customerConnection.getName();
+		}
+		if (gatewaySettings != null) {
+			return gatewaySettings.getGatewayName();
+		}
+		return null;
+	}
 }

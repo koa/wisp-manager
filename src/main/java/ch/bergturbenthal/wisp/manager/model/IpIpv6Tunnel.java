@@ -14,12 +14,12 @@ import lombok.Data;
 // @EqualsAndHashCode(of = "id")
 public class IpIpv6Tunnel {
 	@ManyToOne
-	private NetworkDevice endDevice;
+	private Station endStation;
 	@Id
 	@GeneratedValue
 	private Long id;
 	@ManyToOne
-	private NetworkDevice startDevice;
+	private Station startStation;
 	@OneToOne(cascade = CascadeType.ALL)
 	private IpRange v4Address;
 }

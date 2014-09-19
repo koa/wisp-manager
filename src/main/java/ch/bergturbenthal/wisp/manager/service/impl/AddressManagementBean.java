@@ -11,21 +11,24 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CompositeIterator;
 
 import ch.bergturbenthal.wisp.manager.model.Antenna;
-import ch.bergturbenthal.wisp.manager.model.Connection;
+import ch.bergturbenthal.wisp.manager.model.AutoConnectionPort;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
@@ -154,7 +157,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -164,7 +167,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
 	 */
 	@Override
@@ -208,7 +211,11 @@ public class AddressManagementBean implements AddressManagementService {
 		final VLan vLan = new VLan();
 		vLan.setVlanId(Integer.valueOf(vlanId));
 		if (parentAddresses.getV4Address() != null) {
-			address.setV4Address(reserveRange(parentAddresses.getV4Address(), AddressRangeType.ASSIGNED, 32, null));
+			if (parentAddresses.getV4Address().getRangeMask() == 32) {
+				address.setV4Address(parentAddresses.getV4Address());
+			} else {
+				address.setV4Address(reserveRange(parentAddresses.getV4Address(), AddressRangeType.ASSIGNED, 32, null));
+			}
 		}
 		if (parentAddresses.getV6Address() != null) {
 			address.setV6Address(reserveRange(parentAddresses.getV6Address(), AddressRangeType.ASSIGNED, 128, null));
@@ -219,8 +226,8 @@ public class AddressManagementBean implements AddressManagementService {
 
 	private void assignGateway(final NetworkInterface networkInterface, final GatewaySettings gatewaySettings) {
 		networkInterface.setGatewaySettings(gatewaySettings);
+		gatewaySettings.setNetworkInterface(networkInterface);
 		networkInterface.setRole(NetworkInterfaceRole.GATEWAY);
-		networkInterface.setInterfaceName("Gateway " + gatewaySettings.getGatewayName());
 	}
 
 	private long calculateOffsetInParentRange(final IpRange v4Address, final String enteredAddress) throws UnknownHostException {
@@ -239,6 +246,34 @@ public class AddressManagementBean implements AddressManagementService {
 			offsetValue = offset.longValue();
 		}
 		return offsetValue;
+	}
+
+	private void cleanupNetworkInterface(final NetworkInterface networkInterface) {
+		if (networkInterface.getCustomerConnection() != null) {
+			networkInterface.getCustomerConnection().setNetworkInterface(null);
+			networkInterface.setCustomerConnection(null);
+		}
+
+		if (networkInterface.getAutoConnectionPort() != null) {
+			networkInterface.getAutoConnectionPort().setNetworkInterface(null);
+			networkInterface.setAutoConnectionPort(null);
+		}
+		if (networkInterface.getGatewaySettings() != null) {
+			networkInterface.getGatewaySettings().setNetworkInterface(null);
+			networkInterface.setGatewaySettings(null);
+		}
+		networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Scheduled(fixedDelay = 60 * 1000, initialDelay = 500)
+	public void cleanupOrphanRanges() {
+		for (final IpRange range : ipRangeRepository.findAll()) {
+			if (range.getType() != AddressRangeType.ROOT && range.isOrphan()) {
+				ipRangeRepository.delete(range);
+			}
+		}
 	}
 
 	private void cleanupRange(final IpRange range) {
@@ -292,60 +327,50 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	private void deleteIpRange(final IpRange range) {
-		final VLan foundVLan = vLanRepository.findVlanByRange(range);
-		if (foundVLan != null) {
-			final RangePair address = foundVLan.getAddress();
-			if (address != null) {
-				if (address.getV4Address() == range) {
-					address.setV4Address(null);
-				}
-				if (address.getV6Address() == range) {
-					address.setV6Address(null);
-				}
-			}
-		}
-		if (range.getParentRange() != null) {
-			range.getParentRange().getReservations().remove(range);
-		}
-		ipRangeRepository.delete(range);
+
+		// for (final VLan foundVLan : range.getOwningVlans()) {
+		// final RangePair address = foundVLan.getAddress();
+		// if (address != null) {
+		// if (address.getV4Address() == range) {
+		// address.setV4Address(null);
+		// }
+		// if (address.getV6Address() == range) {
+		// address.setV6Address(null);
+		// }
+		// }
+		// }
+		// if (range.getParentRange() != null) {
+		// range.getParentRange().getReservations().remove(range);
+		// }
+		// ipRangeRepository.delete(range);
 	}
 
 	@Override
 	public String describeRangeUser(final IpRange ipRange) {
-		final VLan foundVlan = vLanRepository.findVlanByRange(ipRange);
-		if (foundVlan != null) {
+		final Collection<String> foundReferences = new ArrayList<String>();
+		for (final VLan foundVlan : ipRange.getOwningVlans()) {
 			final NetworkInterface networkInterface = foundVlan.getNetworkInterface();
 			if (networkInterface != null) {
 				final NetworkDevice networkDevice = networkInterface.getNetworkDevice();
-				return "Network-Device: " + networkDevice.getTitle() + "; " + networkInterface.getInterfaceName() + ";" + foundVlan.getVlanId();
+				foundReferences.add("Network-Device: " + networkDevice.getTitle() + "; " + networkInterface.getInterfaceName() + ";" + foundVlan.getVlanId());
 			}
 			final CustomerConnection customerConnection = foundVlan.getCustomerConnection();
 			if (customerConnection != null) {
 				final Station station = customerConnection.getStation();
-				return "Station Network: " + station.getName() + ";" + customerConnection.getName() + ";" + foundVlan.getVlanId();
+				foundReferences.add("Station Network: " + station.getName() + ";" + customerConnection.getName() + ";" + foundVlan.getVlanId());
 			}
 		}
-		final Antenna foundAntenna = antennaRepository.findAntennaForRange(ipRange);
-		if (foundAntenna != null) {
-			return "Antenna: " + foundAntenna.getTitle();
+		for (final Antenna foundAntenna : ipRange.getOwningAntennas()) {
+			foundReferences.add("Antenna: " + foundAntenna.getTitle());
 		}
-		// final Connection foundConnection = connectionRepository.findConnectionForRange(ipRange);
-		// if (foundConnection != null) {
-		// return "Connection: " + foundConnection.getTitle();
-		// }
-		final NetworkDevice foundNetworkDevice = networkDeviceRepository.findDeviceForRange(ipRange);
-		if (foundNetworkDevice != null) {
-			return "Network-Device: " + foundNetworkDevice.getTitle();
+
+		for (final Station stationLoopback : ipRange.getOwningStations()) {
+			foundReferences.add("Station Loopback: " + stationLoopback.getName());
 		}
-		final Station stationLoopback = stationRepository.findStationLoopbackForRange(ipRange);
-		if (stationLoopback != null) {
-			return "Station Loopback: " + stationLoopback.getName();
+		for (final AutoConnectionPort autoConnectionPort : ipRange.getOwningAutoConnectionPorts()) {
+			foundReferences.add("Auto connection Port of " + autoConnectionPort.getStation().getName());
 		}
-		final CustomerConnection customerNetwork = stationRepository.findStationNetworkForRange(ipRange);
-		if (customerNetwork != null) {
-			return "Customer Network: " + customerNetwork.getName();
-		}
-		return null;
+		return StringUtils.join(foundReferences, ", ");
 	}
 
 	private <T> List<T> emptyIfNull(final List<T> collection) {
@@ -449,9 +474,9 @@ public class AddressManagementBean implements AddressManagementService {
 		dnsServersOfDevice.addAll(dnsServers);
 		networkDevice.setDnsServers(dnsServersOfDevice);
 		// collect unassigned interfaces and connections at this station
-		final Set<CustomerConnection> remainingCustomerConnections = new HashSet<CustomerConnection>(station.getCustomerConnections());
+		final Set<CustomerConnection> remainingCustomerConnections = new LinkedHashSet<CustomerConnection>(station.getCustomerConnections());
 		// collect unassigned gateway settings
-		final Set<GatewaySettings> remainingGatewaySettings = new HashSet<GatewaySettings>();
+		final Set<GatewaySettings> remainingGatewaySettings = new LinkedHashSet<GatewaySettings>();
 		for (final GatewaySettings gateway : station.getGatewaySettings()) {
 			switch (gateway.getGatewayType()) {
 			case LAN:
@@ -462,105 +487,60 @@ public class AddressManagementBean implements AddressManagementService {
 				break;
 			}
 		}
+		// collect and adjust autoConnectionPorts
+		final int fixeReservedPortCount = remainingGatewaySettings.size() + remainingCustomerConnections.size();
+		final List<AutoConnectionPort> autoConnectionPorts = station.getAutoConnectionPorts();
+		while (fixeReservedPortCount + autoConnectionPorts.size() < networkDevice.getInterfaces().size()) {
+			final AutoConnectionPort autoConnectionPort = new AutoConnectionPort();
+			autoConnectionPort.setPortAddress(new RangePair());
+			fillRangePair(autoConnectionPort.getPortAddress(), AddressRangeType.CONNECTION, 29, 32, 64, 128, "");
+			autoConnectionPort.setStation(station);
+			autoConnectionPorts.add(autoConnectionPort);
+		}
+		while (!autoConnectionPorts.isEmpty() && fixeReservedPortCount + autoConnectionPorts.size() > networkDevice.getInterfaces().size()) {
+			final AutoConnectionPort removedPort = autoConnectionPorts.remove(autoConnectionPorts.size() - 1);
+			cleanupRangePair(removedPort.getPortAddress());
+			removedPort.setStation(null);
+		}
+		final Set<AutoConnectionPort> remainingAutoConnectionPorts = new LinkedHashSet<>(autoConnectionPorts);
 		final List<NetworkInterface> freeInterfaces = new ArrayList<>();
-		final Set<NetworkInterface> userAssignedInterfaces = new HashSet<>();
+		final Set<NetworkInterface> userAssignedInterfaces = new LinkedHashSet<>();
 		for (final NetworkInterface networkInterface : emptyIfNull(networkDevice.getInterfaces())) {
 			if (networkInterface.getType() != NetworkInterfaceType.LAN) {
 				continue;
 			}
 			final GatewaySettings gatewaySettings = networkInterface.getGatewaySettings();
-			if (gatewaySettings != null) {
+			if (gatewaySettings != null && gatewaySettings.getStation() == station) {
 				switch (gatewaySettings.getGatewayType()) {
 				case LAN:
 				case PPPOE:
 					if (remainingGatewaySettings.remove(gatewaySettings)) {
 						// keep gateway
 						assignGateway(networkInterface, gatewaySettings);
-						cleanVlans(networkInterface.getNetworks());
 						continue;
-					} else {
-						// remove gateway
-						networkInterface.setGatewaySettings(null);
-						break;
 					}
+					break;
 				case HE:
 					// remove -> HE needs no physical interface
-					networkInterface.setGatewaySettings(null);
 					break;
 				default:
 				}
 			}
-			final Set<VLan> networks = networkInterface.getNetworks();
-			if (networks == null || networks.isEmpty()) {
-				// no connection -> free interface
-				freeInterfaces.add(networkInterface);
-				networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
-			} else {
-				// find connections and stations for this interface
-				final Map<CustomerConnection, Collection<Runnable>> foundCustomerConnections = new HashMap<CustomerConnection, Collection<Runnable>>();
-				for (final VLan vLan : VLan.sortVLans(networks)) {
-					final RangePair connectionAddress = vLan.getAddress();
-					if (connectionAddress == null) {
-						continue;
-					}
-					final IpRange v4Address = connectionAddress.getV4Address();
-					if (v4Address != null) {
-						final IpRange parentRange = v4Address.getParentRange();
-						final CustomerConnection stationFromRange = stationRepository.findStationNetworkForRange(parentRange);
-						appendRangeToMap(foundCustomerConnections, stationFromRange, new Runnable() {
-							@Override
-							public void run() {
-								parentRange.getReservations().remove(v4Address);
-								connectionAddress.setV4Address(null);
-								deleteIpRange(v4Address);
-							}
-						});
-						vLanRepository.findVlanByRange(parentRange);
-					}
-					final IpRange v6Address = connectionAddress.getV6Address();
-					if (v6Address != null) {
-						final IpRange parentRange = v6Address.getParentRange();
-						final CustomerConnection stationFromRange = stationRepository.findStationNetworkForRange(parentRange);
-						appendRangeToMap(foundCustomerConnections, stationFromRange, new Runnable() {
-
-							@Override
-							public void run() {
-								parentRange.getReservations().remove(v6Address);
-								connectionAddress.setV6Address(null);
-								deleteIpRange(v6Address);
-							}
-						});
-					}
-				}
-				// remove not found entries
-				foundCustomerConnections.remove(null);
-				if (!foundCustomerConnections.isEmpty()) {
-					for (final Iterator<Entry<CustomerConnection, Collection<Runnable>>> iterator = foundCustomerConnections.entrySet().iterator(); iterator.hasNext();) {
-						final Entry<CustomerConnection, Collection<Runnable>> entry = iterator.next();
-						final CustomerConnection foundCustomerConnection = entry.getKey();
-						final Station stationOfConnection = foundCustomerConnection.getStation();
-						if (station.equals(stationOfConnection)) {
-							// locally connected interface
-							networkInterface.setInterfaceName(makeInterfaceName(foundCustomerConnection));
-							networkInterface.setRole(NetworkInterfaceRole.NETWORK);
-							userAssignedInterfaces.add(networkInterface);
-							remainingCustomerConnections.remove(foundCustomerConnection);
-						} else {
-							cleanVlans(networkInterface.getNetworks());
-							iterator.remove();
-							for (final Runnable runnable : entry.getValue()) {
-								runnable.run();
-							}
-						}
-					}
-				}
-				if (foundCustomerConnections.isEmpty()) {
-					// unassigned interface
-					freeInterfaces.add(networkInterface);
-					networkInterface.setRole(NetworkInterfaceRole.UNDEFINED);
-				}
+			final CustomerConnection customerConnection = networkInterface.getCustomerConnection();
+			if (customerConnection != null && customerConnection.getStation() == station) {
+				remainingCustomerConnections.remove(customerConnection);
+				continue;
 			}
+			final AutoConnectionPort autoConnectionPort = networkInterface.getAutoConnectionPort();
+			if (autoConnectionPort != null && autoConnectionPort.getStation() == station) {
+				remainingAutoConnectionPorts.remove(autoConnectionPort);
+				continue;
+			}
+			// no connection -> free interface
+			cleanupNetworkInterface(networkInterface);
+			freeInterfaces.add(networkInterface);
 		}
+
 		// assign remaining interfaces to connections
 		final Iterator<NetworkInterface> freeInterfacesIterator = freeInterfaces.iterator();
 		final Iterator<GatewaySettings> remainingGatewayIterator = remainingGatewaySettings.iterator();
@@ -575,66 +555,18 @@ public class AddressManagementBean implements AddressManagementService {
 			final NetworkInterface networkInterface = freeInterfacesIterator.next();
 			// setup customer connections
 			final CustomerConnection customerConnection = remainingCustomerConnectionsIterator.next();
-			final Set<VLan> ownNetworks = customerConnection.getOwnNetworks();
-			if (ownNetworks != null && !ownNetworks.isEmpty()) {
-				final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
-				final Map<Integer, VLan> networksByVlan = orderNetworksByVlan(networks);
-				for (final VLan vlan : VLan.sortVLans(ownNetworks)) {
-					final VLan deviceVlan = networksByVlan.get(vlan.getVlanId());
-					if (deviceVlan != null) {
-						final RangePair deviceAddressPair = deviceVlan.getAddress();
-						final RangePair stationAddressPair = vlan.getAddress();
-						if (deviceAddressPair != null && deviceAddressPair.getV4Address() != null
-								&& deviceAddressPair.getV6Address() != null
-								&& deviceAddressPair.getV4Address().getParentRange() == stationAddressPair.getV4Address()
-								&& deviceAddressPair.getV6Address().getParentRange() == stationAddressPair.getV6Address()) {
-							if (vlan.getDhcpSettings() != null) {
-								deviceVlan.setDhcpSettings(vlan.getDhcpSettings());
-							}
-							// keep if settings are valid
-							continue;
-						} else {
-							// address-data invalid -> remove and renew
-							networks.remove(deviceVlan);
-							cleanupRangePair(stationAddressPair);
-						}
-					} else {
-						cleanupRangePair(vlan.getAddress());
-					}
-					final VLan ifaceVlan = appendVlan(vlan.getVlanId(), vlan.getAddress());
-					networks.add(ifaceVlan);
-					ifaceVlan.setNetworkInterface(networkInterface);
-					if (vlan.getDhcpSettings() != null) {
-						ifaceVlan.setDhcpSettings(vlan.getDhcpSettings());
-					}
-				}
-			}
-			networkInterface.setInterfaceName(makeInterfaceName(customerConnection));
+			networkInterface.setCustomerConnection(customerConnection);
 			networkInterface.setRole(NetworkInterfaceRole.NETWORK);
+			customerConnection.setNetworkInterface(networkInterface);
 			userAssignedInterfaces.add(networkInterface);
 		}
-		int ifNumber = 1;
-		while (freeInterfacesIterator.hasNext()) {
+		final Iterator<AutoConnectionPort> remainingAutoConnectionPortIterator = remainingAutoConnectionPorts.iterator();
+		while (freeInterfacesIterator.hasNext() && remainingAutoConnectionPortIterator.hasNext()) {
 			final NetworkInterface networkInterface = freeInterfacesIterator.next();
-			final Set<VLan> networks = ensureMutableSet(networkInterface.getNetworks());
-			if (networks.isEmpty()) {
-				final IpRange v4AddressRange = findAndReserveAddressRange(AddressRangeType.CONNECTION, IpAddressType.V4, 29, 32, AddressRangeType.ASSIGNED, "");
-				final IpRange v6AddressRange = findAndReserveAddressRange(AddressRangeType.CONNECTION, IpAddressType.V6, 64, 128, AddressRangeType.ASSIGNED, "");
-				final RangePair rangePair = new RangePair(v4AddressRange, v6AddressRange);
-				final VLan vLan = new VLan();
-				vLan.setAddress(rangePair);
-				networks.add(vLan);
-				vLan.setNetworkInterface(networkInterface);
-				networkInterface.setNetworks(networks);
-			}
-			// TODO Assign new ranges and set a title on every connection
-			// final VLan vLan = appendVlan(0, connection.getAddresses());
-			//
-			// vLan.setNetworkInterface(networkInterface);
-			// networks.add(vLan);
-			// networkInterface.setNetworks(networks);
+			final AutoConnectionPort autoConnectionPort = remainingAutoConnectionPortIterator.next();
+			networkInterface.setAutoConnectionPort(autoConnectionPort);
+			autoConnectionPort.setNetworkInterface(networkInterface);
 			networkInterface.setRole(NetworkInterfaceRole.ROUTER_LINK);
-			networkInterface.setInterfaceName("Station-Connection-" + (ifNumber++));
 		}
 
 		fillTunnels(station, networkDevice);
@@ -657,7 +589,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -681,16 +613,16 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 		foreignTunnelStations.remove(station);
 		final Map<Station, IpIpv6Tunnel> configuredTunnels = new HashMap<Station, IpIpv6Tunnel>();
-		for (final IpIpv6Tunnel tunnel : networkDevice.getTunnelBegins()) {
-			final Station partnerStation = tunnel.getEndDevice().getStation();
+		for (final IpIpv6Tunnel tunnel : station.getTunnelBegins()) {
+			final Station partnerStation = tunnel.getEndStation();
 			if (partnerStation == null) {
 				ipIpv6TunnelRepository.delete(tunnel);
 			} else {
 				configuredTunnels.put(partnerStation, tunnel);
 			}
 		}
-		for (final IpIpv6Tunnel tunnel : networkDevice.getTunnelEnds()) {
-			final Station partnerStation = tunnel.getStartDevice().getStation();
+		for (final IpIpv6Tunnel tunnel : station.getTunnelEnds()) {
+			final Station partnerStation = tunnel.getStartStation();
 			if (partnerStation == null) {
 				ipIpv6TunnelRepository.delete(tunnel);
 			} else {
@@ -705,25 +637,25 @@ public class AddressManagementBean implements AddressManagementService {
 			final IpIpv6Tunnel existingTunnel = configuredTunnels.remove(tunnelPartnerStation);
 			if (existingTunnel == null) {
 				final IpIpv6Tunnel tunnel = new IpIpv6Tunnel();
-				tunnel.setStartDevice(networkDevice);
-				tunnel.setEndDevice(partnerDevice);
+				tunnel.setStartStation(station);
+				tunnel.setEndStation(tunnelPartnerStation);
 				final IpRange tunnelAddressRange = findAndReserveAddressRange(AddressRangeType.TUNNEL, IpAddressType.V4, 30, 32, AddressRangeType.ASSIGNED, null);
 				tunnel.setV4Address(tunnelAddressRange);
-				networkDevice.getTunnelBegins().add(tunnel);
-				partnerDevice.getTunnelEnds().add(tunnel);
+				station.getTunnelBegins().add(tunnel);
+				tunnelPartnerStation.getTunnelEnds().add(tunnel);
 				ipIpv6TunnelRepository.save(tunnel);
 			}
 		}
 		for (final IpIpv6Tunnel tunnel : configuredTunnels.values()) {
-			tunnel.getStartDevice().getTunnelBegins().remove(tunnel);
-			tunnel.getEndDevice().getTunnelEnds().remove(tunnel);
+			tunnel.getStartStation().getTunnelBegins().remove(tunnel);
+			tunnel.getEndStation().getTunnelEnds().remove(tunnel);
 			ipIpv6TunnelRepository.delete(tunnel);
 		}
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -733,7 +665,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -848,7 +780,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -885,7 +817,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -970,9 +902,17 @@ public class AddressManagementBean implements AddressManagementService {
 		return reserveNetwork.containsAddress(checkNetwork.getAddress());
 	}
 
+	private void removeAddressIfOneVlan(final IpRange range) {
+		final Collection<VLan> vlanOfRange = range.getOwningVlans();
+		if (vlanOfRange.size() > 1) {
+			return;
+		}
+		deleteIpRange(range);
+	}
+
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -994,19 +934,19 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 		final IpRange v4Address = address.getV4Address();
 		if (v4Address != null) {
-			deleteIpRange(v4Address);
+			removeAddressIfOneVlan(v4Address);
 			address.setV4Address(null);
 		}
 		final IpRange v6Address = address.getV6Address();
 		if (v6Address != null) {
-			deleteIpRange(v6Address);
+			removeAddressIfOneVlan(v6Address);
 			address.setV6Address(null);
 		}
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */
@@ -1170,10 +1110,6 @@ public class AddressManagementBean implements AddressManagementService {
 			log.info("Unknown IP Address", e);
 			return false;
 		}
-	}
-
-	private void updateInterfaceTitle(final NetworkInterface networkInterface, final Connection connection) {
-		networkInterface.setInterfaceName("connection: " + connection.getTitle());
 	}
 
 }

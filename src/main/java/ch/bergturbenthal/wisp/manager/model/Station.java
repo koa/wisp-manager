@@ -24,6 +24,8 @@ import lombok.ToString;
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = { "beginningConnections", "endingConnections" })
 public class Station {
+	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
+	private List<AutoConnectionPort> autoConnectionPorts = new ArrayList<AutoConnectionPort>();
 	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
 	private List<Connection> beginningConnections = new ArrayList<>();
 	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)
@@ -40,7 +42,12 @@ public class Station {
 	private RangePair loopback;
 	private String name;
 	private Position position;
+	@OneToMany(mappedBy = "startStation", orphanRemoval = true)
+	private List<IpIpv6Tunnel> tunnelBegins = new ArrayList<>();
 	private boolean tunnelConnection;
+
+	@OneToMany(mappedBy = "endStation", orphanRemoval = true)
+	private List<IpIpv6Tunnel> tunnelEnds = new ArrayList<>();
 	@Version
 	@Setter(AccessLevel.PROTECTED)
 	private Long version;

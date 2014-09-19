@@ -15,6 +15,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.validation.constraints.NotNull;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -25,7 +26,7 @@ import lombok.ToString;
 @ToString(exclude = { "networkInterface", "customerConnection" })
 @EqualsAndHashCode(of = { "id", "networkInterface", "vlanId" })
 public class VLan {
-	public static Collection<VLan> sortVLans(final Collection<VLan> unsorted) {
+	public static Collection<VLan> sortVLans(final @NotNull Collection<VLan> unsorted) {
 		final List<VLan> networkList = new ArrayList<VLan>(unsorted);
 		Collections.sort(networkList, new Comparator<VLan>() {
 

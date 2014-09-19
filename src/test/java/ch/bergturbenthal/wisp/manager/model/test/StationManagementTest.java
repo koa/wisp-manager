@@ -59,10 +59,10 @@ public class StationManagementTest {
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), networkAddress.getInet6Address());
 
 		final NetworkInterface homeInterface = station.getDevice().getInterfaces().get(0);
-		final VLan deviceAddressVlan = homeInterface.getNetworks().iterator().next();
+		final VLan deviceAddressVlan = homeInterface.getCustomerConnection().getOwnNetworks().iterator().next();
 		Assert.assertEquals(0, deviceAddressVlan.getVlanId());
 		final RangePair interfaceAddress = deviceAddressVlan.getAddress();
-		Assert.assertEquals(InetAddress.getByName("172.17.0.1"), interfaceAddress.getInet4Address());
+		Assert.assertEquals(InetAddress.getByName("172.17.0.0"), interfaceAddress.getInet4Address());
 		Assert.assertEquals(InetAddress.getByName("fd7e:907d:34ab:200::"), interfaceAddress.getInet6Address());
 	}
 

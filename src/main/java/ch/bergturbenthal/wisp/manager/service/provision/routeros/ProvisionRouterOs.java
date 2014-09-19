@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,6 +57,7 @@ import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
+import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice;
 import ch.bergturbenthal.wisp.manager.model.devices.DetectedDevice.DetectedDeviceBuilder;
@@ -169,6 +171,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	private static Format PKG_DOWNLOAD_URL = new MessageFormat("http://download2.mikrotik.com/routeros/{0}/{2}-{0}-{1}.npk");
 	private static final String ROUTEROS_PACKAGE_PREFIX = "routeros-";
 	private static final Pattern VALID_CHARS_PATTERNS = Pattern.compile("[A-Za-z0-9]+");
+
 	static {
 		Velocity.setProperty("resource.loader", "class");
 		Velocity.setProperty("class.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -196,11 +199,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	private IpRangeRepository ipRangeRepository;
 	private final JSch jSch = new JSch();
 
-	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final NetworkDevice tunnelPartnerDevice, final long addressIndex, final Collection<String> existingNames) {
-		final Station tunnelPartnerStation = tunnelPartnerDevice.getStation();
+	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final Station station, final long addressIndex, final Collection<String> existingNames) {
 		final TunnelEndpointBuilder builder = TunnelEndpoint.builder();
-		builder.ifName(uniqifyName(existingNames, "tunnel-" + tunnelPartnerStation.getName(), 0));
-		builder.remoteAddress(tunnelPartnerStation.getLoopback().getInet6Address().getHostAddress());
+		builder.ifName(uniqifyName(existingNames, "tunnel-" + station.getName(), 0));
+		builder.remoteAddress(station.getLoopback().getInet6Address().getHostAddress());
 		final IpNetwork localRangeInTunnel = tunnel.getV4Address().getRange();
 		builder.v4Address(localRangeInTunnel.getAddress().getAddressOfNetwork(addressIndex).getHostAddress());
 		builder.v4Mask(localRangeInTunnel.getNetmask());
@@ -260,7 +262,20 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			final String interfaceName = netIf.getInterfaceName();
 			final String ifName;
 			if (interfaceName == null) {
-				ifName = uniqifyName(existingNames, "unassigned", 1);
+				switch (netIf.getRole()) {
+				case GATEWAY:
+					ifName = uniqifyName(existingNames, "gateway-", 1);
+					break;
+				case NETWORK:
+					ifName = uniqifyName(existingNames, "customer-", 1);
+					break;
+				case ROUTER_LINK:
+					ifName = uniqifyName(existingNames, "station-connection-", 1);
+					break;
+				default:
+					ifName = uniqifyName(existingNames, "unassigned-", 1);
+					break;
+				}
 			} else {
 				ifName = uniqifyName(existingNames, stripInterfaceName(interfaceName), 0);
 			}
@@ -326,7 +341,34 @@ public class ProvisionRouterOs implements ProvisionBackend {
 				}
 			}
 			final String macAddress = netIf.getMacAddress().getAddress().toUpperCase();
-			for (final VLan network : VLan.sortVLans(netIf.getNetworks())) {
+			final Collection<VLan> networksOfInterface;
+			if (netIf.getCustomerConnection() != null) {
+				networksOfInterface = processNetworks(netIf.getCustomerConnection().getOwnNetworks());
+			} else if (netIf.getAutoConnectionPort() != null) {
+				final VLan lan = new VLan();
+				lan.setAddress(getDeviceRangePair(netIf.getAutoConnectionPort().getPortAddress()));
+				lan.setVlanId(0);
+				final DHCPSettings dhcpSettings = new DHCPSettings();
+				dhcpSettings.setLeaseTime(TimeUnit.MINUTES.toMillis(10));
+				dhcpSettings.setStartOffset(Long.valueOf(2));
+				dhcpSettings.setEndOffset(Long.valueOf(netIf.getAutoConnectionPort().getPortAddress().getV4Address().getAvailableReservations() - 2));
+				lan.setDhcpSettings(dhcpSettings);
+				networksOfInterface = Collections.singleton(lan);
+			} else if (netIf.getGatewaySettings() != null) {
+				// final RangePair managementAddress = netIf.getGatewaySettings().getManagementAddress();
+				// if (managementAddress != null) {
+				// final VLan lan = new VLan();
+				// lan.setAddress(managementAddress);
+				// lan.setVlanId(0);
+				// networksOfInterface = Collections.singleton(lan);
+				// } else {
+				networksOfInterface = Collections.emptyList();
+				// }
+			} else {
+				throw new IllegalArgumentException("Network Interface " + netIf + " has no assignement");
+			}
+
+			for (final VLan network : VLan.sortVLans(networksOfInterface)) {
 				if (network.getAddress() != null) {
 					final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder();
 					if (network.getVlanId() == 0) {
@@ -343,27 +385,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					final InetAddress inet4Address = network.getAddress().getInet4Address();
 					if (inet4Address != null) {
 						final IpRange v4Address = network.getAddress().getV4Address();
-						final String v4AddressString;
-						final int v4Mask;
-						final String v4NetAddressString;
-						final IpAddress v4RangeAddress;
-						if (v4Address.getRange().getNetmask() == 32) {
-							// address is host-address
-							v4AddressString = inet4Address.getHostAddress();
-							v4Mask = network.getAddress().getInet4ParentMask();
-							v4RangeAddress = v4Address.getParentRange().getRange().getAddress();
-							v4NetAddressString = v4RangeAddress.getInetAddress().getHostAddress();
-						} else {
-							// address is net-address -> select first host-address
-							v4RangeAddress = v4Address.getRange().getAddress();
-							v4AddressString = v4RangeAddress.getAddressOfNetwork(1).getHostAddress();
-							v4Mask = v4Address.getRange().getNetmask();
-							v4NetAddressString = inet4Address.getHostAddress();
-							// add default dhcp range
-							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(2).getHostAddress() + "-"
-																+ v4RangeAddress.getAddressOfNetwork(v4Address.getAvailableReservations() - 2).getHostAddress());
-							builder.dhcpLeaseTime("10m");
-						}
+						final String v4AddressString = inet4Address.getHostAddress();
+						final int v4Mask = network.getAddress().getInet4ParentMask();
+						final IpAddress v4RangeAddress = v4Address.getParentRange().getRange().getAddress();
+						final String v4NetAddressString = v4RangeAddress.getInetAddress().getHostAddress();
 						builder.v4Address(v4AddressString);
 						builder.v4Mask(v4Mask);
 						builder.v4NetAddress(v4NetAddressString);
@@ -389,20 +414,10 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					final InetAddress inet6Address = network.getAddress().getInet6Address();
 					if (inet6Address != null) {
 						final IpRange v6Address = network.getAddress().getV6Address();
-						final String v6AddressString;
-						final int v6Mask;
-						final String v6NetAddressString;
-						if (v6Address.getRange().getNetmask() == 128) {
-							// address is host-address
-							v6AddressString = inet6Address.getHostAddress();
-							v6Mask = network.getAddress().getInet6ParentMask();
-							v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
-						} else {
-							// address is net-address -> select first host-address
-							v6AddressString = inet6Address.getHostAddress();
-							v6Mask = v6Address.getRange().getNetmask();
-							v6NetAddressString = inet6Address.getHostAddress();
-						}
+						final String v6AddressString = inet6Address.getHostAddress();
+						final int v6Mask = network.getAddress().getInet6ParentMask();
+						final String v6NetAddressString = v6Address.getParentRange().getRange().getAddress().getInetAddress().getHostAddress();
+
 						builder.v6Address(v6AddressString);
 						builder.v6Mask(v6Mask);
 						builder.v6NetAddress(v6NetAddressString);
@@ -422,7 +437,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					networkInterfaces.add(builder.build());
 				}
 			}
-			if (!netIf.getNetworks().isEmpty() && !hasAddressWithoutVlan) {
+			if (!networksOfInterface.isEmpty() && !hasAddressWithoutVlan) {
 				final ProvisionNetworkInterfaceBuilder builder = ProvisionNetworkInterface.builder().macAddress(macAddress);
 				builder.ifName(ifName);
 				builder.macAddress(macAddress);
@@ -430,11 +445,11 @@ public class ProvisionRouterOs implements ProvisionBackend {
 			}
 		}
 		final Collection<TunnelEndpoint> tunnelEndpoints = new ArrayList<ProvisionRouterOs.TunnelEndpoint>();
-		for (final IpIpv6Tunnel tunnel : device.getTunnelBegins()) {
-			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getEndDevice(), 1, existingNames));
+		for (final IpIpv6Tunnel tunnel : station.getTunnelBegins()) {
+			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getEndStation(), 1, existingNames));
 		}
-		for (final IpIpv6Tunnel tunnel : device.getTunnelEnds()) {
-			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getStartDevice(), 2, existingNames));
+		for (final IpIpv6Tunnel tunnel : station.getTunnelEnds()) {
+			tunnelEndpoints.add(createTunnel(tunnel, tunnel.getStartStation(), 2, existingNames));
 		}
 		final Set<String> dnsServers = new TreeSet<String>();
 		if (device.getDnsServers() != null) {
@@ -458,6 +473,41 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		final StringWriter stringWriter = new StringWriter();
 		template.merge(context, stringWriter);
 		return stringWriter.toString();
+	}
+
+	private RangePair getDeviceRangePair(final RangePair stationAddress) {
+		if (stationAddress == null) {
+			return null;
+		}
+		final RangePair deviceAddress = new RangePair();
+		if (stationAddress.getV4Address() != null) {
+			deviceAddress.setV4Address(getV4DeviceAddress(stationAddress.getV4Address()));
+		}
+		if (stationAddress.getV6Address() != null) {
+			deviceAddress.setV6Address(getV6DeviceAddress(stationAddress.getV6Address()));
+		}
+		return deviceAddress;
+	}
+
+	private IpRange getV4DeviceAddress(final IpRange v4Address) {
+		if (v4Address.getRange().getNetmask() == 32) {
+			return v4Address;
+		} else {
+			final InetAddress hostAddress = v4Address.getRange().getAddress().getAddressOfNetwork(1);
+			final IpRange ipRange = new IpRange(new IpNetwork(new IpAddress(hostAddress), 32), 32, AddressRangeType.ASSIGNED);
+			ipRange.setParentRange(v4Address);
+			return ipRange;
+		}
+	}
+
+	private IpRange getV6DeviceAddress(final IpRange v6Address) {
+		if (v6Address.getRange().getNetmask() == 128) {
+			return v6Address;
+		} else {
+			final IpRange ipRange = new IpRange(new IpNetwork(v6Address.getRange().getAddress(), 128), 128, AddressRangeType.ASSIGNED);
+			ipRange.setParentRange(v6Address);
+			return ipRange;
+		}
 	}
 
 	@Override
@@ -633,6 +683,26 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		} catch (final IOException | JSchException e) {
 			throw new RuntimeException("Cannot load config to " + host, e);
 		}
+	}
+
+	private Collection<VLan> processNetworks(final Collection<VLan> stationNetworks) {
+		final Collection<VLan> ret = new ArrayList<VLan>();
+		for (final VLan stationNetwork : stationNetworks) {
+			final RangePair stationAddress = stationNetwork.getAddress();
+			if (stationAddress == null || ((stationAddress.getV4Address() == null || stationAddress.getV4Address().getRange().getNetmask() == 32) && (stationAddress.getV6Address() == null || stationAddress.getV6Address()
+																																																																																																				.getRange()
+																																																																																																				.getNetmask() == 128))) {
+				ret.add(stationNetwork);
+				continue;
+			}
+			final VLan deviceVlan = new VLan();
+			deviceVlan.setDhcpSettings(stationNetwork.getDhcpSettings());
+			deviceVlan.setPrivateDnsServers(stationNetwork.getPrivateDnsServers());
+			deviceVlan.setVlanId(stationNetwork.getVlanId());
+			deviceVlan.setAddress(getDeviceRangePair(stationAddress));
+			ret.add(deviceVlan);
+		}
+		return ret;
 	}
 
 	private void rebootAndWait(final InetAddress host, final Session session) throws JSchException, IOException {

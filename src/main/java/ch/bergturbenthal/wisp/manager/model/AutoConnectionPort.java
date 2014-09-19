@@ -1,6 +1,5 @@
 package ch.bergturbenthal.wisp.manager.model;
 
-import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -13,23 +12,15 @@ import lombok.ToString;
 
 @Data
 @Entity
-@EqualsAndHashCode(exclude = "station")
-@ToString(exclude = "station")
-public class GatewaySettings {
-	private String gatewayName;
-	private GatewayType gatewayType;
-	private boolean hasIPv4;
-	private boolean hasIPv6;
+@ToString(exclude = { "station" })
+@EqualsAndHashCode(exclude = { "station" })
+public class AutoConnectionPort {
 	@Id
 	@GeneratedValue
 	private Long id;
-	@Embedded
-	private RangePair managementAddress;
-	@OneToOne(mappedBy = "gatewaySettings")
+	@OneToOne(mappedBy = "autoConnectionPort")
 	private NetworkInterface networkInterface;
-	private String password;
-	@ManyToOne(optional = false)
+	private RangePair portAddress;
+	@ManyToOne
 	private Station station;
-	private String userName;
-
 }
