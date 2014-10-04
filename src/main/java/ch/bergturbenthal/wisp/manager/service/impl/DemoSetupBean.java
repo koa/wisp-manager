@@ -110,6 +110,28 @@ public class DemoSetupBean implements DemoSetupService {
 		return device;
 	}
 
+	private VLan createVLan(final int vlanId, final String v4Address, final String v6Address, final Long dhcpStartOffset, final Long dhcpEndOffset) {
+		final VLan retVlan = new VLan();
+		retVlan.setVlanId(vlanId);
+		if (retVlan.getAddress() == null) {
+			retVlan.setAddress(new RangePair());
+		}
+		if (v4Address != null) {
+			addressManagementBean.setAddressManually(retVlan.getAddress(), v4Address, IpAddressType.V4);
+		}
+		if (v6Address != null) {
+			addressManagementBean.setAddressManually(retVlan.getAddress(), v6Address, IpAddressType.V6);
+		}
+		if (dhcpStartOffset != null && dhcpEndOffset != null) {
+			final DHCPSettings dhcpSettings = new DHCPSettings();
+			dhcpSettings.setLeaseTime(TimeUnit.MINUTES.toMillis(20));
+			dhcpSettings.setStartOffset(dhcpStartOffset);
+			dhcpSettings.setEndOffset(dhcpEndOffset);
+			retVlan.setDhcpSettings(dhcpSettings);
+		}
+		return retVlan;
+	}
+
 	@Override
 	public void fillDummyDevice(final Antenna antenna) {
 		if (antenna.getDevice() != null) {
@@ -183,7 +205,7 @@ public class DemoSetupBean implements DemoSetupService {
 			gateway.setHasIPv4(true);
 			gateway.setHasIPv6(true);
 			gateway.setManagementAddress(new RangePair());
-			addressManagementBean.setAddressManually(gateway.getManagementAddress(), "172.30.30.2/30", IpAddressType.V4);
+			addressManagementBean.setAddressManually(gateway.getManagementAddress(), "172.28.0.2/30", IpAddressType.V4);
 			gateway.setStation(stationBerg);
 			gateway.setGatewayType(GatewayType.PPPOE);
 			gateway.setUserName("pppoe-user");
@@ -192,21 +214,16 @@ public class DemoSetupBean implements DemoSetupService {
 			final CustomerConnection customerConnection = stationBerg.getCustomerConnections().iterator().next();
 			vlanRepository.delete(customerConnection.getOwnNetworks());
 			customerConnection.getOwnNetworks().clear();
-			final VLan normalVlan = new VLan();
-			normalVlan.setVlanId(1);
-			if (normalVlan.getAddress() == null) {
-				normalVlan.setAddress(new RangePair());
-			}
-			addressManagementBean.setAddressManually(normalVlan.getAddress(), "10.14.10.1/16", IpAddressType.V4);
-			addressManagementBean.setAddressManually(normalVlan.getAddress(), "2001:1620:bba::10:1/16", IpAddressType.V6);
-			final DHCPSettings dhcpSettings = new DHCPSettings();
-			dhcpSettings.setLeaseTime(TimeUnit.MINUTES.toMillis(20));
-			dhcpSettings.setStartOffset(Long.valueOf(256 * 60));
-			dhcpSettings.setEndOffset(Long.valueOf(256 * 61 - 1));
-			normalVlan.setDhcpSettings(dhcpSettings);
+			final VLan normalVlan = createVLan(1, "10.14.10.1/16", "2001:1620:bba::10:1/16", Long.valueOf(256 * 60), Long.valueOf(256 * 61 - 1));
+			final VLan mgmtVlan = createVLan(20, "172.30.30.2/16", null, Long.valueOf(256 * 60), Long.valueOf(256 * 61 - 1));
+
 			normalVlan.setCustomerConnection(customerConnection);
 			vlanRepository.save(normalVlan);
 			customerConnection.getOwnNetworks().add(normalVlan);
+
+			mgmtVlan.setCustomerConnection(customerConnection);
+			vlanRepository.save(mgmtVlan);
+			customerConnection.getOwnNetworks().add(mgmtVlan);
 
 			stationService.fillStation(stationBerg);
 
