@@ -16,7 +16,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkInterfaceType;
 @Data
 @Entity
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = "networkDevice")
+@ToString(exclude = { "networkDevice", "gatewaySettings", "customerConnection", "autoConnectionPort" })
 public class NetworkInterface {
 	@OneToOne
 	private AutoConnectionPort autoConnectionPort;
