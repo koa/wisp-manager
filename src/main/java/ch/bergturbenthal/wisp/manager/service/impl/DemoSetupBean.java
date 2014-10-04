@@ -236,6 +236,10 @@ public class DemoSetupBean implements DemoSetupService {
 
 				appendPortExpose(normalVlan, 80, "10.14.50.31");
 				appendPortExpose(normalVlan, 80, "2001:1620:bba:2::50:31");
+				appendPortExpose(normalVlan, 443, "10.14.50.31");
+				appendPortExpose(normalVlan, 443, "2001:1620:bba:2::50:31");
+				appendPortExpose(normalVlan, 22, "10.14.50.29");
+				appendPortExpose(normalVlan, 22, "2001:1620:bba:2::50:29");
 
 				normalVlan.setCustomerConnection(customerConnection);
 				vlanRepository.save(normalVlan);

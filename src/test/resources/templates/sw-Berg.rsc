@@ -123,6 +123,9 @@
 	remove numbers=[find]
 	add action=masquerade chain=srcnat out-interface=cyberlink1 src-address=172.16.0.0/12
 	add action=masquerade chain=srcnat out-interface=cyberlink1 src-address=10.14.0.0/16
+	add action=dst-nat chain=dst-nat in-interface=cyberlink1 dst-port=80 protocol=tcp to-addresses=10.14.50.31 to-ports=80
+	add action=dst-nat chain=dst-nat in-interface=cyberlink1 dst-port=443 protocol=tcp to-addresses=10.14.50.31 to-ports=443
+	add action=dst-nat chain=dst-nat in-interface=cyberlink1 dst-port=22 protocol=tcp to-addresses=10.14.50.29 to-ports=22
 
 
 /ipv6 address
@@ -169,6 +172,9 @@
 	add chain=input connection-state=established
 	add chain=input connection-state=related
 	add chain=input protocol=icmpv6
+	add chain=forward dst-address=2001:1620:bba:2:0:0:50:31/128 dst-port=80 protocol=tcp
+	add chain=forward dst-address=2001:1620:bba:2:0:0:50:31/128 dst-port=443 protocol=tcp
+	add chain=forward dst-address=2001:1620:bba:2:0:0:50:29/128 dst-port=22 protocol=tcp
 	add action=reject chain=forward in-interface=cyberlink1 reject-with=icmp-admin-prohibited
 	add action=reject chain=input in-interface=cyberlink1 reject-with=icmp-admin-prohibited
 	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:0:0:0:0:0/64

@@ -54,6 +54,7 @@ import ch.bergturbenthal.wisp.manager.model.MacAddress;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
+import ch.bergturbenthal.wisp.manager.model.PortExpose;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -65,6 +66,7 @@ import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkOperatingSystem;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
+import ch.bergturbenthal.wisp.manager.repository.PortExposeRepository;
 import ch.bergturbenthal.wisp.manager.service.provision.FirmwareCache;
 import ch.bergturbenthal.wisp.manager.service.provision.ProvisionBackend;
 import ch.bergturbenthal.wisp.manager.service.provision.SSHUtil;
@@ -198,6 +200,8 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Autowired
 	private IpRangeRepository ipRangeRepository;
 	private final JSch jSch = new JSch();
+	@Autowired
+	private PortExposeRepository portExposeRepository;
 
 	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final Station station, final long addressIndex, final Collection<String> existingNames) {
 		final TunnelEndpointBuilder builder = TunnelEndpoint.builder();
@@ -334,6 +338,30 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					}
 					final String srcAddresses = address.getInetAddress().getHostAddress() + "/" + range.getRange().getNetmask();
 					v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").outInterface(gatewayIfName).srcAddresses(srcAddresses).build());
+				}
+				for (final PortExpose expose : portExposeRepository.findAll()) {
+					final IpAddress targetAddress = expose.getTargetAddress();
+					if (targetAddress == null) {
+						continue;
+					}
+					final String portNumber = Integer.toString(expose.getPortNumber());
+					final String targetAddressString = targetAddress.getInetAddress().getHostAddress();
+					switch (targetAddress.getAddressType()) {
+					case V4:
+						v4NatRules.add(FirewallRule.builder()
+																				.action("dst-nat")
+																				.chain("dst-nat")
+																				.dstPort(portNumber)
+																				.inInterface(gatewayIfName)
+																				.protocol("tcp")
+																				.toAddresses(targetAddressString)
+																				.toPorts(portNumber)
+																				.build());
+						break;
+					case V6:
+						v6FilterRules.add(FirewallRule.builder().chain("forward").dstAddress(targetAddressString + "/128").dstPort(portNumber).protocol("tcp").build());
+						break;
+					}
 				}
 				v4FilterRules.add(FirewallRule.builder().action("reject").chain("input").inInterface(gatewayIfName).rejectWith("icmp-admin-prohibited").build());
 				for (final String chain : FORWARD_FILTER_LIST) {
