@@ -2,10 +2,15 @@ package ch.bergturbenthal.wisp.manager.view.component;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
 import lombok.Setter;
+
+import org.apache.commons.lang.ClassUtils;
+
 import ch.bergturbenthal.wisp.manager.util.PojoItem;
 import ch.bergturbenthal.wisp.manager.util.PropertyResolver;
 import ch.bergturbenthal.wisp.manager.util.PropertyResolver.PropertyHandler;
@@ -16,7 +21,7 @@ import com.vaadin.data.Property;
 import com.vaadin.data.util.AbstractContainer;
 import com.vaadin.data.util.AbstractProperty;
 
-public class ListPropertyContainer<T> extends AbstractContainer implements Container, Container.Indexed {
+public class ListPropertyContainer<T> extends AbstractContainer implements Container, Container.Indexed, Container.Sortable {
 
 	private final Class<T> beanEntryType;
 
@@ -25,6 +30,10 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 
 	private final PropertyResolver<T> resolver;
 
+	private boolean[] sortOrders;
+
+	private Object[] sortProperties;
+
 	public ListPropertyContainer(final Class<T> beanEntryType) {
 		this.beanEntryType = beanEntryType;
 		resolver = new PropertyResolver<T>(beanEntryType);
@@ -32,7 +41,8 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 
 	@Override
 	public boolean addContainerProperty(final Object propertyId, final Class<?> type, final Object defaultValue) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
+		final PropertyHandler propertyHandler = resolver.resolveProperty(propertyId);
+		return propertyHandler != null;
 	}
 
 	@Override
@@ -143,6 +153,19 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	}
 
 	@Override
+	public Collection<?> getSortableContainerPropertyIds() {
+		final ArrayList<String> ret = new ArrayList<String>();
+		for (final String property : resolver.knownProperties()) {
+			final PropertyHandler resolvedProperty = resolver.resolveProperty(property);
+			final Class<?> propertyType = ClassUtils.primitiveToWrapper(resolvedProperty.getPropertyType());
+			if (Comparable.class.isAssignableFrom(propertyType)) {
+				ret.add(property);
+			}
+		}
+		return ret;
+	}
+
+	@Override
 	public Class<?> getType(final Object propertyId) {
 		return beanEntryType;
 	}
@@ -203,6 +226,37 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 		if (dataValue == null) {
 			return null;
 		}
+		if (sortOrders != null && sortProperties != null && sortOrders.length == sortProperties.length) {
+			final List<T> sortedItemList;
+			if (dataValue instanceof Collection) {
+				sortedItemList = new ArrayList<T>((Collection<T>) dataValue);
+			} else if (dataValue instanceof Iterable) {
+				sortedItemList = new ArrayList<T>();
+				final Iterator<T> iterator = ((Iterable<T>) dataValue).iterator();
+				while (iterator.hasNext()) {
+					sortedItemList.add(iterator.next());
+				}
+			} else {
+				throw new IllegalArgumentException(dataValue + " is not Iterable");
+			}
+			Collections.sort(sortedItemList, new Comparator<T>() {
+
+				@Override
+				public int compare(final T o1, final T o2) {
+					for (int i = 0; i < sortOrders.length; i++) {
+						final PropertyHandler handler = resolver.resolveProperty(sortProperties[i]);
+						final Comparable<Object> c1 = (Comparable<Object>) handler.getValue(o1);
+						final Comparable<Object> c2 = (Comparable<Object>) handler.getValue(o2);
+						final int cmp = c1.compareTo(c2);
+						if (cmp != 0) {
+							return sortOrders[i] ? cmp : -cmp;
+						}
+					}
+					return 0;
+				}
+			});
+			return sortedItemList.get(itemIndex);
+		}
 		if (dataValue instanceof List) {
 			return ((List<T>) dataValue).get(itemIndex);
 		}
@@ -219,7 +273,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 		if (itemIndex > 0) {
 			throw new IndexOutOfBoundsException();
 		}
-		return (T) dataValue;
+		throw new IllegalArgumentException(dataValue + " is not Iterable");
 	}
 
 	@Override
@@ -266,5 +320,11 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 			return ((Collection) listValue).size();
 		}
 		return 1;
+	}
+
+	@Override
+	public void sort(final Object[] propertyId, final boolean[] ascending) {
+		this.sortProperties = propertyId;
+		this.sortOrders = ascending;
 	}
 }
