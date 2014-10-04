@@ -112,7 +112,7 @@
 	add address=fd7e:907d:34ab:0:0:0:0:2/128 interface=loopback advertise=no
 
 # Connection IPs
-	add address=2001:1620:bba:4:0:0:0:0/64 interface=customer-1
+	add address=2001:1620:bba:5:0:0:0:0/64 interface=customer-1
 	add address=fd7e:907d:34ab:107:0:0:0:0/64 interface=station-connection-1
 	add address=fd7e:907d:34ab:108:0:0:0:0/64 interface=station-connection-2
 	add address=fd7e:907d:34ab:109:0:0:0:0/64 interface=station-connection-3
@@ -150,8 +150,8 @@
 	add chain=input connection-state=established
 	add chain=input connection-state=related
 	add chain=input protocol=icmpv6
-	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:4:0:0:0:0/64
-	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:4:0:0:0:0/64
+	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:5:0:0:0:0/64
+	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:5:0:0:0:0/64
 
 /ip dns
 set servers=2001:4860:4860:0:0:0:0:8888,8.8.8.8

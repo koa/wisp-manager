@@ -13,6 +13,7 @@
 /interface vlan
 	remove numbers=[find]
 	add interface=customer-1 l2mtu=1594 name=customer-1-1 vlan-id=1
+	add interface=customer-1 l2mtu=1594 name=customer-1-20 vlan-id=20
 
 /interface ipipv6
 #	remove numbers=[find]
@@ -35,8 +36,9 @@
 	add address=172.16.0.1/32 interface=loopback network=172.16.0.1
 	
 # configured IPs
-	add address=172.30.30.2/30 interface=cyberlink
+	add address=172.28.0.2/30 interface=cyberlink
 	add address=10.14.10.1/16 interface=customer-1-1
+	add address=172.30.30.2/16 interface=customer-1-20
 	add address=172.16.1.1/29 interface=station-connection-1
 	add address=172.16.1.9/29 interface=station-connection-2
 	add address=172.16.1.17/29 interface=station-connection-3
@@ -56,6 +58,7 @@
 	add interface=tunnel-Fäsigrund network-type=point-to-point
 	add interface=cyberlink passive=yes
 	add interface=customer-1-1 passive=yes
+	add interface=customer-1-20 passive=yes
 	add interface=station-connection-1 passive=yes
 	add interface=station-connection-2 passive=yes
 	add interface=station-connection-3 passive=yes
@@ -63,8 +66,9 @@
 /routing ospf network
 	remove numbers=[find dynamic=no]
 	add area=backbone network=172.16.0.1/32
-	add area=backbone network=172.30.30.0/30
+	add area=backbone network=172.28.0.0/30
 	add area=backbone network=10.14.0.0/16
+	add area=backbone network=172.30.0.0/16
 	add area=backbone network=172.16.1.0/29
 	add area=backbone network=172.16.1.8/29
 	add area=backbone network=172.16.1.16/29
@@ -78,18 +82,21 @@
 /ip pool
 	remove numbers=[find]
 	add name=customer-1-1_pool ranges=10.14.60.0-10.14.60.255
+	add name=customer-1-20_pool ranges=172.30.60.0-172.30.60.255
 	add name=station-connection-1_pool ranges=172.16.1.2-172.16.1.6
 	add name=station-connection-2_pool ranges=172.16.1.10-172.16.1.14
 	add name=station-connection-3_pool ranges=172.16.1.18-172.16.1.22
 /ip dhcp-server
 	remove numbers=[find]
 	add address-pool=customer-1-1_pool disabled=no interface=customer-1-1 lease-time=20m name=dhcp_customer-1-1
+	add address-pool=customer-1-20_pool disabled=no interface=customer-1-20 lease-time=20m name=dhcp_customer-1-20
 	add address-pool=station-connection-1_pool disabled=no interface=station-connection-1 lease-time=10m name=dhcp_station-connection-1
 	add address-pool=station-connection-2_pool disabled=no interface=station-connection-2 lease-time=10m name=dhcp_station-connection-2
 	add address-pool=station-connection-3_pool disabled=no interface=station-connection-3 lease-time=10m name=dhcp_station-connection-3
 /ip dhcp-server network	
 	remove numbers=[find]
 	add address=10.14.0.0/16 gateway=10.14.10.1
+	add address=172.30.0.0/16 gateway=172.30.30.2
 	add address=172.16.1.0/29 gateway=172.16.1.1
 	add address=172.16.1.8/29 gateway=172.16.1.9
 	add address=172.16.1.16/29 gateway=172.16.1.17
@@ -110,6 +117,8 @@
 	add action=reject chain=input in-interface=cyberlink1 reject-with=icmp-admin-prohibited
 	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!10.14.0.0/16
 	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!10.14.0.0/16
+	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!172.30.0.0/16
+	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!172.30.0.0/16
 /ip firewall nat
 	remove numbers=[find]
 	add action=masquerade chain=srcnat out-interface=cyberlink1 src-address=172.16.0.0/12
@@ -123,6 +132,7 @@
 
 # Connection IPs
 	add address=2001:1620:bba:0:0:0:10:1/64 interface=customer-1-1
+	add address=2001:1620:bba:1:0:0:0:0/64 interface=customer-1-20
 	add address=fd7e:907d:34ab:100:0:0:0:0/64 interface=station-connection-1
 	add address=fd7e:907d:34ab:101:0:0:0:0/64 interface=station-connection-2
 	add address=fd7e:907d:34ab:102:0:0:0:0/64 interface=station-connection-3
@@ -137,6 +147,7 @@
 	
 # Physically Connections
 	add area=backbone interface=customer-1-1 passive=yes
+	add area=backbone interface=customer-1-20 passive=yes
 	add area=backbone interface=station-connection-1
 	add area=backbone interface=station-connection-2
 	add area=backbone interface=station-connection-3
@@ -144,6 +155,7 @@
 /ipv6 nd
 	remove numbers=[find default=no]
 	set [ find default=yes ] advertise-dns=yes interface=customer-1-1
+	add interface=customer-1-20 advertise-dns=yes
 	add interface=station-connection-1 advertise-dns=yes
 	add interface=station-connection-2 advertise-dns=yes
 	add interface=station-connection-3 advertise-dns=yes
@@ -161,6 +173,8 @@
 	add action=reject chain=input in-interface=cyberlink1 reject-with=icmp-admin-prohibited
 	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:0:0:0:0:0/64
 	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:0:0:0:0:0/64
+	add action=reject chain=forward in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:1:0:0:0:0/64
+	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:1:0:0:0:0/64
 
 /ip dns
 set servers=2001:4860:4860:0:0:0:0:8888,8.8.8.8

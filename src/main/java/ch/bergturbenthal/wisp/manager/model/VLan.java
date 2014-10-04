@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -15,6 +16,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
 import javax.validation.constraints.NotNull;
 
 import lombok.Data;
@@ -45,6 +47,8 @@ public class VLan {
 	private CustomerConnection customerConnection;
 	@Embedded
 	private DHCPSettings dhcpSettings;
+	@OneToMany(mappedBy = "vlan", orphanRemoval = true)
+	private Set<PortExpose> exposion = new HashSet<PortExpose>();
 	@Id
 	@GeneratedValue
 	private Long id;
@@ -53,5 +57,7 @@ public class VLan {
 	@ElementCollection
 	@CollectionTable(name = "vlan_dns", joinColumns = @JoinColumn(name = "vlan"))
 	private Set<IpAddress> privateDnsServers;
+
 	private int vlanId;
+
 }
