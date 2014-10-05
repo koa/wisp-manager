@@ -90,9 +90,9 @@ public class NetworkDevice {
 	private String serialNumber;
 	@OneToOne(mappedBy = "device")
 	private Station station;
-	@Column(columnDefinition = "numeric")
+	@Column(precision = 45)
 	private BigInteger v4AddressRaw;
-	@Column(columnDefinition = "numeric")
+	@Column(precision = 45)
 	private BigInteger v6AddressRaw;
 	@Version
 	@Setter(AccessLevel.PROTECTED)
