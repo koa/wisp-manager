@@ -15,7 +15,7 @@
 
 /interface ipipv6
 #	remove numbers=[find]
-	add local-address=fd7e:907d:34ab:0:0:0:0:2 mtu=1500 name=tunnel-Berg remote-address=fd7e:907d:34ab:0:0:0:0:0
+	add local-address=fd7e:907d:34ab:0:0:0:0:2 mtu=1450 name=tunnel-berg remote-address=fd7e:907d:34ab:0:0:0:0:0
 
 
 /interface bridge
@@ -38,14 +38,14 @@
 	add address=172.16.1.81/29 interface=station-connection-4
 
 # Tunnel Endpoints
-	add address=172.16.4.5/30 interface=tunnel-Berg
+	add address=172.16.4.5/30 interface=tunnel-berg
 
 # ipv4 ospf Routing
 /routing ospf instance set [ find default=yes ] router-id=172.16.0.3
 
 /routing ospf interface
 	remove numbers=[find dynamic=no]
-	add interface=tunnel-Berg network-type=point-to-point
+	add interface=tunnel-berg network-type=point-to-point
 	add interface=customer-1 passive=yes
 	add interface=station-connection-1 passive=yes
 	add interface=station-connection-2 passive=yes

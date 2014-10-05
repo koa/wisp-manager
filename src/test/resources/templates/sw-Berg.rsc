@@ -17,9 +17,9 @@
 
 /interface ipipv6
 #	remove numbers=[find]
-	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1500 name=tunnel-Chalchegg remote-address=fd7e:907d:34ab:0:0:0:0:1
-	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1500 name=tunnel-Susanne remote-address=fd7e:907d:34ab:0:0:0:0:2
-	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1500 name=tunnel-Fäsigrund remote-address=fd7e:907d:34ab:0:0:0:0:3
+	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1450 name=tunnel-chalchegg remote-address=fd7e:907d:34ab:0:0:0:0:1
+	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1450 name=tunnel-susanne remote-address=fd7e:907d:34ab:0:0:0:0:2
+	add local-address=fd7e:907d:34ab:0:0:0:0:0 mtu=1450 name=tunnel-faesigrund remote-address=fd7e:907d:34ab:0:0:0:0:3
 
 
 /interface bridge
@@ -44,18 +44,18 @@
 	add address=172.16.1.17/29 interface=station-connection-3
 
 # Tunnel Endpoints
-	add address=172.16.4.2/30 interface=tunnel-Chalchegg
-	add address=172.16.4.6/30 interface=tunnel-Susanne
-	add address=172.16.4.10/30 interface=tunnel-Fäsigrund
+	add address=172.16.4.2/30 interface=tunnel-chalchegg
+	add address=172.16.4.6/30 interface=tunnel-susanne
+	add address=172.16.4.10/30 interface=tunnel-faesigrund
 
 # ipv4 ospf Routing
 /routing ospf instance set [ find default=yes ] router-id=172.16.0.1
 
 /routing ospf interface
 	remove numbers=[find dynamic=no]
-	add interface=tunnel-Chalchegg network-type=point-to-point
-	add interface=tunnel-Susanne network-type=point-to-point
-	add interface=tunnel-Fäsigrund network-type=point-to-point
+	add interface=tunnel-chalchegg network-type=point-to-point
+	add interface=tunnel-susanne network-type=point-to-point
+	add interface=tunnel-faesigrund network-type=point-to-point
 	add interface=cyberlink passive=yes
 	add interface=customer-1-1 passive=yes
 	add interface=customer-1-20 passive=yes
