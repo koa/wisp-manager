@@ -205,7 +205,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 
 	private TunnelEndpoint createTunnel(final IpIpv6Tunnel tunnel, final Station station, final long addressIndex, final Collection<String> existingNames) {
 		final TunnelEndpointBuilder builder = TunnelEndpoint.builder();
-		builder.ifName(uniqifyName(existingNames, "tunnel-" + station.getName(), 0));
+		builder.ifName(uniqifyName(existingNames, stripInterfaceName("tunnel-" + station.getName()), 0));
 		builder.remoteAddress(station.getLoopback().getInet6Address().getHostAddress());
 		final IpNetwork localRangeInTunnel = tunnel.getV4Address().getRange();
 		builder.v4Address(localRangeInTunnel.getAddress().getAddressOfNetwork(addressIndex).getHostAddress());
