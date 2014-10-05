@@ -23,7 +23,7 @@
 /interface ipipv6
 #	remove numbers=[find]
 #foreach($interface in $tunnelEndpoints)
-	add local-address=$v6Loopback mtu=1500 name=$interface.ifName remote-address=$interface.remoteAddress
+	add local-address=$v6Loopback mtu=1450 name=$interface.ifName remote-address=$interface.remoteAddress
 #end
 
 
