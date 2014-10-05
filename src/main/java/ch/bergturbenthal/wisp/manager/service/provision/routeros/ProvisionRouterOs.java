@@ -152,7 +152,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 		private final String v4NetAddress;
 	}
 
-	private static String CURRENT_OS_VERSION = "6.15";
+	private static String CURRENT_OS_VERSION = "6.20";
 
 	private static final PeriodFormatter DURATION_FORMAT = new PeriodFormatterBuilder().appendDays()
 																																											.appendSuffix("d")
