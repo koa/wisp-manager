@@ -7,8 +7,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import lombok.Setter;
-
 import org.apache.commons.lang.ClassUtils;
 
 import ch.bergturbenthal.wisp.manager.util.PojoItem;
@@ -18,14 +16,15 @@ import ch.bergturbenthal.wisp.manager.util.PropertyResolver.PropertyHandler;
 import com.vaadin.data.Container;
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
+import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.util.AbstractContainer;
 import com.vaadin.data.util.AbstractProperty;
 
-public class ListPropertyContainer<T> extends AbstractContainer implements Container, Container.Indexed, Container.Sortable {
+public class ListPropertyContainer<T> extends AbstractContainer implements Container, Container.Indexed, Container.Sortable, Container.ItemSetChangeNotifier,
+																																Container.PropertySetChangeNotifier, Container.ItemSetChangeListener {
 
 	private final Class<T> beanEntryType;
 
-	@Setter
 	private Property<T> dataSourceProperty;
 
 	private final PropertyResolver<T> resolver;
@@ -42,7 +41,11 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	@Override
 	public boolean addContainerProperty(final Object propertyId, final Class<?> type, final Object defaultValue) throws UnsupportedOperationException {
 		final PropertyHandler propertyHandler = resolver.resolveProperty(propertyId);
-		return propertyHandler != null;
+		if (propertyHandler != null) {
+			fireContainerPropertySetChange();
+			return true;
+		}
+		return false;
 	}
 
 	@Override
@@ -76,8 +79,53 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	}
 
 	@Override
+	public void addItemSetChangeListener(final ItemSetChangeListener listener) {
+		super.addItemSetChangeListener(listener);
+	}
+
+	@Override
+	public void addListener(final ItemSetChangeListener listener) {
+		// TODO Auto-generated method stub
+		super.addListener(listener);
+	}
+
+	@Override
+	public void addListener(final PropertySetChangeListener listener) {
+		super.addListener(listener);
+	}
+
+	@Override
+	public void addPropertySetChangeListener(final PropertySetChangeListener listener) {
+		super.addPropertySetChangeListener(listener);
+	}
+
+	@Override
+	public void containerItemSetChange(final ItemSetChangeEvent event) {
+		fireItemSetChange();
+	}
+
+	@Override
 	public boolean containsId(final Object itemId) {
 		return ((Integer) itemId).intValue() < size();
+	}
+
+	@Override
+	public void fireItemSetChange() {
+		super.fireItemSetChange();
+	}
+
+	@Override
+	protected void fireItemSetChange(final ItemSetChangeEvent event) {
+		final Property<T> property = dataSourceProperty;
+		if (property != null && property instanceof Property.ValueChangeListener) {
+			((Property.ValueChangeListener) property).valueChange(new Property.ValueChangeEvent() {
+				@Override
+				public Property getProperty() {
+					return property;
+				}
+			});
+		}
+		super.fireItemSetChange(event);
 	}
 
 	@Override
@@ -308,6 +356,41 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	}
 
 	@Override
+	public void removeItemSetChangeListener(final ItemSetChangeListener listener) {
+		super.removeItemSetChangeListener(listener);
+	}
+
+	@Override
+	public void removeListener(final ItemSetChangeListener listener) {
+		super.removeListener(listener);
+	}
+
+	@Override
+	public void removeListener(final PropertySetChangeListener listener) {
+		super.removeListener(listener);
+	}
+
+	@Override
+	public void removePropertySetChangeListener(final PropertySetChangeListener listener) {
+		super.removePropertySetChangeListener(listener);
+	}
+
+	public void setDataSourceProperty(final Property<T> itemProperty) {
+		dataSourceProperty = itemProperty;
+		if (dataSourceProperty != null) {
+			if (dataSourceProperty instanceof Property.ValueChangeNotifier) {
+				((Property.ValueChangeNotifier) dataSourceProperty).addValueChangeListener(new Property.ValueChangeListener() {
+
+					@Override
+					public void valueChange(final ValueChangeEvent event) {
+						fireItemSetChange();
+					}
+				});
+			}
+		}
+	}
+
+	@Override
 	public int size() {
 		if (dataSourceProperty == null) {
 			return 0;
@@ -326,5 +409,7 @@ public class ListPropertyContainer<T> extends AbstractContainer implements Conta
 	public void sort(final Object[] propertyId, final boolean[] ascending) {
 		this.sortProperties = propertyId;
 		this.sortOrders = ascending;
+		fireItemSetChange();
 	}
+
 }

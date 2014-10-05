@@ -40,6 +40,7 @@ import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterfaceRole;
+import ch.bergturbenthal.wisp.manager.model.PortExpose;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -53,6 +54,7 @@ import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpIpv6TunnelRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
+import ch.bergturbenthal.wisp.manager.repository.PortExposeRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.repository.VLanRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
@@ -151,6 +153,8 @@ public class AddressManagementBean implements AddressManagementService {
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
 	@Autowired
+	private PortExposeRepository portExposeRepository;
+	@Autowired
 	private StationRepository stationRepository;
 	@Autowired
 	private VLanRepository vLanRepository;
@@ -163,6 +167,38 @@ public class AddressManagementBean implements AddressManagementService {
 	@Override
 	public void addGlobalDns(final IpAddress address) {
 		dnsServerRepository.save(new GlobalDnsServer(address));
+	}
+
+	@Override
+	public void addPortExposition(final VLan vlan, final int port, final String address) {
+		try {
+			final IpAddress targetAddress = new IpAddress(InetAddress.getByName(address));
+			if (targetAddress.getAddressType() == IpAddressType.V4) {
+				// only one exposition per ipv4 port number
+				for (final PortExpose replacedEntry : portExposeRepository.findV4ByPortNumber(port)) {
+					final VLan enclosingVLan = replacedEntry.getVlan();
+					if (enclosingVLan.equals(vlan) && targetAddress.equals(replacedEntry.getTargetAddress())) {
+						continue;
+					}
+					removePortExpostion(replacedEntry);
+				}
+			}
+			for (final PortExpose existingEntry : vlan.getExposion()) {
+				if (targetAddress.equals(existingEntry.getTargetAddress()) && port == existingEntry.getPortNumber()) {
+					// entry exists already
+					return;
+				}
+			}
+			final PortExpose expose = new PortExpose();
+			expose.setPortNumber(port);
+			expose.setTargetAddress(targetAddress);
+			expose.setVlan(vlan);
+			portExposeRepository.save(expose);
+			vlan.getExposion().add(expose);
+		} catch (final UnknownHostException e) {
+			throw new IllegalArgumentException("Unknown IP address " + address, e);
+		}
+
 	}
 
 	/*
@@ -598,6 +634,7 @@ public class AddressManagementBean implements AddressManagementService {
 	public Station fillStation(final Station station) {
 		fillLoopbackAddress(station);
 		fillLanIfNone(station);
+		validatePortExpositions(station);
 		fillNetworkDevice(station);
 		return station;
 	}
@@ -923,6 +960,15 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	@Override
+	public void removePortExpostion(final PortExpose exposition) {
+		final VLan net = exposition.getVlan();
+		if (net != null) {
+			net.getExposion().remove(exposition);
+		}
+		portExposeRepository.delete(exposition);
+	}
+
+	@Override
 	public void removeRange(final IpRange ipRange) {
 		if (ipRange.getType() != AddressRangeType.ASSIGNED && ipRange.getReservations().isEmpty()) {
 			deleteIpRange(ipRange);
@@ -1114,4 +1160,27 @@ public class AddressManagementBean implements AddressManagementService {
 		}
 	}
 
+	private void validatePortExpositions(final Station station) {
+		final List<PortExpose> invalidExpositions = new ArrayList<PortExpose>();
+		for (final CustomerConnection cc : station.getCustomerConnections()) {
+			for (final VLan net : cc.getOwnNetworks()) {
+				for (final PortExpose exposition : net.getExposion()) {
+					final IpAddress targetAddress = exposition.getTargetAddress();
+					final IpRange ipAddress = net.getAddress().getIpAddress(targetAddress.getAddressType());
+					final boolean addressOk;
+					if (targetAddress.getAddressType().getBitCount() == ipAddress.getRange().getNetmask()) {
+						addressOk = ipAddress.getParentRange().getRange().containsAddress(targetAddress);
+					} else {
+						addressOk = ipAddress.getRange().containsAddress(targetAddress);
+					}
+					if (!addressOk) {
+						invalidExpositions.add(exposition);
+					}
+				}
+			}
+		}
+		for (final PortExpose exposition : invalidExpositions) {
+			removePortExpostion(exposition);
+		}
+	}
 }

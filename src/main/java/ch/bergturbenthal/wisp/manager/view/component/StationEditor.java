@@ -26,6 +26,7 @@ import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
+import ch.bergturbenthal.wisp.manager.model.PortExpose;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
@@ -307,6 +308,68 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		};
 	}
 
+	private Table createFirewallTable(final PojoItem<VLan> item) {
+		final ListPropertyContainer<PortExpose> container = new ListPropertyContainer<PortExpose>(PortExpose.class);
+		container.setDataSourceProperty(item.getItemProperty("exposion"));
+		container.addContainerProperty("targetAddress.inetAddress.hostAddress", null, null);
+		final Table forwardingsTable = new Table("Exposed Ports", container);
+		forwardingsTable.setPageLength(0);
+		forwardingsTable.setSizeFull();
+		forwardingsTable.setContainerDataSource(container);
+
+		forwardingsTable.setVisibleColumns("portNumber", "targetAddress.inetAddress.hostAddress");
+		forwardingsTable.setColumnHeader("targetAddress.inetAddress.hostAddress", "targetAddress");
+		forwardingsTable.setColumnHeader("portNumber", "number");
+
+		final Action addAction = new Action("add");
+		final Action removeAction = new Action("remove");
+		forwardingsTable.addActionHandler(new Handler() {
+
+			@Override
+			public Action[] getActions(final Object target, final Object sender) {
+				return new Action[] { addAction, removeAction };
+			}
+
+			@Override
+			public void handleAction(final Action action, final Object sender, final Object target) {
+				if (action == removeAction) {
+					final PojoItem<PortExpose> exposeItem = container.getItem(target);
+					addressManagementService.removePortExpostion(exposeItem.getPojo());
+					container.fireItemSetChange();
+				} else if (action == addAction) {
+					final Window window = new Window("Port Forwarding");
+					window.setModal(true);
+					final FormLayout formLayout = new FormLayout();
+					final Property<Integer> portProperty = new ObjectProperty<Integer>(null, Integer.class);
+					final Property<String> addressProperty = new ObjectProperty<String>(null, String.class);
+					final TextField portField = new TextField("Port", portProperty);
+					final TextField addressField = new TextField("Address", addressProperty);
+					portField.setNullRepresentation("");
+					addressField.setNullRepresentation("");
+					formLayout.addComponent(portField);
+					formLayout.addComponent(addressField);
+					formLayout.addComponent(new Button("add", new ClickListener() {
+
+						@Override
+						public void buttonClick(final ClickEvent event) {
+							final VLan vLan = item.getPojo();
+							final int port = portProperty.getValue().intValue();
+							final String address = addressProperty.getValue();
+							addressManagementService.addPortExposition(vLan, port, address);
+							container.fireItemSetChange();
+							window.close();
+						}
+					}));
+					window.setContent(formLayout);
+					window.center();
+					forwardingsTable.getUI().addWindow(window);
+				}
+			}
+		});
+
+		return forwardingsTable;
+	}
+
 	private Table createGatewayTable() {
 		final Table gatewayTable = new ListPropertyTable<>(GatewaySettings.class);
 		gatewayTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
@@ -499,11 +562,12 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		vlanTable.setSizeFull();
 		final Action removeAction = new Action("Remove");
 		final Action addAction = new Action("Add");
+		final Action editFirewallAction = new Action("edit Firewall");
 		vlanTable.addActionHandler(new Handler() {
 
 			@Override
 			public Action[] getActions(final Object target, final Object sender) {
-				return new Action[] { removeAction, addAction };
+				return new Action[] { removeAction, addAction, editFirewallAction };
 			}
 
 			@Override
@@ -542,7 +606,9 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					window.setContent(formLayout);
 					window.center();
 					vlanTable.getUI().addWindow(window);
-
+				} else if (editFirewallAction == action) {
+					final PojoItem<VLan> item = (PojoItem<VLan>) vlanTable.getContainerDataSource().getItem(target);
+					showFirewallEditor(item, getUI());
 				}
 			}
 		});
@@ -722,6 +788,16 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 		currentNetworkDevice = item.getPojo().getDevice();
 		provisionButton.setEnabled(currentNetworkDevice != null);
 		mainLayout.setVisible(true);
+	}
+
+	private void showFirewallEditor(final PojoItem<VLan> item, final UI ui) {
+		final Window window = new Window("Firewall");
+		window.setModal(true);
+		final Table table = createFirewallTable(item);
+		window.setContent(new VerticalLayout(table));
+		window.center();
+		ui.addWindow(window);
+
 	}
 
 	private void showVLanEditor(final PojoItem<CustomerConnection> item, final UI ui) {

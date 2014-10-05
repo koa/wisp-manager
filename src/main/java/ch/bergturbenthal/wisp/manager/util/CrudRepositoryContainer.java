@@ -13,22 +13,21 @@ import org.springframework.data.repository.CrudRepository;
 import ch.bergturbenthal.wisp.manager.util.PropertyResolver.PropertyHandler;
 
 import com.vaadin.data.Container;
-import com.vaadin.data.Container.ItemSetChangeNotifier;
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.data.util.AbstractProperty;
 
 @Slf4j
-public abstract class CrudRepositoryContainer<T, ID extends Serializable> implements Container, ItemSetChangeNotifier {
+public abstract class CrudRepositoryContainer<T, ID extends Serializable> implements Container, Container.ItemSetChangeNotifier, Container.ItemSetChangeListener {
 
 	public static interface PojoFilter<T> {
 		boolean accept(final T candidate);
 	}
 
 	private final Collection<PojoFilter<T>> filters = new ArrayList<CrudRepositoryContainer.PojoFilter<T>>(1);
+
 	private final List<ItemSetChangeListener> listeners = new ArrayList<Container.ItemSetChangeListener>();
 	private final PropertyResolver<T> propertyResolver;
-
 	@Setter
 	protected CrudRepository<T, ID> repository;
 
@@ -64,6 +63,11 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 	@Override
 	public void addListener(final ItemSetChangeListener listener) {
 		listeners.add(listener);
+	}
+
+	@Override
+	public void containerItemSetChange(final ItemSetChangeEvent event) {
+		notifyDataChanged();
 	}
 
 	@Override
@@ -105,6 +109,12 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 			throw new IllegalArgumentException("Property " + propertyId + " not exists");
 		}
 		final AbstractProperty<Object> property = new AbstractProperty<Object>() {
+
+			@Override
+			protected void fireValueChange() {
+				notifyDataChanged();
+				super.fireValueChange();
+			}
 
 			@Override
 			public Class<? extends Object> getType() {
@@ -171,7 +181,7 @@ public abstract class CrudRepositoryContainer<T, ID extends Serializable> implem
 
 			@Override
 			public boolean addItemProperty(final Object id, final Property property) throws UnsupportedOperationException {
-				throw new UnsupportedOperationException();
+				return addContainerProperty(id, null, null);
 			}
 
 			@Override
