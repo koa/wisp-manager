@@ -350,7 +350,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 					case V4:
 						v4NatRules.add(FirewallRule.builder()
 																				.action("dst-nat")
-																				.chain("dst-nat")
+																				.chain("dstnat")
 																				.dstPort(portNumber)
 																				.inInterface(gatewayIfName)
 																				.protocol("tcp")

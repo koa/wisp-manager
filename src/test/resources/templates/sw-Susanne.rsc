@@ -154,6 +154,6 @@
 	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:5:0:0:0:0/64
 
 /ip dns
-set servers=2001:4860:4860:0:0:0:0:8888,8.8.8.8
+set allow-remote-requests=yes servers=2001:4860:4860:0:0:0:0:8888,8.8.8.8
 
 /system reboot

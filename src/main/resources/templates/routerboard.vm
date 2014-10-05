@@ -179,6 +179,6 @@
 #end
 
 /ip dns
-set servers=$dnsServers
+set allow-remote-requests=yes servers=$dnsServers
 
 /system reboot
