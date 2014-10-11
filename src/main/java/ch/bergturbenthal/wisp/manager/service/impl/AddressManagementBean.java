@@ -6,6 +6,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -142,6 +143,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	@Autowired
 	private AntennaRepository antennaRepository;
+	private final Set<AddressRangeType> AUTO_CLEANUP_RANGE_TYPE = new HashSet<AddressRangeType>(Arrays.asList(AddressRangeType.ASSIGNED, AddressRangeType.INTERMEDIATE));
 	@Autowired
 	private ConnectionRepository connectionRepository;
 	@Autowired
@@ -156,6 +158,7 @@ public class AddressManagementBean implements AddressManagementService {
 	private PortExposeRepository portExposeRepository;
 	@Autowired
 	private StationRepository stationRepository;
+
 	@Autowired
 	private VLanRepository vLanRepository;
 
@@ -305,9 +308,9 @@ public class AddressManagementBean implements AddressManagementService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	@Scheduled(fixedDelay = 60 * 1000, initialDelay = 500)
 	public void cleanupOrphanRanges() {
-		for (final IpRange range : ipRangeRepository.findAll()) {
-			if (range.getType() != AddressRangeType.ROOT && range.isOrphan()) {
-				ipRangeRepository.delete(range);
+		for (final IpRange range : ipRangeRepository.findByTypeIn(AUTO_CLEANUP_RANGE_TYPE)) {
+			if (range.isOrphan()) {
+				deleteIpRange(range);
 			}
 		}
 	}
@@ -363,22 +366,11 @@ public class AddressManagementBean implements AddressManagementService {
 	}
 
 	private void deleteIpRange(final IpRange range) {
-
-		// for (final VLan foundVLan : range.getOwningVlans()) {
-		// final RangePair address = foundVLan.getAddress();
-		// if (address != null) {
-		// if (address.getV4Address() == range) {
-		// address.setV4Address(null);
-		// }
-		// if (address.getV6Address() == range) {
-		// address.setV6Address(null);
-		// }
-		// }
-		// }
-		// if (range.getParentRange() != null) {
-		// range.getParentRange().getReservations().remove(range);
-		// }
-		// ipRangeRepository.delete(range);
+		final IpRange parentRange = range.getParentRange();
+		if (parentRange != null) {
+			parentRange.getReservations().remove(range);
+		}
+		ipRangeRepository.delete(range);
 	}
 
 	@Override
@@ -970,7 +962,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	@Override
 	public void removeRange(final IpRange ipRange) {
-		if (ipRange.getType() != AddressRangeType.ASSIGNED && ipRange.getReservations().isEmpty()) {
+		if (ipRange.isOrphan()) {
 			deleteIpRange(ipRange);
 		}
 

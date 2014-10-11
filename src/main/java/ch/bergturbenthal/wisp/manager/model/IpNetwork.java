@@ -70,6 +70,10 @@ public class IpNetwork {
 		return calculateNetmask(addressType, netmaskLength);
 	}
 
+	public String getDescription() {
+		return address.getInetAddress().getHostAddress() + "/" + netmask;
+	}
+
 	public InetAddress getNetmaskAsAddress() {
 		try {
 			return InetAddress.getByAddress(getByteMask());

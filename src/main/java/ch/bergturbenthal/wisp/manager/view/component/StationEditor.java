@@ -451,7 +451,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					final FormLayout formLayout = new FormLayout();
 					final FieldGroup formFieldGroup = new FieldGroup(gatewayItem);
 					formFieldGroup.setBuffered(false);
-					formFieldGroup.setFieldFactory(new CustomFieldFactory(devicesContainer));
+					formFieldGroup.setFieldFactory(new DeviceSelectFieldFactory(devicesContainer));
 					final ComboBox gatewayTypeField = new ComboBox("Type", Arrays.asList(GatewayType.values()));
 					gatewayTypeField.setNullSelectionAllowed(false);
 					formFieldGroup.bind(gatewayTypeField, "gatewayType");
@@ -682,7 +682,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	public void init() {
 		devicesContainer = networkDeviceManagementService.createContainerRepository();
 		fieldGroup = new FieldGroup(stationService.createContainerRepository().getDummyItem());
-		fieldGroup.setFieldFactory(new CustomFieldFactory(devicesContainer));
+		fieldGroup.setFieldFactory(new DeviceSelectFieldFactory(devicesContainer));
 		fieldGroup.setBuffered(false);
 		mainLayout = new FormLayout();
 		mainLayout.setSizeFull();

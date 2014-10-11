@@ -52,22 +52,22 @@ public class IpRange {
 	private AddressRangeType type;
 
 	@OneToMany(mappedBy = "addresses.v4Address")
-	private Collection<Antenna> v4OwningAntenna = new ArrayList<Antenna>();
+	private Collection<Antenna> v4OwningAntenna = new ArrayList<Antenna>(0);
 	@OneToMany(mappedBy = "portAddress.v4Address")
 	private Collection<AutoConnectionPort> v4OwningAutoConnectionPorts = new ArrayList<AutoConnectionPort>(0);
 	@OneToMany(mappedBy = "managementAddress.v4Address")
-	private Collection<GatewaySettings> v4OwningGatewaySettings = new ArrayList<GatewaySettings>();
+	private Collection<GatewaySettings> v4OwningGatewaySettings = new ArrayList<GatewaySettings>(0);
 	@OneToMany(mappedBy = "loopback.v4Address")
 	private Collection<Station> v4OwningStations = new ArrayList<Station>(0);
 	@OneToMany(mappedBy = "address.v4Address")
 	private Collection<VLan> v4OwningVlans = new ArrayList<VLan>(0);
 
 	@OneToMany(mappedBy = "addresses.v6Address")
-	private Collection<Antenna> v6OwningAntenna = new ArrayList<Antenna>();
+	private Collection<Antenna> v6OwningAntenna = new ArrayList<Antenna>(0);
 	@OneToMany(mappedBy = "portAddress.v6Address")
 	private Collection<AutoConnectionPort> v6OwningAutoConnectionPorts = new ArrayList<AutoConnectionPort>(0);
 	@OneToMany(mappedBy = "managementAddress.v6Address")
-	private Collection<GatewaySettings> v6OwningGatewaySettings = new ArrayList<GatewaySettings>();
+	private Collection<GatewaySettings> v6OwningGatewaySettings = new ArrayList<GatewaySettings>(0);
 	@OneToMany(mappedBy = "loopback.v6Address")
 	private Collection<Station> v6OwningStations = new ArrayList<Station>(0);
 	@OneToMany(mappedBy = "address.v6Address")

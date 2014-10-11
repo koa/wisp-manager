@@ -1,5 +1,6 @@
 package ch.bergturbenthal.wisp.manager.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.Query;
@@ -18,4 +19,6 @@ public interface IpRangeRepository extends CrudRepository<IpRange, Long> {
 
 	@Query("from IpRange where type='LOOPBACK' and range.address.addressType='V4'")
 	List<IpRange> findV4LoopbackRanges();
+
+	List<IpRange> findByTypeIn(final Collection<AddressRangeType> types);
 }
