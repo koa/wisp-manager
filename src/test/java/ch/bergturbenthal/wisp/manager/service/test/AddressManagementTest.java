@@ -11,6 +11,8 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import ch.bergturbenthal.wisp.manager.WispManager;
+import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.TestHelperBean;
@@ -33,25 +35,25 @@ public class AddressManagementTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testV4AddressOverlap() throws UnknownHostException {
-		addressManagementBean.addRootRange(InetAddress.getByName("10.0.0.0"), 8, 16, "Big reservation");
-		addressManagementBean.addRootRange(InetAddress.getByName("10.14.20.0"), 24, 28, "Small reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("10.0.0.0")), 8), 16, "Big reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("10.14.20.0")), 24), 28, "Small reservation");
 	}
 
 	@Test
 	public void testV4NonAddressOverlap() throws UnknownHostException {
-		addressManagementBean.addRootRange(InetAddress.getByName("10.13.0.0"), 16, 20, "Big reservation");
-		addressManagementBean.addRootRange(InetAddress.getByName("10.14.20.0"), 24, 28, "Small reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("10.13.0.0")), 16), 20, "Big reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("10.14.20.0")), 24), 28, "Small reservation");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testV6AddressOverlap() throws UnknownHostException {
-		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab::"), 48, 64, "Big reservation");
-		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab:200::"), 56, 64, "Small reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("fd7e:907d:34ab::")), 48), 64, "Big reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("fd7e:907d:34ab:200::")), 56), 64, "Small reservation");
 	}
 
 	@Test
 	public void testV6NonAddressOverlap() throws UnknownHostException {
-		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab::"), 56, 64, "Big reservation");
-		addressManagementBean.addRootRange(InetAddress.getByName("fd7e:907d:34ab:200::"), 56, 64, "Small reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("fd7e:907d:34ab::")), 56), 64, "Big reservation");
+		addressManagementBean.addRootRange(new IpNetwork(new IpAddress(InetAddress.getByName("fd7e:907d:34ab:200::")), 56), 64, "Small reservation");
 	}
 }

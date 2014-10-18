@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import lombok.Data;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.spring.UIScope;
 import org.vaadin.spring.navigator.VaadinView;
 
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
@@ -36,6 +39,7 @@ import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.Field;
 import com.vaadin.ui.FormLayout;
+import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Table;
 import com.vaadin.ui.Table.ColumnGenerator;
 import com.vaadin.ui.TreeTable;
@@ -59,15 +63,57 @@ public class RootRangesView extends CustomComponent implements View {
 		}
 	}
 
+	@Data
+	public static class AppendRootRangeData {
+		@NotNull
+		private IpNetwork address;
+		@NotNull
+		@Min(8)
+		@Max(128)
+		private Integer reservationMask;
+	}
+
 	public static final String VIEW_ID = "RootRanges";
 	@Autowired
 	private AddressManagementService addressManagementBean;
+	private FieldGroup addRootRangeFieldGroup;
+	private Window addRootRangeWindow;
 	private FieldGroup addSubRangeFieldGroup;
 	private Window addSubRangeWindow;
 	private CrudRepositoryContainer<IpRange, Long> connectionContainer;
 
 	@Override
 	public void enter(final ViewChangeEvent event) {
+	}
+
+	@PostConstruct
+	public void initAddRootRangeWindow() {
+		addRootRangeWindow = new Window("Append root range");
+		addRootRangeWindow.setModal(true);
+		final FormLayout layout = new FormLayout();
+		addRootRangeFieldGroup = new FieldGroup(new BeanReferenceItem<AppendRootRangeData>(AppendRootRangeData.class));
+		addRootRangeFieldGroup.setFieldFactory(new CustomFieldGroupFactory());
+		layout.addComponent(addRootRangeFieldGroup.buildAndBind("address"));
+		layout.addComponent(addRootRangeFieldGroup.buildAndBind("reservationMask"));
+
+		layout.addComponent(new Button("Ok", new Button.ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				try {
+					addRootRangeFieldGroup.commit();
+					final AppendRootRangeData inputData = ((PojoItem<AppendRootRangeData>) addRootRangeFieldGroup.getItemDataSource()).getPojo();
+					addressManagementBean.addRootRange(inputData.getAddress(), inputData.getReservationMask(), "");
+					addRootRangeWindow.close();
+					refreshTable();
+				} catch (final CommitException e) {
+					log.error("Commit error", e);
+				}
+			}
+		}));
+		addRootRangeWindow.setContent(layout);
+		addRootRangeWindow.center();
+
 	}
 
 	@PostConstruct
@@ -167,17 +213,16 @@ public class RootRangesView extends CustomComponent implements View {
 		});
 
 		final Action removeAction = new Action("remove");
-		final Action addRootAction = new Action("add");
-		final Action addChildAction = new Action("add");
+		final Action addRootAction = new Action("append root");
+		final Action addChildAction = new Action("add child");
 
 		treeTable.addActionHandler(new Action.Handler() {
 
 			@Override
 			public Action[] getActions(final Object target, final Object sender) {
 				final List<Action> actions = new ArrayList<Action>();
-				if (target == null) {
-					actions.add(addRootAction);
-				} else {
+				actions.add(addRootAction);
+				if (target != null) {
 					final IpRange ipRange = connectionContainer.getItem(target).getPojo();
 					if (ipRange.getAvailableReservations() > 0) {
 						actions.add(addChildAction);
@@ -196,6 +241,8 @@ public class RootRangesView extends CustomComponent implements View {
 					addressManagementBean.removeRange(ipRange);
 					refreshTable();
 				} else if (action == addRootAction) {
+					addRootRangeFieldGroup.setItemDataSource(new BeanReferenceItem<AppendRootRangeData>(new AppendRootRangeData()));
+					getUI().addWindow(addRootRangeWindow);
 				} else if (action == addChildAction) {
 					final PojoItem<IpRange> ipRangeItem = connectionContainer.getItem(target);
 					final IpRange ipRange = ipRangeItem.getPojo();
@@ -226,8 +273,7 @@ public class RootRangesView extends CustomComponent implements View {
 
 		treeTable.setSizeFull();
 		treeTable.setPageLength(0);
-		final Button cleanupButton = new Button("cleanup Ranges");
-		cleanupButton.addClickListener(new Button.ClickListener() {
+		final Button cleanupButton = new Button("cleanup Ranges", new Button.ClickListener() {
 
 			@Override
 			public void buttonClick(final ClickEvent event) {
@@ -235,7 +281,7 @@ public class RootRangesView extends CustomComponent implements View {
 				refreshTable();
 			}
 		});
-		setCompositionRoot(new VerticalLayout(treeTable, editRangeLayout, cleanupButton));
+		setCompositionRoot(new VerticalLayout(treeTable, editRangeLayout, new HorizontalLayout(cleanupButton)));
 	}
 
 	private void refreshTable() {

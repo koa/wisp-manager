@@ -39,6 +39,27 @@ public class IpNetwork {
 		return mask;
 	}
 
+	public static IpNetwork resolveAddress(final String address) {
+		try {
+			if (address == null || address.trim().isEmpty()) {
+				return null;
+			}
+			final String[] addressParts = address.split("/", 2);
+			final InetAddress inetAddress = InetAddress.getByName(addressParts[0]);
+			final IpAddress enteredIpAddress = new IpAddress(inetAddress);
+			final int addressMask;
+			final int singleAddressMask = enteredIpAddress.getAddressType().getBitCount();
+			if (addressParts.length > 1) {
+				addressMask = Integer.parseInt(addressParts[1]);
+			} else {
+				addressMask = singleAddressMask;
+			}
+			return new IpNetwork(enteredIpAddress, addressMask);
+		} catch (final UnknownHostException e) {
+			throw new RuntimeException("Unknown Host address: " + address, e);
+		}
+	}
+
 	private IpAddress address;
 
 	private int netmask;

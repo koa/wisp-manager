@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
+import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.Position;
@@ -73,13 +75,15 @@ public class TestHelperBean {
 	public void initAddressRanges() {
 
 		try {
-			final IpRange rootV4 = addressManagementBean.addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
+			final IpRange rootV4 = addressManagementBean.addRootRange(new IpNetwork(new IpAddress(Inet4Address.getByName("172.16.0.0")), 12), 16, "Internal v4 Range");
 			final IpRange smallV4Ranges = addressManagementBean.reserveRange(rootV4, AddressRangeType.ADMINISTRATIVE, 24, null);
 			addressManagementBean.reserveRange(smallV4Ranges, AddressRangeType.LOOPBACK, 32, null);
 			addressManagementBean.reserveRange(smallV4Ranges, AddressRangeType.CONNECTION, 29, null);
 			addressManagementBean.reserveRange(rootV4, AddressRangeType.USER, 24, null);
 
-			final IpRange ipV6ReservationRange = addressManagementBean.addRootRange(Inet6Address.getByName("fd7e:907d:34ab::"), 48, 56, "Internal v6 Range");
+			final IpRange ipV6ReservationRange = addressManagementBean.addRootRange(new IpNetwork(new IpAddress(Inet6Address.getByName("fd7e:907d:34ab::")), 48),
+																																							56,
+																																							"Internal v6 Range");
 			final IpRange singleRanges = addressManagementBean.reserveRange(ipV6ReservationRange, AddressRangeType.ADMINISTRATIVE, 64, "Ranges for single addresses");
 			addressManagementBean.reserveRange(singleRanges, AddressRangeType.LOOPBACK, 128, null);
 			addressManagementBean.reserveRange(ipV6ReservationRange, AddressRangeType.CONNECTION, 64, null);

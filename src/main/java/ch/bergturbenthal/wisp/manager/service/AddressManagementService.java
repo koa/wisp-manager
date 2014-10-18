@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.PortExpose;
 import ch.bergturbenthal.wisp.manager.model.RangePair;
@@ -18,7 +19,7 @@ public interface AddressManagementService {
 
 	void addGlobalDns(final IpAddress address);
 
-	IpRange addRootRange(final InetAddress rangeAddress, final int rangeMask, final int reservationMask, final String comment);
+	IpRange addRootRange(final IpNetwork reserveNetwork, final int reservationMask, final String comment);
 
 	Station fillStation(final Station originalStation);
 

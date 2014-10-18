@@ -204,24 +204,16 @@ public class AddressManagementBean implements AddressManagementService {
 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addRootRange(java.net.InetAddress, int, int, java.lang.String)
-	 */
 	@Override
-	public IpRange addRootRange(final InetAddress rangeAddress, final int rangeMask, final int reservationMask, final String comment) {
-		if (reservationMask < rangeMask) {
-			throw new IllegalArgumentException("Error to create range for " + rangeAddress
-																					+ "/"
-																					+ rangeMask
+	public IpRange addRootRange(final IpNetwork reserveNetwork, final int reservationMask, final String comment) {
+		if (reservationMask < reserveNetwork.getNetmask()) {
+			throw new IllegalArgumentException("Error to create range for " + reserveNetwork
 																					+ ": reservationMask ("
 																					+ reservationMask
 																					+ ") mask must be greater or equal than range mask ("
-																					+ rangeMask
+																					+ reserveNetwork.getNetmask()
 																					+ ")");
 		}
-		final IpNetwork reserveNetwork = new IpNetwork(new IpAddress(rangeAddress), rangeMask);
 		final IpRange foundParentNetwork = findParentRange(reserveNetwork);
 		if (foundParentNetwork != null) {
 			throw new IllegalArgumentException("new range " + reserveNetwork + " overlaps with existsing " + foundParentNetwork);
@@ -820,10 +812,10 @@ public class AddressManagementBean implements AddressManagementService {
 			final List<IpRange> resultList = findAllRootRanges();
 			// log.info("Ranges: " + resultList);
 			if (resultList.isEmpty()) {
-				final IpRange ipV6GlobalReservationRange = addRootRange(Inet6Address.getByName("2001:1620:bba::"), 48, 56, "Global v6 Range");
+				final IpRange ipV6GlobalReservationRange = addRootRange(new IpNetwork(new IpAddress(Inet6Address.getByName("2001:1620:bba::")), 48), 56, "Global v6 Range");
 				reserveRange(ipV6GlobalReservationRange, AddressRangeType.USER, 64, "User Ranges");
 
-				final IpRange ipV4ReservationRange = addRootRange(Inet4Address.getByName("172.16.0.0"), 12, 16, "Internal v4 Range");
+				final IpRange ipV4ReservationRange = addRootRange(new IpNetwork(new IpAddress(Inet4Address.getByName("172.16.0.0")), 12), 16, "Internal v4 Range");
 				final IpRange smallV4Ranges = reserveRange(ipV4ReservationRange, AddressRangeType.ADMINISTRATIVE, 24, "Some small Ranges");
 				reserveRange(smallV4Ranges, AddressRangeType.LOOPBACK, 32, null);
 				for (int i = 0; i < 3; i++) {
@@ -831,7 +823,7 @@ public class AddressManagementBean implements AddressManagementService {
 				}
 				reserveRange(smallV4Ranges, AddressRangeType.TUNNEL, 30, "IpIpv6-Tunnels");
 				reserveRange(ipV4ReservationRange, AddressRangeType.USER, 24, null);
-				final IpRange ipV6SiteLocalReservationRange = addRootRange(Inet6Address.getByName("fd7e:907d:34ab::"), 48, 56, "Internal v6 Range");
+				final IpRange ipV6SiteLocalReservationRange = addRootRange(new IpNetwork(new IpAddress(Inet6Address.getByName("fd7e:907d:34ab::")), 48), 56, "Internal v6 Range");
 				final IpRange singleRanges = reserveRange(ipV6SiteLocalReservationRange, AddressRangeType.ADMINISTRATIVE, 64, "Ranges for single addresses");
 				reserveRange(singleRanges, AddressRangeType.LOOPBACK, 128, null);
 				reserveRange(ipV6SiteLocalReservationRange, AddressRangeType.CONNECTION, 64, null);
@@ -1024,94 +1016,67 @@ public class AddressManagementBean implements AddressManagementService {
 
 	@Override
 	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
-		try {
-			if (address == null || address.trim().isEmpty()) {
-				addressPair.setIpAddress(null, addressType);
-				// if (offsetPair != null) {
-				// offsetPair.setExpectedOffset(null, addressType);
-				// }
-				return true;
-			}
-			final IpRange reservationBefore = addressPair.getIpAddress(addressType);
-			if (reservationBefore != null) {
-				clearIntermediateParent(reservationBefore.getParentRange());
-				deleteIpRange(reservationBefore);
-				addressPair.setIpAddress(null, addressType);
-			}
-			final String[] addressParts = address.split("/", 2);
-			final InetAddress inetAddress = InetAddress.getByName(addressParts[0]);
-			final int singleAddressMask;
-			switch (addressType) {
-			case V4:
-				if (!(inetAddress instanceof Inet4Address)) {
-					log.info("Wrong v4-Address: " + address);
-					return false;
-				}
-				singleAddressMask = 32;
-				break;
-			case V6:
-				if (!(inetAddress instanceof Inet6Address)) {
-					log.info("Wrong v6-Address: " + address);
-					return false;
-				}
-				singleAddressMask = 128;
-				break;
-			default:
-				log.info("Unknown Address-Type: " + addressType);
-				return false;
-			}
-			final int addressMask;
-			if (addressParts.length > 1) {
-				addressMask = Integer.parseInt(addressParts[1]);
-			} else {
-				addressMask = singleAddressMask;
-			}
-			final IpAddress enteredIpAddress = new IpAddress(inetAddress);
-			final IpNetwork reserveNetwork = new IpNetwork(enteredIpAddress, addressMask);
-			final IpRange foundParentRange = findParentRange(reserveNetwork);
-			final IpRange reservedIntermediateRange;
-			if (foundParentRange == null) {
-				// reserve special range
-				if (addressMask > singleAddressMask - 2) {
-					log.info("Cannot create reservation for " + address);
-					return false;
-				}
-				final IpRange rootRange = addRootRange(inetAddress, addressMask, addressMask, "");
-				reservedIntermediateRange = reserveRange(rootRange, AddressRangeType.INTERMEDIATE, singleAddressMask, "");
-			} else {
-				final int rangeMask = foundParentRange.getRangeMask();
-				final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, rangeMask);
-				for (final IpRange checkRange : foundParentRange.getReservations()) {
-					if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
-						log.info("Address-Range " + ipNetwork + " is already reserved");
-						return false;
-					}
-				}
-				final boolean intermediateRangeNeeded = rangeMask < addressMask;
-				final IpRange immediateReservationRange = new IpRange(ipNetwork, intermediateRangeNeeded ? addressMask : singleAddressMask, AddressRangeType.INTERMEDIATE);
-				immediateReservationRange.setParentRange(foundParentRange);
-				foundParentRange.getReservations().add(immediateReservationRange);
-				if (intermediateRangeNeeded) {
-					final IpNetwork ipSubNetwork = new IpNetwork(enteredIpAddress, addressMask);
-					reservedIntermediateRange = new IpRange(ipSubNetwork, singleAddressMask, AddressRangeType.INTERMEDIATE);
-					reservedIntermediateRange.setParentRange(immediateReservationRange);
-					immediateReservationRange.getReservations().add(reservedIntermediateRange);
-				} else {
-					reservedIntermediateRange = immediateReservationRange;
-				}
-				ipRangeRepository.save(immediateReservationRange);
-			}
-			final IpNetwork reservationNetwork = new IpNetwork(enteredIpAddress, singleAddressMask);
-			final IpRange reservedRange = new IpRange(reservationNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
-			reservedRange.setParentRange(reservedIntermediateRange);
-			reservedIntermediateRange.getReservations().add(reservedRange);
-			ipRangeRepository.save(reservedRange);
-			addressPair.setIpAddress(reservedRange, addressType);
+		final IpNetwork enteredNetwork = IpNetwork.resolveAddress(address);
+		if (enteredNetwork == null) {
+			addressPair.setIpAddress(null, addressType);
+			// if (offsetPair != null) {
+			// offsetPair.setExpectedOffset(null, addressType);
+			// }
 			return true;
-		} catch (final UnknownHostException e) {
-			log.info("Unknown IP Address", e);
+		}
+		final IpRange reservationBefore = addressPair.getIpAddress(addressType);
+		if (reservationBefore != null) {
+			clearIntermediateParent(reservationBefore.getParentRange());
+			deleteIpRange(reservationBefore);
+			addressPair.setIpAddress(null, addressType);
+		}
+		final IpAddress enteredAddress = enteredNetwork.getAddress();
+		if (enteredAddress.getAddressType() != addressType) {
+			log.info("Wrong address type " + enteredAddress.getAddressType() + " of " + address + " expected " + addressType);
 			return false;
 		}
+		final IpRange foundParentRange = findParentRange(enteredNetwork);
+		final IpRange reservedIntermediateRange;
+		final int addressMask = enteredNetwork.getNetmask();
+		final int singleAddressMask = addressType.getBitCount();
+		if (foundParentRange == null) {
+			// reserve special range
+			if (addressMask > singleAddressMask - 2) {
+				log.info("Cannot create reservation for " + address);
+				return false;
+			}
+			final IpRange rootRange = addRootRange(enteredNetwork, addressMask, "");
+			reservedIntermediateRange = reserveRange(rootRange, AddressRangeType.INTERMEDIATE, singleAddressMask, "");
+		} else {
+			final int rangeMask = foundParentRange.getRangeMask();
+			final IpNetwork ipNetwork = new IpNetwork(enteredAddress, rangeMask);
+			for (final IpRange checkRange : foundParentRange.getReservations()) {
+				if (ipNetwork.getAddress().getRawValue().equals(checkRange.getRange().getAddress().getRawValue())) {
+					log.info("Address-Range " + ipNetwork + " is already reserved");
+					return false;
+				}
+			}
+			final boolean intermediateRangeNeeded = rangeMask < addressMask;
+			final IpRange immediateReservationRange = new IpRange(ipNetwork, intermediateRangeNeeded ? addressMask : singleAddressMask, AddressRangeType.INTERMEDIATE);
+			immediateReservationRange.setParentRange(foundParentRange);
+			foundParentRange.getReservations().add(immediateReservationRange);
+			if (intermediateRangeNeeded) {
+				final IpNetwork ipSubNetwork = new IpNetwork(enteredAddress, addressMask);
+				reservedIntermediateRange = new IpRange(ipSubNetwork, singleAddressMask, AddressRangeType.INTERMEDIATE);
+				reservedIntermediateRange.setParentRange(immediateReservationRange);
+				immediateReservationRange.getReservations().add(reservedIntermediateRange);
+			} else {
+				reservedIntermediateRange = immediateReservationRange;
+			}
+			ipRangeRepository.save(immediateReservationRange);
+		}
+		final IpNetwork reservationNetwork = new IpNetwork(enteredAddress, singleAddressMask);
+		final IpRange reservedRange = new IpRange(reservationNetwork, singleAddressMask, AddressRangeType.ASSIGNED);
+		reservedRange.setParentRange(reservedIntermediateRange);
+		reservedIntermediateRange.getReservations().add(reservedRange);
+		ipRangeRepository.save(reservedRange);
+		addressPair.setIpAddress(reservedRange, addressType);
+		return true;
 	}
 
 	@Override
