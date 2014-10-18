@@ -11,6 +11,7 @@ import org.vaadin.spring.VaadinUI;
 
 import ch.bergturbenthal.wisp.manager.service.DemoSetupService;
 import ch.bergturbenthal.wisp.manager.view.ConnectionView;
+import ch.bergturbenthal.wisp.manager.view.DomainView;
 import ch.bergturbenthal.wisp.manager.view.MapView;
 import ch.bergturbenthal.wisp.manager.view.NetworkDeviceView;
 import ch.bergturbenthal.wisp.manager.view.PasswordView;
@@ -61,6 +62,7 @@ public class WispManagerUI extends UI {
 		menuEntries.put("Connections", ConnectionView.VIEW_ID);
 		menuEntries.put("Network Devices", NetworkDeviceView.VIEW_ID);
 		menuEntries.put("Network Ranges", RootRangesView.VIEW_ID);
+		menuEntries.put("Domains", DomainView.VIEW_ID);
 		menuEntries.put("Password", PasswordView.VIEW_ID);
 
 		for (final Entry<String, String> entry : menuEntries.entrySet()) {

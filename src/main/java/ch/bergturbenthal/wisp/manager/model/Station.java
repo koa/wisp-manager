@@ -9,6 +9,7 @@ import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.Version;
@@ -32,6 +33,8 @@ public class Station {
 	private Set<CustomerConnection> customerConnections = new HashSet<CustomerConnection>();
 	@OneToOne(cascade = CascadeType.ALL)
 	private NetworkDevice device;
+	@ManyToOne
+	private Domain domain;
 	@OneToMany(mappedBy = "endStation", orphanRemoval = true)
 	private List<Connection> endingConnections = new ArrayList<>();
 	@OneToMany(mappedBy = "station", orphanRemoval = true, cascade = CascadeType.ALL)

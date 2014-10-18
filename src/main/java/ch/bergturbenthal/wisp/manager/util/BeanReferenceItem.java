@@ -41,6 +41,9 @@ public class BeanReferenceItem<T> implements Item, Item.PropertySetChangeNotifie
 	@Override
 	public Property getItemProperty(final Object id) {
 		final PropertyHandler handler = resolver.resolveProperty(id);
+		if (handler == null) {
+			throw new IllegalArgumentException("Property " + id + " not found");
+		}
 		return new Property() {
 			private boolean readOnly = !handler.canWrite();
 

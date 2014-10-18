@@ -2,6 +2,7 @@ package ch.bergturbenthal.wisp.manager.util;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +65,39 @@ public class PropertyResolver<T> {
 				});
 			}
 		}
+		Method foundOverrideMethod = null;
+		try {
+			foundOverrideMethod = entityType.getMethod("overrideFrom", entityType);
+		} catch (SecurityException | NoSuchMethodException e) {
+			// no override method found -> this not writeable
+		}
+		final Method overrideMethod = foundOverrideMethod;
+		properties.put("this", new PropertyHandler() {
+
+			@Override
+			public boolean canWrite() {
+				return overrideMethod != null;
+			}
+
+			@Override
+			public Class<?> getPropertyType() {
+				return entityType;
+			}
+
+			@Override
+			public Object getValue(final Object bean) {
+				return bean;
+			}
+
+			@Override
+			public void setValue(final Object bean, final Object value) {
+				try {
+					overrideMethod.invoke(bean, value);
+				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+					throw new IllegalArgumentException("Cannot override " + bean + " with " + value);
+				}
+			}
+		});
 	}
 
 	public Collection<String> knownProperties() {
