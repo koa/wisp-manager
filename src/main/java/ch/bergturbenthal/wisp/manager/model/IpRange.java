@@ -2,6 +2,7 @@ package ch.bergturbenthal.wisp.manager.model;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -29,6 +30,7 @@ import ch.bergturbenthal.wisp.manager.model.address.AddressRangeType;
 											"v4OwningAutoConnectionPorts",
 											"v4OwningGatewaySettings",
 											"v4OwningStations",
+											"v4OwningTunnels",
 											"v4OwningVlans",
 											"v6OwningAntenna",
 											"v6OwningAutoConnectionPorts",
@@ -59,6 +61,8 @@ public class IpRange {
 	private Collection<GatewaySettings> v4OwningGatewaySettings = new ArrayList<GatewaySettings>(0);
 	@OneToMany(mappedBy = "loopback.v4Address")
 	private Collection<Station> v4OwningStations = new ArrayList<Station>(0);
+	@OneToMany(mappedBy = "v4Address")
+	private Collection<IpIpv6Tunnel> v4OwningTunnels = new ArrayList<IpIpv6Tunnel>(0);
 	@OneToMany(mappedBy = "address.v4Address")
 	private Collection<VLan> v4OwningVlans = new ArrayList<VLan>(0);
 
@@ -103,6 +107,10 @@ public class IpRange {
 		return getV4OrV6(v4OwningStations, v6OwningStations);
 	}
 
+	public Collection<IpIpv6Tunnel> getOwningTunnels() {
+		return getV4OrV6(v4OwningTunnels, Collections.<IpIpv6Tunnel> emptyList());
+	}
+
 	public Collection<VLan> getOwningVlans() {
 		return getV4OrV6(v4OwningVlans, v6OwningVlans);
 	}
@@ -122,7 +130,8 @@ public class IpRange {
 						&& getOwningGatewaySettings().isEmpty()
 						&& getOwningStations().isEmpty()
 						&& getOwningVlans().isEmpty()
-						&& getOwningAutoConnectionPorts().isEmpty();
+						&& getOwningAutoConnectionPorts().isEmpty()
+						&& getOwningTunnels().isEmpty();
 	}
 
 }
