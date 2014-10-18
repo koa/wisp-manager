@@ -37,6 +37,7 @@ import ch.bergturbenthal.wisp.manager.model.GlobalDnsServer;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
 import ch.bergturbenthal.wisp.manager.model.IpNetwork;
+import ch.bergturbenthal.wisp.manager.model.IpNetwork.AddressInNetwork;
 import ch.bergturbenthal.wisp.manager.model.IpRange;
 import ch.bergturbenthal.wisp.manager.model.NetworkDevice;
 import ch.bergturbenthal.wisp.manager.model.NetworkInterface;
@@ -957,7 +958,6 @@ public class AddressManagementBean implements AddressManagementService {
 		if (ipRange.isOrphan()) {
 			deleteIpRange(ipRange);
 		}
-
 	}
 
 	private void removeRangePair(final RangePair address) {
@@ -974,6 +974,36 @@ public class AddressManagementBean implements AddressManagementService {
 			removeAddressIfOneVlan(v6Address);
 			address.setV6Address(null);
 		}
+	}
+
+	@Override
+	public void removeRangeUsage(final IpRange range) {
+		final IpAddressType addressType = range.getRange().getAddress().getAddressType();
+
+		for (final Antenna antenna : range.getOwningAntennas()) {
+			antenna.getAddresses().setIpAddress(null, addressType);
+		}
+		range.getOwningAntennas().clear();
+
+		for (final AutoConnectionPort autoConnectionPort : range.getOwningAutoConnectionPorts()) {
+			autoConnectionPort.getPortAddress().setIpAddress(null, addressType);
+		}
+		range.getOwningAutoConnectionPorts().clear();
+
+		for (final GatewaySettings gatewaySettings : range.getOwningGatewaySettings()) {
+			gatewaySettings.getManagementAddress().setIpAddress(null, addressType);
+		}
+		range.getOwningGatewaySettings().clear();
+
+		for (final Station station : range.getOwningStations()) {
+			station.getLoopback().setIpAddress(null, addressType);
+		}
+		range.getOwningStations().clear();
+
+		for (final VLan vLan : range.getOwningVlans()) {
+			vLan.getAddress().setIpAddress(null, addressType);
+		}
+		range.getOwningVlans().clear();
 	}
 
 	/*
@@ -1016,8 +1046,8 @@ public class AddressManagementBean implements AddressManagementService {
 
 	@Override
 	public boolean setAddressManually(final RangePair addressPair, final String address, final IpAddressType addressType) {
-		final IpNetwork enteredNetwork = IpNetwork.resolveAddress(address);
-		if (enteredNetwork == null) {
+		final AddressInNetwork addressInNetwork = IpNetwork.resolveAddressInNetwork(address);
+		if (addressInNetwork == null) {
 			addressPair.setIpAddress(null, addressType);
 			// if (offsetPair != null) {
 			// offsetPair.setExpectedOffset(null, addressType);
@@ -1030,7 +1060,8 @@ public class AddressManagementBean implements AddressManagementService {
 			deleteIpRange(reservationBefore);
 			addressPair.setIpAddress(null, addressType);
 		}
-		final IpAddress enteredAddress = enteredNetwork.getAddress();
+		final IpNetwork enteredNetwork = addressInNetwork.getNetwork();
+		final IpAddress enteredAddress = addressInNetwork.getAddress();
 		if (enteredAddress.getAddressType() != addressType) {
 			log.info("Wrong address type " + enteredAddress.getAddressType() + " of " + address + " expected " + addressType);
 			return false;

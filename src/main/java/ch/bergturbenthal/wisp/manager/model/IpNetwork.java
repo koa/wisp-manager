@@ -8,12 +8,19 @@ import javax.persistence.Embeddable;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Value;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 
 @Data
 @Embeddable
 @NoArgsConstructor
 public class IpNetwork {
+	@Value
+	public static class AddressInNetwork {
+		private IpAddress address;
+		private IpNetwork network;
+	}
+
 	private static byte[] calculateNetmask(final IpAddressType addressType, final int netmaskLength) {
 		final byte[] mask;
 		switch (addressType) {
@@ -39,7 +46,15 @@ public class IpNetwork {
 		return mask;
 	}
 
-	public static IpNetwork resolveAddress(final String address) {
+	public static IpNetwork resolveAddress(final String value) {
+		final AddressInNetwork addressInNetwork = resolveAddressInNetwork(value);
+		if (addressInNetwork == null) {
+			return null;
+		}
+		return addressInNetwork.getNetwork();
+	}
+
+	public static AddressInNetwork resolveAddressInNetwork(final String address) {
 		try {
 			if (address == null || address.trim().isEmpty()) {
 				return null;
@@ -54,7 +69,8 @@ public class IpNetwork {
 			} else {
 				addressMask = singleAddressMask;
 			}
-			return new IpNetwork(enteredIpAddress, addressMask);
+			final IpNetwork ipNetwork = new IpNetwork(enteredIpAddress, addressMask);
+			return new AddressInNetwork(enteredIpAddress, ipNetwork);
 		} catch (final UnknownHostException e) {
 			throw new RuntimeException("Unknown Host address: " + address, e);
 		}

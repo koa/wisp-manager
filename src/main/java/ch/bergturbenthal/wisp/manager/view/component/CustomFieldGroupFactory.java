@@ -77,7 +77,7 @@ public class CustomFieldGroupFactory extends DefaultFieldGroupFieldFactory {
 
 					@Override
 					public IpNetwork convertToModel(final String value, final Class<? extends IpNetwork> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
-						if (value == null) {
+						if (value == null || value.trim().isEmpty()) {
 							return null;
 						}
 						return IpNetwork.resolveAddress(value);
@@ -86,7 +86,7 @@ public class CustomFieldGroupFactory extends DefaultFieldGroupFieldFactory {
 					@Override
 					public String convertToPresentation(final IpNetwork value, final Class<? extends String> targetType, final Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
 						if (value == null) {
-							return null;
+							return "";
 						}
 						return value.getDescription();
 					}

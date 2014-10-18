@@ -215,6 +215,7 @@ public class RootRangesView extends CustomComponent implements View {
 		final Action removeAction = new Action("remove");
 		final Action addRootAction = new Action("append root");
 		final Action addChildAction = new Action("add child");
+		final Action removeUsageAction = new Action("remove usage");
 
 		treeTable.addActionHandler(new Action.Handler() {
 
@@ -229,6 +230,8 @@ public class RootRangesView extends CustomComponent implements View {
 					}
 					if (ipRange.isOrphan()) {
 						actions.add(removeAction);
+					} else {
+						actions.add(removeUsageAction);
 					}
 				}
 				return actions.toArray(new Action[actions.size()]);
@@ -236,9 +239,14 @@ public class RootRangesView extends CustomComponent implements View {
 
 			@Override
 			public void handleAction(final Action action, final Object sender, final Object target) {
-				if (removeAction == action) {
+				if (action == removeAction) {
 					final IpRange ipRange = connectionContainer.getItem(target).getPojo();
 					addressManagementBean.removeRange(ipRange);
+					refreshTable();
+				} else if (action == removeUsageAction) {
+					final PojoItem<IpRange> ipRangeItem = connectionContainer.getItem(target);
+					final IpRange ipRange = ipRangeItem.getPojo();
+					addressManagementBean.removeRangeUsage(ipRange);
 					refreshTable();
 				} else if (action == addRootAction) {
 					addRootRangeFieldGroup.setItemDataSource(new BeanReferenceItem<AppendRootRangeData>(new AppendRootRangeData()));
