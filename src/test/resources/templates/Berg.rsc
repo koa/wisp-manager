@@ -121,6 +121,7 @@
 	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!172.30.0.0/16
 /ip firewall nat
 	remove numbers=[find]
+	add action=masquerade chain=srcnat dst-address=172.28.0.0/30
 	add action=masquerade chain=srcnat out-interface=cyberlink1 src-address=172.16.0.0/12
 	add action=masquerade chain=srcnat out-interface=cyberlink1 src-address=10.14.0.0/16
 	add action=dst-nat chain=dstnat in-interface=cyberlink1 dst-port=80 protocol=tcp to-addresses=10.14.50.31 to-ports=80

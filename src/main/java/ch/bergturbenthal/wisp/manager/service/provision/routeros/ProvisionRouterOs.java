@@ -318,6 +318,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 						baseIfBuilder.v4Address(manualAddress.getInet4Address().getHostAddress());
 						baseIfBuilder.v4Mask(parentRange.getNetmask());
 						baseIfBuilder.v4NetAddress(parentRange.getAddress().getInetAddress().getHostAddress());
+						v4NatRules.add(FirewallRule.builder().action("masquerade").chain("srcnat").dstAddress(parentRange.getDescription()).build());
 					}
 					networkInterfaces.add(baseIfBuilder.build());
 
