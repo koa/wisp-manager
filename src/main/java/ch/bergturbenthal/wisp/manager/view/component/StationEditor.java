@@ -16,6 +16,7 @@ import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.vaadin.spring.UIScope;
 
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
@@ -65,6 +66,7 @@ import com.vaadin.ui.Window.CloseListener;
 
 @Slf4j
 @Component
+@UIScope
 public class StationEditor extends CustomComponent implements ItemEditor<Station> {
 
 	private static interface Getter<T> {
