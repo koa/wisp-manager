@@ -165,7 +165,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#addGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -494,8 +494,13 @@ public class AddressManagementBean implements AddressManagementService {
 		if (networkDevice == null) {
 			return;
 		}
-		final Collection<IpAddress> dnsServers = listGlobalDnsServers();
 		final Set<IpAddress> dnsServersOfDevice = ensureMutableSet(networkDevice.getDnsServers());
+		final Collection<IpAddress> dnsServers;
+		if (station.getDomain() != null && !station.getDomain().getDnsServers().isEmpty()) {
+			dnsServers = station.getDomain().getDnsServers();
+		} else {
+			dnsServers = listGlobalDnsServers();
+		}
 		dnsServersOfDevice.retainAll(dnsServers);
 		dnsServersOfDevice.addAll(dnsServers);
 		networkDevice.setDnsServers(dnsServersOfDevice);
@@ -615,7 +620,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#fillStation(ch.bergturbenthal.wisp.manager.model.Station)
 	 */
 	@Override
@@ -682,7 +687,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAllRootRanges()
 	 */
 	@Override
@@ -692,7 +697,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see
 	 * ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#findAndReserveAddressRange(ch.bergturbenthal.wisp.manager.model.address.
 	 * AddressRangeType, ch.bergturbenthal.wisp.manager.model.address.IpAddressType, int, int,
@@ -807,7 +812,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#initAddressRanges()
 	 */
 	@Override
@@ -844,7 +849,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#listGlobalDnsServers()
 	 */
 	@Override
@@ -939,7 +944,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#removeGlobalDns(ch.bergturbenthal.wisp.manager.model.IpAddress)
 	 */
 	@Override
@@ -1011,7 +1016,7 @@ public class AddressManagementBean implements AddressManagementService {
 
 	/*
 	 * (non-Javadoc)
-	 *
+	 * 
 	 * @see ch.bergturbenthal.wisp.manager.service.impl.AddressManagementService#reserveRange(ch.bergturbenthal.wisp.manager.model.IpRange,
 	 * ch.bergturbenthal.wisp.manager.model.address.AddressRangeType, int, java.lang.String)
 	 */

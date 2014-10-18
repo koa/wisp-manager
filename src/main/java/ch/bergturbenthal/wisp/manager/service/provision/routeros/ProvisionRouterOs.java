@@ -45,6 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.Domain;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
 import ch.bergturbenthal.wisp.manager.model.IpIpv6Tunnel;
@@ -127,6 +128,7 @@ public class ProvisionRouterOs implements ProvisionBackend {
 	@Data
 	@Builder
 	public static class ProvisionNetworkInterface {
+		private final String dhcpDomain;
 		private final String dhcpLeaseTime;
 		private final String dhcpRange;
 		private final String ifName;
@@ -426,6 +428,12 @@ public class ProvisionRouterOs implements ProvisionBackend {
 							final long startOffset = dhcpSettings.getStartOffset().longValue();
 							final long endOffset = dhcpSettings.getEndOffset().longValue();
 							builder.dhcpRange(v4RangeAddress.getAddressOfNetwork(startOffset).getHostAddress() + "-" + v4RangeAddress.getAddressOfNetwork(endOffset).getHostAddress());
+							if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
+								final Domain domain = station.getDomain();
+								if (domain != null) {
+									builder.dhcpDomain(domain.getDomainName());
+								}
+							}
 						}
 						if (netIf.getRole() == NetworkInterfaceRole.NETWORK) {
 							for (final String chain : FORWARD_FILTER_LIST) {

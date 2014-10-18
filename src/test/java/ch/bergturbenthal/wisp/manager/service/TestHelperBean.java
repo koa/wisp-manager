@@ -22,6 +22,7 @@ import ch.bergturbenthal.wisp.manager.repository.AntennaRepository;
 import ch.bergturbenthal.wisp.manager.repository.BridgeRepository;
 import ch.bergturbenthal.wisp.manager.repository.ConnectionRepository;
 import ch.bergturbenthal.wisp.manager.repository.DnsServerRepository;
+import ch.bergturbenthal.wisp.manager.repository.DomainRepository;
 import ch.bergturbenthal.wisp.manager.repository.IpRangeRepository;
 import ch.bergturbenthal.wisp.manager.repository.StationRepository;
 import ch.bergturbenthal.wisp.manager.repository.VLanRepository;
@@ -38,6 +39,8 @@ public class TestHelperBean {
 	private ConnectionRepository connectionRepository;
 	@Autowired
 	private DnsServerRepository dnsServerRepository;
+	@Autowired
+	private DomainRepository domainRepository;
 	@Autowired
 	private IpRangeRepository ipRangeRepository;
 	@Autowired
@@ -57,6 +60,7 @@ public class TestHelperBean {
 		dnsServerRepository.deleteAll();
 		vLanRepository.deleteAll();
 		ipRangeRepository.delete(ipRangeRepository.findAllRootRanges());
+		domainRepository.deleteAll();
 	}
 
 	public NetworkDevice createStationWithDevice(final String serial, final String macAddress, final String name, final boolean tunnelConnection) {

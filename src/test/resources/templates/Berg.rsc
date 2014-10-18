@@ -95,8 +95,8 @@
 	add address-pool=station-connection-3_pool disabled=no interface=station-connection-3 lease-time=10m name=dhcp_station-connection-3
 /ip dhcp-server network	
 	remove numbers=[find]
-	add address=10.14.0.0/16 gateway=10.14.10.1
-	add address=172.30.0.0/16 gateway=172.30.30.2
+	add address=10.14.0.0/16 domain=yourdomain.local gateway=10.14.10.1
+	add address=172.30.0.0/16 domain=yourdomain.local gateway=172.30.30.2
 	add address=172.16.1.0/29 gateway=172.16.1.1
 	add address=172.16.1.8/29 gateway=172.16.1.9
 	add address=172.16.1.16/29 gateway=172.16.1.17
@@ -183,6 +183,6 @@
 	add action=reject chain=input in-interface=customer-1 reject-with=icmp-admin-prohibited src-address=!2001:1620:bba:1:0:0:0:0/64
 
 /ip dns
-set allow-remote-requests=yes servers=2001:4860:4860:0:0:0:0:8888,8.8.8.8
+set allow-remote-requests=yes servers=192.168.1.50,192.168.1.51
 
 /system reboot

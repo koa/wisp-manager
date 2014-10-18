@@ -19,6 +19,7 @@ import ch.bergturbenthal.wisp.manager.model.Antenna;
 import ch.bergturbenthal.wisp.manager.model.Connection;
 import ch.bergturbenthal.wisp.manager.model.CustomerConnection;
 import ch.bergturbenthal.wisp.manager.model.DHCPSettings;
+import ch.bergturbenthal.wisp.manager.model.Domain;
 import ch.bergturbenthal.wisp.manager.model.GatewaySettings;
 import ch.bergturbenthal.wisp.manager.model.GatewayType;
 import ch.bergturbenthal.wisp.manager.model.IpAddress;
@@ -32,6 +33,7 @@ import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceType;
+import ch.bergturbenthal.wisp.manager.repository.DomainRepository;
 import ch.bergturbenthal.wisp.manager.repository.NetworkDeviceRepository;
 import ch.bergturbenthal.wisp.manager.repository.PasswordRepository;
 import ch.bergturbenthal.wisp.manager.repository.PortExposeRepository;
@@ -52,6 +54,8 @@ public class DemoSetupBean implements DemoSetupService {
 	private ConnectionService connectionService;
 	private final AtomicInteger deviceCounter = new AtomicInteger(2);
 	@Autowired
+	private DomainRepository domainRepository;
+	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementBean;
 	@Autowired
 	private NetworkDeviceRepository networkDeviceRepository;
@@ -61,10 +65,8 @@ public class DemoSetupBean implements DemoSetupService {
 	private PortExposeRepository portExposeRepository;
 	@Autowired
 	private StationRepository stationRepository;
-
 	@Autowired
 	private StationService stationService;
-
 	@Autowired
 	private VLanRepository vlanRepository;
 
@@ -184,6 +186,19 @@ public class DemoSetupBean implements DemoSetupService {
 			}
 			addressManagementBean.initAddressRanges();
 			if (stationService.listAllStations().isEmpty()) {
+
+				final Domain domain;
+				final Domain existingDomain = domainRepository.findByDomainName("yourdomain.local");
+				if (existingDomain == null) {
+					final Domain newDomain = new Domain();
+					newDomain.setDomainName("yourdomain.local");
+					newDomain.setDnsServers(Arrays.asList(new IpAddress(InetAddress.getByName("192.168.1.50")), new IpAddress(InetAddress.getByName("192.168.1.51"))));
+					domainRepository.save(newDomain);
+					domain = newDomain;
+				} else {
+					domain = existingDomain;
+				}
+
 				final Station stationBerg = createStation("Berg", new Position(47.4196598, 8.8859171));
 				final Station stationChalchegg = createStation("Chalchegg", new Position(47.4113853, 8.9027828));
 				final Station stationSusanne = createStation("Susanne", new Position(47.4186617, 8.8852251));
@@ -217,6 +232,7 @@ public class DemoSetupBean implements DemoSetupService {
 				// }
 				// }
 				stationBerg.setTunnelConnection(true);
+				stationBerg.setDomain(domain);
 				final GatewaySettings gateway = new GatewaySettings();
 				gateway.setGatewayName("Cyberlink");
 				gateway.setHasIPv4(true);

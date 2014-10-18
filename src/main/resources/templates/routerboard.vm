@@ -101,7 +101,11 @@
 	remove numbers=[find]
 #foreach($interface in $networkInterfaces)
 #if($interface.v4Address && $interface.dhcpRange)
+#if($interface.dhcpDomain)
+	add address=$interface.v4NetAddress/$interface.v4Mask domain=$interface.dhcpDomain gateway=$interface.v4Address
+#else
 	add address=$interface.v4NetAddress/$interface.v4Mask gateway=$interface.v4Address
+#end
 #end	
 #end
 
