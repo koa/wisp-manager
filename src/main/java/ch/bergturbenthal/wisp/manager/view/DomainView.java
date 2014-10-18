@@ -57,9 +57,9 @@ public class DomainView extends CustomComponent implements View {
 	}
 
 	public final static String VIEW_ID = "Domains";
-
 	@Autowired
 	private DomainRepository domainRepository;
+
 	@Autowired
 	private DomainService domainService;
 

@@ -2,9 +2,7 @@ package ch.bergturbenthal.wisp.manager.view.component;
 
 import java.net.InetAddress;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
 
 import javax.annotation.PostConstruct;
 
@@ -32,12 +30,9 @@ import ch.bergturbenthal.wisp.manager.model.RangePair;
 import ch.bergturbenthal.wisp.manager.model.Station;
 import ch.bergturbenthal.wisp.manager.model.VLan;
 import ch.bergturbenthal.wisp.manager.model.address.IpAddressType;
-import ch.bergturbenthal.wisp.manager.model.devices.NetworkDeviceModel;
 import ch.bergturbenthal.wisp.manager.service.AddressManagementService;
 import ch.bergturbenthal.wisp.manager.service.NetworkDeviceManagementService;
 import ch.bergturbenthal.wisp.manager.service.StationService;
-import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer;
-import ch.bergturbenthal.wisp.manager.util.CrudRepositoryContainer.PojoFilter;
 import ch.bergturbenthal.wisp.manager.util.PojoItem;
 
 import com.vaadin.data.Container;
@@ -148,10 +143,15 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 	@Autowired
 	private AddressManagementService addressManagementService;
+
 	private NetworkDevice currentNetworkDevice;
-	private CrudRepositoryContainer<NetworkDevice, Long> devicesContainer;
+	@Autowired
+	private CurrentSelectedDeviceHandler currentSelectedDeviceHandler;
+	@Autowired
+	private ContainerSelectFieldFactory fieldFactory;
 	private FieldGroup fieldGroup;
 	private FormLayout mainLayout;
+
 	@Autowired
 	private NetworkDeviceManagementService networkDeviceManagementService;
 
@@ -453,7 +453,7 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 					final FormLayout formLayout = new FormLayout();
 					final FieldGroup formFieldGroup = new FieldGroup(gatewayItem);
 					formFieldGroup.setBuffered(false);
-					formFieldGroup.setFieldFactory(new DeviceSelectFieldFactory(devicesContainer));
+					formFieldGroup.setFieldFactory(fieldFactory);
 					final ComboBox gatewayTypeField = new ComboBox("Type", Arrays.asList(GatewayType.values()));
 					gatewayTypeField.setNullSelectionAllowed(false);
 					formFieldGroup.bind(gatewayTypeField, "gatewayType");
@@ -682,15 +682,15 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 
 	@PostConstruct
 	public void init() {
-		devicesContainer = networkDeviceManagementService.createContainerRepository();
 		fieldGroup = new FieldGroup(stationService.createContainerRepository().getDummyItem());
-		fieldGroup.setFieldFactory(new DeviceSelectFieldFactory(devicesContainer));
+		fieldGroup.setFieldFactory(fieldFactory);
 		fieldGroup.setBuffered(false);
 		mainLayout = new FormLayout();
 		mainLayout.setSizeFull();
 		setSizeFull();
 		mainLayout.addComponent(fieldGroup.buildAndBind("name"));
 		mainLayout.addComponent(fieldGroup.buildAndBind("device"));
+		mainLayout.addComponent(fieldGroup.buildAndBind("domain"));
 
 		final ListPropertyTable<NetworkInterface> networkInterfaceTable = new ListPropertyTable<>(NetworkInterface.class);
 		// networkInterfaceTable.setColumnHeaderMode(ColumnHeaderMode.HIDDEN);
@@ -774,20 +774,9 @@ public class StationEditor extends CustomComponent implements ItemEditor<Station
 	@Override
 	public void setItem(final PojoItem<Station> item) {
 		fieldGroup.setItemDataSource(item);
-		devicesContainer.removeAllFilters();
-		final Long stationId = item.getPojo().getId();
-		final Set<NetworkDeviceModel> stationModels = new HashSet<NetworkDeviceModel>(Arrays.asList(NetworkDeviceModel.stationModels));
-		devicesContainer.addFilter(new PojoFilter<NetworkDevice>() {
-
-			@Override
-			public boolean accept(final NetworkDevice candidate) {
-				if (!stationModels.contains(candidate.getDeviceModel())) {
-					return false;
-				}
-				return candidate.getStation() == null || candidate.getStation().getId().equals(stationId);
-			}
-		});
-		currentNetworkDevice = item.getPojo().getDevice();
+		final Station currentSelectedStation = item.getPojo();
+		currentSelectedDeviceHandler.setFilterForStation(currentSelectedStation);
+		currentNetworkDevice = currentSelectedStation.getDevice();
 		provisionButton.setEnabled(currentNetworkDevice != null);
 		mainLayout.setVisible(true);
 	}
