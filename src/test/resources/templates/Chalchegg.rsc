@@ -46,7 +46,7 @@
 	add address=172.16.4.1/30 interface=tunnel-berg
 
 # ipv4 ospf Routing
-/routing ospf instance set [ find default=yes ] router-id=172.16.0.2
+/routing ospf instance set [ find default=yes ] distribute-default=if-installed-as-type-1 router-id=172.16.0.2
 
 /routing ospf interface
 	remove numbers=[find dynamic=no]
@@ -141,7 +141,7 @@
  
 # ospf-v3 Routing 
  
-/routing ospf-v3 instance set [ find default=yes ] router-id=172.16.0.2
+/routing ospf-v3 instance set [ find default=yes ] distribute-default=if-installed-as-type-1 router-id=172.16.0.2
 /routing ospf-v3 interface
 	remove numbers=[find]
 # Loopback

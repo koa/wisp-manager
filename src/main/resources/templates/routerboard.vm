@@ -55,7 +55,7 @@
 #end
 
 # ipv4 ospf Routing
-/routing ospf instance set [ find default=yes ] router-id=$v4Loopback
+/routing ospf instance set [ find default=yes ] distribute-default=if-installed-as-type-1 router-id=$v4Loopback
 
 /routing ospf interface
 	remove numbers=[find dynamic=no]
@@ -144,7 +144,7 @@
  
 # ospf-v3 Routing 
  
-/routing ospf-v3 instance set [ find default=yes ] router-id=$v4Loopback
+/routing ospf-v3 instance set [ find default=yes ] distribute-default=if-installed-as-type-1 router-id=$v4Loopback
 /routing ospf-v3 interface
 	remove numbers=[find]
 # Loopback
