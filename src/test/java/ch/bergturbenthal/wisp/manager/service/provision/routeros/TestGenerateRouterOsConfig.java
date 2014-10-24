@@ -14,6 +14,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,7 +86,7 @@ public class TestGenerateRouterOsConfig {
 					@Cleanup
 					final InputStreamReader reader = new InputStreamReader(classPathResource.getInputStream(), "utf-8");
 					final String template = IOUtils.toString(reader);
-					// Assert.assertEquals("Difference in " + station.getName(), template, generatedConfig);
+					Assert.assertEquals("Difference in " + station.getName(), template, generatedConfig);
 					return null;
 
 				} catch (final IOException e) {
